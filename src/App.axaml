@@ -5,6 +5,11 @@
              RequestedThemeVariant="Default">
   <!-- "Default" theme variant follows the OS light/dark setting (PRD §6.8). -->
 
+  <Application.Resources>
+    <!-- Row-density setting; overridden at runtime from AppSettings.RowHeight (PRD §6.8). -->
+    <x:Double x:Key="RowHeight">24</x:Double>
+  </Application.Resources>
+
   <Application.DataTemplates>
     <local:ViewLocator />
   </Application.DataTemplates>

@@ -4,6 +4,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="using:FoileBrowser.ViewModels"
              xmlns:models="using:FoileBrowser.Models"
+             xmlns:views="using:FoileBrowser.Views"
              mc:Ignorable="d" d:DesignWidth="500" d:DesignHeight="400"
              x:Class="FoileBrowser.Views.FileTabView"
              x:DataType="vm:FileTabViewModel">
@@ -85,8 +86,14 @@
       </ListBox.Styles>
       <ListBox.ItemTemplate>
         <DataTemplate x:DataType="vm:FileEntryViewModel">
-          <Grid ColumnDefinitions="26,*,90,110,150" MinHeight="22">
-            <TextBlock Grid.Column="0" Text="{Binding Glyph}" VerticalAlignment="Center" FontSize="12" />
+          <Grid ColumnDefinitions="26,*,90,110,150" MinHeight="{DynamicResource RowHeight}">
+            <Panel Grid.Column="0" VerticalAlignment="Center">
+              <TextBlock Text="{Binding Glyph}" FontSize="12" />
+              <!-- Color-tag dot (PRD §6.7) -->
+              <Ellipse Width="7" Height="7" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,1,1,0"
+                       IsVisible="{Binding HasTag}"
+                       Fill="{Binding TagColor, Converter={x:Static views:MainWindow.BrushConverter}}" />
+            </Panel>
             <StackPanel Grid.Column="1" VerticalAlignment="Center"
                         Opacity="{Binding IsHidden, Converter={x:Static vm:BoolOpacityConverter.Instance}}">
               <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />

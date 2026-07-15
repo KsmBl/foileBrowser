@@ -4,7 +4,10 @@ using Avalonia.Controls;
 using Avalonia.Data.Converters;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Media;
+using Avalonia.Styling;
 using Avalonia.Threading;
+using FoileBrowser.Models;
 using FoileBrowser.ViewModels;
 
 namespace FoileBrowser.Views;
@@ -23,6 +26,11 @@ public partial class MainWindow : Window
     public static readonly IValueConverter IsNullConverter =
         new FuncValueConverter<object?, bool>(v => v is null);
 
+    /// <summary>Parses a hex color string into a brush for the tag dot (PRD §6.7).</summary>
+    public static readonly IValueConverter BrushConverter =
+        new FuncValueConverter<string?, IBrush?>(hex =>
+            hex is not null && Color.TryParse(hex, out var c) ? new SolidColorBrush(c) : null);
+
     private CommandPaletteViewModel? _palette;
 
     public MainWindow()
@@ -35,16 +43,60 @@ public partial class MainWindow : Window
         base.OnDataContextChanged(e);
         if (DataContext is MainWindowViewModel vm)
         {
-            // The view supplies the rename prompt and clipboard access the VM asks for.
+            // The view supplies the prompts, dialogs, clipboard and theming the VM asks for.
             vm.NameRequester = current => new NameInputWindow(current).ShowDialog<string?>(this);
+            vm.BatchRenameRequester = entries => new BatchRenameWindow(entries).ShowDialog<IReadOnlyList<RenameProposal>?>(this);
+            vm.SettingsRequester = settings => new SettingsWindow(settings).ShowDialog<bool>(this);
             vm.ClipboardCopyRequested -= OnClipboardCopyRequested;
             vm.ClipboardCopyRequested += OnClipboardCopyRequested;
+            vm.ThemeChanged -= OnThemeChanged;
+            vm.ThemeChanged += OnThemeChanged;
 
             if (_palette is not null)
                 _palette.PropertyChanged -= OnPalettePropertyChanged;
             _palette = vm.CommandPalette;
             _palette.PropertyChanged += OnPalettePropertyChanged;
         }
+    }
+
+    private void OnThemeChanged(object? sender, EventArgs e)
+    {
+        if (DataContext is MainWindowViewModel vm)
+            ApplyTheme(vm.Settings);
+    }
+
+    private void ApplyTheme(AppSettings settings)
+    {
+        if (Application.Current is { } app)
+        {
+            app.RequestedThemeVariant = settings.ThemeVariant switch
+            {
+                "Light" => ThemeVariant.Light,
+                "Dark" => ThemeVariant.Dark,
+                _ => ThemeVariant.Default,
+            };
+            if (Color.TryParse(settings.AccentColor, out var accent))
+                app.Resources["SystemAccentColor"] = accent;
+            app.Resources["RowHeight"] = settings.RowHeight; // row-density (PRD §6.8)
+        }
+
+        FontSize = settings.FontSize; // inherited by descendants
+    }
+
+    private bool _sessionSaved;
+
+    protected override async void OnClosing(WindowClosingEventArgs e)
+    {
+        // Persist the session before the window actually closes.
+        if (!_sessionSaved && DataContext is MainWindowViewModel vm)
+        {
+            e.Cancel = true;
+            await vm.SaveSessionAsync();
+            _sessionSaved = true;
+            Close();
+            return;
+        }
+        base.OnClosing(e);
     }
 
     // Focus the palette query box the moment it opens.

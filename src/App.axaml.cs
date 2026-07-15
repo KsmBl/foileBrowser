@@ -24,9 +24,14 @@ public partial class App : Application
             var operations = new FileOperationService();
             var trash = new TrashService();
             var search = new SearchService();
+            var preview = new PreviewService();
+            var settings = new SettingsService();
+            var tags = new TagService(settings);
+            var shell = new ShellService();
             desktop.MainWindow = new MainWindow
             {
-                DataContext = new MainWindowViewModel(fileSystem, operations, trash, search),
+                DataContext = new MainWindowViewModel(
+                    fileSystem, operations, trash, search, preview, settings, tags, shell),
             };
         }
 

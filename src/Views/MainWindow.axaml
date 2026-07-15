@@ -40,9 +40,15 @@
         <Button Content="Move →" Command="{Binding MoveToOtherCommand}" ToolTip.Tip="Move to other pane (F7)" />
         <Button Content="Copy Path" Command="{Binding CopyPathCommand}" />
         <Button Content="Copy Name" Command="{Binding CopyNameCommand}" />
+        <Button Content="Batch…" Command="{Binding BatchRenameCommand}" ToolTip.Tip="Batch rename items in this folder" />
         <Border Width="1" Background="{DynamicResource SystemControlForegroundBaseLowBrush}" Margin="4,2" />
+        <Button Content="Terminal" Command="{Binding OpenTerminalHereCommand}" ToolTip.Tip="Open terminal here" />
+        <Button Content="Pin" Command="{Binding PinFavoriteCommand}" ToolTip.Tip="Pin current folder to favorites" />
         <ToggleButton Content="Dual pane" IsChecked="{Binding IsDualPane, Mode=OneWay}"
                       Command="{Binding ToggleDualPaneCommand}" ToolTip.Tip="Toggle single/dual pane" />
+        <ToggleButton Content="Inspector" IsChecked="{Binding IsInspectorOpen, Mode=OneWay}"
+                      Command="{Binding ToggleInspectorCommand}" ToolTip.Tip="Toggle inspector (Ctrl+I)" />
+        <Button Content="⚙" Command="{Binding OpenSettingsCommand}" ToolTip.Tip="Settings" />
       </StackPanel>
     </Border>
 
