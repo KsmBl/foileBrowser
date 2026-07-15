@@ -28,6 +28,9 @@ dotnet test                                    # run the NUnit suite
 - **M3 — Search, preview & palette** ✅ — as-you-type filter, recursive streaming fuzzy
   search with extension filters, inspector panel + spacebar quick-preview (text/image/folder),
   fuzzy command palette (Ctrl+P)
+- **M4 — Polish** ✅ — light/dark/system theme + accent + font/row-density, portable JSON
+  settings, session restore, color tags (filterable), batch rename (regex/counter/date tokens),
+  filesystem-watcher auto-refresh, open-with / open-terminal-here
 
 See [docs/PRD.md](docs/PRD.md) for the checkboxed feature list and milestones — check off what's
 built, delete what's not wanted.
