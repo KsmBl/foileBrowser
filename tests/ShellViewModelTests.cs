@@ -8,8 +8,30 @@ namespace FoileBrowser.Tests;
 [TestFixture]
 public class ShellViewModelTests
 {
-    private static MainWindowViewModel CreateShell(FakeFileSystem fs, RecordingTrash trash)
-        => new(fs, new FileOperationService(), trash);
+    private string _settingsDir = null!;
+    private string _settingsFile = null!;
+
+    [SetUp]
+    public void SetUp()
+    {
+        _settingsDir = Path.Combine(Path.GetTempPath(), "foile-shell-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(_settingsDir);
+        _settingsFile = Path.Combine(_settingsDir, "settings.json");
+    }
+
+    [TearDown]
+    public void TearDown()
+    {
+        try { Directory.Delete(_settingsDir, recursive: true); } catch (IOException) { }
+    }
+
+    // Isolates settings/tags to a temp file so tests never touch the real user config.
+    private MainWindowViewModel CreateShell(FakeFileSystem fs, RecordingTrash trash)
+    {
+        var settings = new SettingsService(_settingsFile);
+        return new MainWindowViewModel(fs, new FileOperationService(), trash,
+            new SearchService(), new PreviewService(), settings, new TagService(settings), new ShellService());
+    }
 
     private static async Task<bool> WaitUntilAsync(Func<bool> condition, int timeoutMs = 2000)
     {
@@ -112,7 +134,9 @@ public class ShellViewModelTests
         var fs = new FakeFileSystem();
         fs.Entries.Add(File("doc.txt"));
         var preview = new FakePreview();
-        var vm = new MainWindowViewModel(fs, new FileOperationService(), new RecordingTrash(), new SearchService(), preview);
+        var settings = new SettingsService(_settingsFile);
+        var vm = new MainWindowViewModel(fs, new FileOperationService(), new RecordingTrash(),
+            new SearchService(), preview, settings, new TagService(settings), new ShellService());
         await vm.InitializeAsync();
 
         vm.ActiveTab!.SelectedEntry = vm.ActiveTab.Entries.First();
@@ -141,6 +165,35 @@ public class ShellViewModelTests
 
         Assert.That(vm.CommandPalette.IsOpen, Is.True);
         Assert.That(vm.CommandPalette.Results.Any(c => c.Title == "New Folder"), Is.True);
+    }
+
+    [Test]
+    public async Task AssignTag_Tags_The_Selected_Entry()
+    {
+        var fs = new FakeFileSystem();
+        fs.Entries.Add(File("tagged.txt"));
+        var vm = CreateShell(fs, new RecordingTrash());
+        await vm.InitializeAsync();
+        vm.ActiveTab!.SelectedEntry = vm.ActiveTab.Entries.First();
+
+        await vm.AssignTagCommand.ExecuteAsync("#E5484D");
+
+        Assert.That(vm.ActiveTab.Entries.First(e => e.Name == "tagged.txt").TagColor, Is.EqualTo("#E5484D"));
+    }
+
+    [Test]
+    public async Task Session_Is_Saved_And_Restored()
+    {
+        var fs = new FakeFileSystem();
+        var vm1 = CreateShell(fs, new RecordingTrash());
+        await vm1.InitializeAsync();
+        await vm1.LeftPane.ActiveTab!.NavigateToAsync("/x/projects");
+        await vm1.SaveSessionAsync();
+
+        var vm2 = CreateShell(fs, new RecordingTrash());
+        await vm2.InitializeAsync();
+
+        Assert.That(vm2.LeftPane.ActiveTab!.CurrentPath, Is.EqualTo("/x/projects"));
     }
 
     [Test]
