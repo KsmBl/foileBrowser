@@ -1,0 +1,36 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:FoileBrowser.ViewModels"
+             xmlns:views="using:FoileBrowser.Views"
+             mc:Ignorable="d" d:DesignWidth="500" d:DesignHeight="400"
+             x:Class="FoileBrowser.Views.PaneView"
+             x:DataType="vm:PaneViewModel">
+
+  <!-- A subtle border highlights the active pane (PRD §6.3 operations act on it) -->
+  <Border BorderThickness="2" Padding="1"
+          BorderBrush="{Binding IsActive, Converter={x:Static views:PaneView.ActiveBorderConverter}}">
+    <DockPanel>
+      <TabControl DockPanel.Dock="Top"
+                  ItemsSource="{Binding Tabs}"
+                  SelectedItem="{Binding ActiveTab, Mode=TwoWay}">
+        <TabControl.ItemTemplate>
+          <DataTemplate x:DataType="vm:FileTabViewModel">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <TextBlock Text="{Binding Title}" VerticalAlignment="Center" />
+              <Button Content="✕" Padding="4,0" FontSize="10" Background="Transparent"
+                      Command="{Binding $parent[TabControl].((vm:PaneViewModel)DataContext).CloseTabCommand}"
+                      CommandParameter="{Binding}" />
+            </StackPanel>
+          </DataTemplate>
+        </TabControl.ItemTemplate>
+        <TabControl.ContentTemplate>
+          <DataTemplate x:DataType="vm:FileTabViewModel">
+            <views:FileTabView />
+          </DataTemplate>
+        </TabControl.ContentTemplate>
+      </TabControl>
+    </DockPanel>
+  </Border>
+</UserControl>

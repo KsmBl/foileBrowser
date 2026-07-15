@@ -1,15 +1,31 @@
+using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Input;
-using Avalonia.Interactivity;
+using Avalonia.Data.Converters;
 using FoileBrowser.ViewModels;
 
 namespace FoileBrowser.Views;
 
 public partial class MainWindow : Window
 {
+    /// <summary>A star column when dual-pane, collapsed to zero width in single-pane mode.</summary>
+    public static readonly IValueConverter PaneColumnWidthConverter =
+        new FuncValueConverter<bool, GridLength>(dual => dual ? new GridLength(1, GridUnitType.Star) : new GridLength(0));
+
     public MainWindow()
     {
         InitializeComponent();
+    }
+
+    protected override void OnDataContextChanged(EventArgs e)
+    {
+        base.OnDataContextChanged(e);
+        if (DataContext is MainWindowViewModel vm)
+        {
+            // The view supplies the rename prompt and clipboard access the VM asks for.
+            vm.NameRequester = current => new NameInputWindow(current).ShowDialog<string?>(this);
+            vm.ClipboardCopyRequested -= OnClipboardCopyRequested;
+            vm.ClipboardCopyRequested += OnClipboardCopyRequested;
+        }
     }
 
     protected override void OnOpened(EventArgs e)
@@ -19,20 +35,10 @@ public partial class MainWindow : Window
             _ = vm.InitializeAsync();
     }
 
-    // Opening is a view concern (double-click / Enter on the list); it forwards to the
-    // view model's OpenCommand so folder descent stays in one place.
-    private void OnEntryActivated(object? sender, RoutedEventArgs e)
+    private async void OnClipboardCopyRequested(object? sender, string text)
     {
-        if (DataContext is MainWindowViewModel vm && vm.SelectedEntry is { } selected)
-            vm.OpenCommand.Execute(selected);
-    }
-
-    private void OnListKeyDown(object? sender, KeyEventArgs e)
-    {
-        if (e.Key == Key.Enter)
-        {
-            OnEntryActivated(sender, e);
-            e.Handled = true;
-        }
+        var clipboard = GetTopLevel(this)?.Clipboard;
+        if (clipboard is not null)
+            await clipboard.SetTextAsync(text);
     }
 }

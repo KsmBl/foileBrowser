@@ -21,9 +21,11 @@ public partial class App : Application
             DisableAvaloniaDataAnnotationValidation();
 
             var fileSystem = new FileSystemService();
+            var operations = new FileOperationService();
+            var trash = new TrashService();
             desktop.MainWindow = new MainWindow
             {
-                DataContext = new MainWindowViewModel(fileSystem),
+                DataContext = new MainWindowViewModel(fileSystem, operations, trash),
             };
         }
 
