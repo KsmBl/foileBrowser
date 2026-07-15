@@ -25,5 +25,11 @@ public partial class FileTabView : UserControl
             OnEntryActivated(sender, e);
             e.Handled = true;
         }
+        else if (e.Key == Key.Space)
+        {
+            // Spacebar quick-preview popup (PRD §6.5).
+            (TopLevel.GetTopLevel(this) as MainWindow)?.ShowQuickPreview();
+            e.Handled = true;
+        }
     }
 }

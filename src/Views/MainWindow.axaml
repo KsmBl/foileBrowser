@@ -15,13 +15,17 @@
   </Design.DataContext>
 
   <Window.KeyBindings>
+    <KeyBinding Gesture="Ctrl+P" Command="{Binding OpenCommandPaletteCommand}" />
+    <KeyBinding Gesture="Ctrl+Shift+P" Command="{Binding OpenCommandPaletteCommand}" />
     <KeyBinding Gesture="F2" Command="{Binding RenameSelectedCommand}" />
     <KeyBinding Gesture="Delete" Command="{Binding DeleteSelectedCommand}" />
     <KeyBinding Gesture="Ctrl+Shift+N" Command="{Binding NewFolderCommand}" />
     <KeyBinding Gesture="F6" Command="{Binding CopyToOtherCommand}" />
     <KeyBinding Gesture="F7" Command="{Binding MoveToOtherCommand}" />
+    <KeyBinding Gesture="Ctrl+I" Command="{Binding ToggleInspectorCommand}" />
   </Window.KeyBindings>
 
+  <Panel>
   <DockPanel>
 
     <!-- Global operations toolbar (PRD §6.3) -->
@@ -94,6 +98,16 @@
       </ScrollViewer>
     </Border>
 
+    <!-- Inspector panel (PRD §6.5) -->
+    <Border DockPanel.Dock="Right" Width="300" IsVisible="{Binding IsInspectorOpen}"
+            BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" BorderThickness="1,0,0,0">
+      <Panel>
+        <TextBlock Text="Select an item to preview" Opacity="0.5" HorizontalAlignment="Center"
+                   VerticalAlignment="Center" IsVisible="{Binding Preview, Converter={x:Static views:MainWindow.IsNullConverter}}" />
+        <views:PreviewView DataContext="{Binding Preview}" />
+      </Panel>
+    </Border>
+
     <!-- Panes with splitter (PRD §6.2 dual pane) -->
     <Grid x:Name="PaneGrid">
       <Grid.ColumnDefinitions>
@@ -109,4 +123,37 @@
     </Grid>
 
   </DockPanel>
+
+  <!-- Command palette overlay (PRD §6.6) -->
+  <Border IsVisible="{Binding CommandPalette.IsOpen}" Background="#80000000">
+    <Border Width="560" MaxHeight="420" VerticalAlignment="Top" Margin="0,80,0,0"
+            HorizontalAlignment="Center" CornerRadius="8" Padding="8"
+            Background="{DynamicResource SystemControlBackgroundAltHighBrush}"
+            BorderBrush="{DynamicResource SystemControlForegroundBaseMediumBrush}" BorderThickness="1">
+      <DockPanel>
+        <TextBox x:Name="PaletteQueryBox" DockPanel.Dock="Top"
+                 Text="{Binding CommandPalette.Query, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                 Watermark="Type a command…" KeyDown="OnPaletteKeyDown" />
+        <ListBox Margin="0,8,0,0" MaxHeight="330"
+                 ItemsSource="{Binding CommandPalette.Results}"
+                 SelectedItem="{Binding CommandPalette.Selected, Mode=TwoWay}"
+                 DoubleTapped="OnPaletteItemActivated">
+          <ListBox.ItemTemplate>
+            <DataTemplate x:DataType="vm:CommandItem">
+              <Grid ColumnDefinitions="Auto,*,Auto" Height="26">
+                <TextBlock Grid.Column="0" Text="{Binding Category}" Opacity="0.55" FontSize="11" VerticalAlignment="Center" Margin="0,0,10,0" />
+                <TextBlock Grid.Column="1" Text="{Binding Title}" VerticalAlignment="Center" />
+                <Border Grid.Column="2" IsVisible="{Binding Gesture, Converter={x:Static views:MainWindow.NotNullConverter}}"
+                        Background="{DynamicResource SystemControlBackgroundBaseLowBrush}" CornerRadius="3" Padding="5,1">
+                  <TextBlock Text="{Binding Gesture}" FontSize="11" Opacity="0.8" />
+                </Border>
+              </Grid>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+      </DockPanel>
+    </Border>
+  </Border>
+
+  </Panel>
 </Window>

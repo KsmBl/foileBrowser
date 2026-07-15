@@ -1,0 +1,21 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:views="using:FoileBrowser.Views"
+             xmlns:models="using:FoileBrowser.Models"
+             x:Class="FoileBrowser.Views.PreviewView"
+             x:DataType="models:PreviewResult">
+  <DockPanel Margin="8">
+    <TextBlock DockPanel.Dock="Top" Text="{Binding Title}" FontWeight="SemiBold" TextWrapping="Wrap" />
+    <TextBlock DockPanel.Dock="Top" Text="{Binding Info}" Opacity="0.6" FontSize="11" TextWrapping="Wrap" Margin="0,2,0,8" />
+
+    <!-- Image preview -->
+    <Image DockPanel.Dock="Top" IsVisible="{Binding HasImage}" Stretch="Uniform" MaxHeight="520"
+           Source="{Binding ImagePath, Converter={x:Static views:ImagePathConverter.Instance}}" />
+
+    <!-- Text / folder-listing preview -->
+    <TextBox IsVisible="{Binding HasText}" Text="{Binding Text, Mode=OneWay}" IsReadOnly="True"
+             FontFamily="Cascadia Code,Consolas,Menlo,monospace" FontSize="12"
+             TextWrapping="NoWrap" AcceptsReturn="True"
+             ScrollViewer.HorizontalScrollBarVisibility="Auto" ScrollViewer.VerticalScrollBarVisibility="Auto" />
+  </DockPanel>
+</UserControl>
