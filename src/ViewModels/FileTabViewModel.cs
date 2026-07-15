@@ -13,10 +13,12 @@ namespace FoileBrowser.ViewModels;
 public partial class FileTabViewModel : ViewModelBase
 {
     private readonly IFileSystemService _fileSystem;
+    private readonly ISearchService _search;
     private readonly NavigationHistory _history = new();
 
     private IReadOnlyList<FileSystemEntry> _rawEntries = [];
     private CancellationTokenSource? _loadCts;
+    private CancellationTokenSource? _searchCts;
 
     [ObservableProperty]
     private string _currentPath = string.Empty;
@@ -36,20 +38,35 @@ public partial class FileTabViewModel : ViewModelBase
     [ObservableProperty]
     private bool _showHidden;
 
+    // As-you-type filter over the current folder (PRD §6.4). Empty shows everything.
+    [ObservableProperty]
+    private string _filterText = string.Empty;
+
     [ObservableProperty]
     private SortColumn _sortColumn = SortColumn.Name;
 
     [ObservableProperty]
     private SortDirection _sortDirection = SortDirection.Ascending;
 
+    // Recursive search state (PRD §6.4).
+    [ObservableProperty]
+    private string _searchQuery = string.Empty;
+
+    [ObservableProperty]
+    private string _searchExtensions = string.Empty;
+
+    [ObservableProperty]
+    private bool _isSearching;
+
     /// <summary>Raised after any navigation completes so the owning pane can react (title, active path).</summary>
     public event EventHandler? Navigated;
 
     public ObservableCollection<FileEntryViewModel> Entries { get; } = [];
 
-    public FileTabViewModel(IFileSystemService fileSystem)
+    public FileTabViewModel(IFileSystemService fileSystem, ISearchService? search = null)
     {
         _fileSystem = fileSystem;
+        _search = search ?? new SearchService();
     }
 
     /// <summary>Short label for the tab header — the current folder name, or the path for roots.</summary>
@@ -119,10 +136,69 @@ public partial class FileTabViewModel : ViewModelBase
     private Task NavigatePathBarAsync() =>
         string.IsNullOrWhiteSpace(PathBarText) ? Task.CompletedTask : NavigateToAsync(PathBarText.Trim());
 
+    [RelayCommand]
+    private async Task StartSearchAsync()
+    {
+        if (string.IsNullOrWhiteSpace(SearchQuery) || string.IsNullOrEmpty(CurrentPath))
+            return;
+
+        _searchCts?.Cancel();
+        _searchCts?.Dispose();
+        var cts = _searchCts = new CancellationTokenSource();
+        var token = cts.Token;
+
+        IsSearching = true;
+        IsLoading = true;
+        Entries.Clear();
+
+        var exts = ParseExtensions(SearchExtensions);
+        var count = 0;
+        try
+        {
+            await foreach (var hit in _search.SearchAsync(CurrentPath, SearchQuery.Trim(), exts, token))
+            {
+                Entries.Add(new FileEntryViewModel(hit, Path.GetDirectoryName(hit.FullPath)));
+                count++;
+                if ((count & 31) == 0)
+                    StatusText = $"Searching… {count} matches";
+            }
+            StatusText = $"{count} matches for “{SearchQuery.Trim()}”";
+        }
+        catch (OperationCanceledException)
+        {
+            // Superseded or stopped by the user.
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            StatusText = $"Search failed: {ex.Message}";
+        }
+        finally
+        {
+            if (_searchCts == cts)
+                IsLoading = false;
+        }
+    }
+
+    [RelayCommand]
+    private Task StopSearchAsync()
+    {
+        _searchCts?.Cancel();
+        IsSearching = false;
+        SearchQuery = string.Empty;
+        return RefreshAsync();
+    }
+
+    private static string[] ParseExtensions(string text) =>
+        text.Split([',', ' ', ';'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
     public Task NavigateToAsync(string path) => LoadAsync(path, record: true);
 
     private async Task LoadAsync(string path, bool record)
     {
+        // A fresh directory load ends any in-progress search.
+        _searchCts?.Cancel();
+        IsSearching = false;
+
         _loadCts?.Cancel();
         _loadCts?.Dispose();
         var cts = _loadCts = new CancellationTokenSource();
@@ -164,7 +240,13 @@ public partial class FileTabViewModel : ViewModelBase
 
     private void RebuildEntries()
     {
-        var visible = ShowHidden ? _rawEntries : _rawEntries.Where(e => !e.IsHidden);
+        // While searching, Entries holds streamed hits; don't overwrite them with the folder view.
+        if (IsSearching)
+            return;
+
+        IEnumerable<FileSystemEntry> visible = ShowHidden ? _rawEntries : _rawEntries.Where(e => !e.IsHidden);
+        if (!string.IsNullOrWhiteSpace(FilterText))
+            visible = visible.Where(e => FuzzyMatcher.IsMatch(FilterText, e.Name));
         var sorted = EntrySorter.Sort(visible, SortColumn, SortDirection);
 
         Entries.Clear();
@@ -187,5 +269,13 @@ public partial class FileTabViewModel : ViewModelBase
     }
 
     partial void OnShowHiddenChanged(bool value) => RebuildEntries();
+    partial void OnFilterTextChanged(string value) => RebuildEntries();
     partial void OnCurrentPathChanged(string value) => PathBarText = value;
+
+    // Clear any active filter when navigating so a new folder shows in full.
+    partial void OnCurrentPathChanging(string value)
+    {
+        if (!string.IsNullOrEmpty(FilterText))
+            FilterText = string.Empty;
+    }
 }

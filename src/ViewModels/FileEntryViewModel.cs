@@ -6,9 +6,14 @@ namespace FoileBrowser.ViewModels;
 /// Display wrapper around a <see cref="FileSystemEntry"/> for binding in the file list.
 /// Immutable — a new instance is created per enumeration snapshot.
 /// </summary>
-public sealed class FileEntryViewModel(FileSystemEntry entry)
+public sealed class FileEntryViewModel(FileSystemEntry entry, string? location = null)
 {
     public FileSystemEntry Entry { get; } = entry;
+
+    /// <summary>Containing directory, shown under the name for flattened search hits (PRD §6.4). Null when browsing.</summary>
+    public string? LocationDisplay { get; } = location;
+
+    public bool HasLocation => !string.IsNullOrEmpty(LocationDisplay);
 
     public string Name => Entry.Name;
 
