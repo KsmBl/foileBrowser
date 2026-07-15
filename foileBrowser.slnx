@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="src/FoileBrowser.csproj" />
+  <Project Path="tests/FoileBrowser.Tests.csproj" />
+</Solution>
