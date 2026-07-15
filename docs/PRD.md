@@ -57,28 +57,28 @@ Check off items as they're completed; delete lines you decide not to build.
 
 ### 6.2 Layout & Views
 
-- [ ] optional multi-pane side-by-side layout with adjustable splitter
-- [ ] Single-pane mode toggle
-- [ ] Tabs per pane, restored across restart
-- [ ] Details (list) view mode
+- [x] optional multi-pane side-by-side layout with adjustable splitter
+- [x] Single-pane mode toggle
+- [ ] Tabs per pane, restored across restart — tabs done; restore-across-restart pending (settings persistence, M4)
+- [x] Details (list) view mode
 - [ ] Grid view mode with thumbnails (generated with https://github.com/Hawkynt/PNGCrushCS)
 - [ ] Configurable columns, including computed folder sizes (on demand, async)
-- [ ] Collapsible sidebar with favorites/pinned folders and drives
+- [x] Collapsible sidebar with favorites/pinned folders and drives — sidebar with favorites + drives (free-space bars); collapse toggle pending
 - [ ] Drag-and-drop reordering of sidebar favorites
 
 ### 6.3 File Operations
 
-- [ ] Copy / move with progress dialog and background operation queue
-- [ ] Delete to OS trash (platform-specific: Recycle Bin / gio trash / NSFileManager)
+- [x] Copy / move with progress dialog and background operation queue
+- [x] Delete to OS trash (platform-specific: Recycle Bin / gio trash / NSFileManager)
 - [ ] Permanent delete with confirmation (optional overwriting disk space with zeros / random to fully erase file)
-- [ ] Conflict resolution dialog (overwrite / skip / rename / apply-to-all)
-- [ ] Inline rename (F2)
+- [ ] Conflict resolution dialog (overwrite / skip / rename / apply-to-all) — resolver supports overwrite/skip/rename/cancel; interactive dialog + apply-to-all pending (defaults to auto-rename)
+- [x] Inline rename (F2) — via a rename prompt; true in-list inline editing pending
 - [ ] Batch rename with RegEx, counters, and file-date tokens (OneCommander File Automator style)
-- [ ] New file / new folder
+- [x] New file / new folder
 - [ ] multi Undo / redo for rename/move/delete-to-trash
 - [ ] Drag & drop within the app (pane ↔ pane, into sidebar)
 - [ ] Drag & drop to/from other OS applications
-- [ ] Copy path / copy name to clipboard
+- [x] Copy path / copy name to clipboard
 
 ### 6.4 Search & Filter
 
@@ -164,7 +164,7 @@ Check off items as they're completed; delete lines you decide not to build.
 |---|---|
 | **M0 — Scaffold** ✅ | Repo layout, PRD, README |
 | **M1 — MVP browsing** ✅ | Avalonia app shell, single pane, directory listing, navigation, sorting |
-| **M2 — Panes, tabs & operations** | Dual pane, tabs, copy/move/delete queue, rename, sidebar |
+| **M2 — Panes, tabs & operations** ✅ | Dual pane, tabs, copy/move/delete queue, rename, sidebar |
 | **M3 — Search, preview & palette** | Fuzzy search, inspector/quick preview, command palette, hotkeys |
 | **M4 — Polish** | Theming, tags, batch rename, saved layouts, OS integration, perf tuning |
 | **M5 — Devices & archives** | Removable-media mount/unmount, GVfs/MTP (Android), archive & disk-image browsing via CompressionWorkbench |

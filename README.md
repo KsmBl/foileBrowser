@@ -22,6 +22,9 @@ dotnet test                                    # run the NUnit suite
 - **M0 — Scaffold** ✅ — repo layout, PRD, README
 - **M1 — MVP browsing** ✅ — Avalonia app shell, single virtualized pane, async directory
   listing, back/forward/up + editable path bar, column sorting, hidden-file toggle
+- **M2 — Panes, tabs & operations** ✅ — dual pane + splitter, per-pane tabs, sidebar
+  (favorites + drives with free-space), background copy/move queue, delete-to-trash,
+  rename, new file/folder, copy path/name
 
 See [docs/PRD.md](docs/PRD.md) for the checkboxed feature list and milestones — check off what's
 built, delete what's not wanted.
