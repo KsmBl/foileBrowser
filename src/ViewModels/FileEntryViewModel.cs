@@ -6,7 +6,7 @@ namespace FoileBrowser.ViewModels;
 /// Display wrapper around a <see cref="FileSystemEntry"/> for binding in the file list.
 /// Immutable — a new instance is created per enumeration snapshot.
 /// </summary>
-public sealed class FileEntryViewModel(FileSystemEntry entry, string? location = null)
+public sealed class FileEntryViewModel(FileSystemEntry entry, string? location = null, string? tagColor = null)
 {
     public FileSystemEntry Entry { get; } = entry;
 
@@ -14,6 +14,11 @@ public sealed class FileEntryViewModel(FileSystemEntry entry, string? location =
     public string? LocationDisplay { get; } = location;
 
     public bool HasLocation => !string.IsNullOrEmpty(LocationDisplay);
+
+    /// <summary>Color-tag hex for this entry, or null if untagged (PRD §6.7).</summary>
+    public string? TagColor { get; } = tagColor;
+
+    public bool HasTag => !string.IsNullOrEmpty(TagColor);
 
     public string Name => Entry.Name;
 

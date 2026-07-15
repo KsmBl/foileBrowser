@@ -16,6 +16,9 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly IFileOperationService _operations;
     private readonly ITrashService _trash;
     private readonly IPreviewService _previewService;
+    private readonly ISettingsService _settings;
+    private readonly ITagService _tags;
+    private readonly IShellService _shell;
 
     private FileTabViewModel? _observedTab;
     private CancellationTokenSource? _previewCts;
@@ -49,22 +52,26 @@ public partial class MainWindowViewModel : ViewModelBase
 
     /// <summary>Design-time constructor for the XAML previewer only.</summary>
     public MainWindowViewModel()
-        : this(new FileSystemService(), new FileOperationService(), new TrashService(), new SearchService(), new PreviewService())
+        : this(new FileSystemService(), new FileOperationService(), new TrashService())
     {
     }
 
     public MainWindowViewModel(
         IFileSystemService fileSystem, IFileOperationService operations, ITrashService trash,
-        ISearchService? search = null, IPreviewService? preview = null)
+        ISearchService? search = null, IPreviewService? preview = null,
+        ISettingsService? settings = null, ITagService? tags = null, IShellService? shell = null)
     {
         _fileSystem = fileSystem;
         _operations = operations;
         _trash = trash;
         _previewService = preview ?? new PreviewService();
+        _settings = settings ?? new SettingsService();
+        _tags = tags ?? new TagService(_settings);
+        _shell = shell ?? new ShellService();
         search ??= new SearchService();
 
-        LeftPane = new PaneViewModel(fileSystem, search);
-        RightPane = new PaneViewModel(fileSystem, search);
+        LeftPane = new PaneViewModel(fileSystem, search) { ConfigureTab = ConfigureTab };
+        RightPane = new PaneViewModel(fileSystem, search) { ConfigureTab = ConfigureTab };
         _activePane = LeftPane;
         LeftPane.IsActive = true;
 
@@ -78,6 +85,12 @@ public partial class MainWindowViewModel : ViewModelBase
 
         CommandPalette = new CommandPaletteViewModel(BuildCommands());
     }
+
+    public AppSettings Settings => _settings.Current;
+
+    public IReadOnlyList<TagColor> TagPalette => _tags.Palette;
+
+    private void ConfigureTab(FileTabViewModel tab) => tab.TagLookup = _tags.GetTag;
 
     [RelayCommand]
     private void OpenCommandPalette() => CommandPalette.Open();
@@ -107,6 +120,17 @@ public partial class MainWindowViewModel : ViewModelBase
             new("tab.new", "New Tab", "Tab", "Ctrl+T", () => ActivePane.NewTabCommand.ExecuteAsync(null)),
             new("tab.close", "Close Tab", "Tab", "Ctrl+W", () => { ActivePane.CloseTabCommand.Execute(ActivePane.ActiveTab); return Task.CompletedTask; }),
             new("search.stop", "Stop Search", "Search", null, () => Tab(t => t.StopSearchCommand.ExecuteAsync(null))),
+            new("file.batchRename", "Batch Rename…", "File", null, () => BatchRenameCommand.ExecuteAsync(null)),
+            new("os.terminal", "Open Terminal Here", "System", null, () => OpenTerminalHereCommand.ExecuteAsync(null)),
+            new("os.openWith", "Open with Default App", "System", null, () => OpenSelectedExternallyCommand.ExecuteAsync(null)),
+            new("fav.pin", "Pin Current Folder", "Favorites", null, () => PinFavoriteCommand.ExecuteAsync(null)),
+            new("tag.clear", "Clear Tag", "Tag", null, () => ClearTagCommand.ExecuteAsync(null)),
+            new("tag.filterClear", "Clear Tag Filter", "Tag", null, () => { ClearTagFilterCommand.Execute(null); return Task.CompletedTask; }),
+            new("app.settings", "Settings…", "App", null, () => OpenSettingsCommand.ExecuteAsync(null)),
+            .. _tags.Palette.Select(c => new CommandItem(
+                $"tag.set.{c.Name}", $"Tag: {c.Name}", "Tag", null, () => AssignTagCommand.ExecuteAsync(c.Hex))),
+            .. _tags.Palette.Select(c => new CommandItem(
+                $"tag.filter.{c.Name}", $"Filter by Tag: {c.Name}", "Tag", null, () => { FilterByTagCommand.Execute(c.Hex); return Task.CompletedTask; })),
         ];
     }
 
@@ -116,10 +140,34 @@ public partial class MainWindowViewModel : ViewModelBase
 
     public async Task InitializeAsync()
     {
-        await LeftPane.InitializeAsync();
-        await RightPane.InitializeAsync();
+        await _settings.LoadAsync();
+        IsDualPane = _settings.Current.IsDualPane;
+        IsInspectorOpen = _settings.Current.IsInspectorOpen;
+
+        var session = _settings.Current.Session;
+        await LeftPane.RestoreAsync(session.LeftTabs, session.LeftActiveIndex);
+        await RightPane.RestoreAsync(session.RightTabs, session.RightActiveIndex);
+
         await LoadSidebarAsync();
         RewireInspector();
+        ThemeChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>Snapshots the session and layout into settings and persists (called on window close).</summary>
+    public Task SaveSessionAsync()
+    {
+        var left = LeftPane.Snapshot();
+        var right = RightPane.Snapshot();
+        _settings.Current.Session = new SessionLayout
+        {
+            LeftTabs = left.Paths,
+            LeftActiveIndex = left.ActiveIndex,
+            RightTabs = right.Paths,
+            RightActiveIndex = right.ActiveIndex,
+        };
+        _settings.Current.IsDualPane = IsDualPane;
+        _settings.Current.IsInspectorOpen = IsInspectorOpen;
+        return _settings.SaveAsync();
     }
 
     private void SetActivePane(PaneViewModel pane)
@@ -237,6 +285,18 @@ public partial class MainWindowViewModel : ViewModelBase
             if (!string.IsNullOrEmpty(path) && _fileSystem.DirectoryExists(path))
                 yield return new SidebarItemViewModel { Name = name, Path = path, Kind = SidebarItemKind.Favorite };
         }
+
+        // User-pinned favorites persisted in settings (PRD §6.2, §6.8).
+        foreach (var path in _settings.Current.Favorites)
+        {
+            if (!string.IsNullOrEmpty(path) && _fileSystem.DirectoryExists(path))
+                yield return new SidebarItemViewModel
+                {
+                    Name = Path.GetFileName(path.TrimEnd(Path.DirectorySeparatorChar)) is { Length: > 0 } n ? n : path,
+                    Path = path,
+                    Kind = SidebarItemKind.Favorite,
+                };
+        }
     }
 
     [RelayCommand]
@@ -319,6 +379,103 @@ public partial class MainWindowViewModel : ViewModelBase
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             ActiveTab.StatusText = $"Rename failed: {ex.Message}";
+        }
+    }
+
+    // ---- tags, OS integration, favorites, batch rename, settings ----
+
+    /// <summary>Set by the view to launch the batch-rename dialog; returns accepted proposals or null.</summary>
+    public Func<IReadOnlyList<FileSystemEntry>, Task<IReadOnlyList<RenameProposal>?>>? BatchRenameRequester { get; set; }
+
+    /// <summary>Set by the view to launch the settings dialog editing the given settings; true if applied.</summary>
+    public Func<AppSettings, Task<bool>>? SettingsRequester { get; set; }
+
+    /// <summary>Raised after settings load or change so the view can apply theme/accent/font.</summary>
+    public event EventHandler? ThemeChanged;
+
+    [RelayCommand]
+    private async Task AssignTag(string? hex)
+    {
+        if (ActiveTab?.SelectedEntry is { } e)
+        {
+            await _tags.SetTagAsync(e.FullPath, hex);
+            RefreshActiveTab();
+        }
+    }
+
+    [RelayCommand]
+    private Task ClearTag() => AssignTag(null);
+
+    [RelayCommand]
+    private void FilterByTag(string? hex)
+    {
+        if (ActiveTab is { } t)
+            t.TagFilter = hex;
+    }
+
+    [RelayCommand]
+    private void ClearTagFilter()
+    {
+        if (ActiveTab is { } t)
+            t.TagFilter = null;
+    }
+
+    [RelayCommand]
+    private Task OpenTerminalHere() =>
+        ActiveTab?.CurrentPath is { Length: > 0 } dir ? _shell.OpenTerminalAsync(dir) : Task.CompletedTask;
+
+    [RelayCommand]
+    private Task OpenSelectedExternally() =>
+        ActiveTab?.SelectedEntry is { } e ? _shell.OpenAsync(e.FullPath) : Task.CompletedTask;
+
+    [RelayCommand]
+    private async Task PinFavorite()
+    {
+        if (ActiveTab?.CurrentPath is not { Length: > 0 } dir)
+            return;
+        if (!_settings.Current.Favorites.Contains(dir))
+        {
+            _settings.Current.Favorites.Add(dir);
+            await _settings.SaveAsync();
+            await LoadSidebarAsync();
+        }
+    }
+
+    [RelayCommand]
+    private async Task BatchRename()
+    {
+        if (BatchRenameRequester is null || ActiveTab is null)
+            return;
+
+        var entries = ActiveTab.Entries.Select(e => e.Entry).ToList();
+        var proposals = await BatchRenameRequester(entries);
+        if (proposals is null)
+            return;
+
+        foreach (var p in proposals.Where(p => p.Changed))
+        {
+            try
+            {
+                await _operations.RenameAsync(p.Entry.FullPath, p.ProposedName);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                ActiveTab.StatusText = $"Rename failed for {p.OriginalName}: {ex.Message}";
+            }
+        }
+        RefreshActiveTab();
+    }
+
+    [RelayCommand]
+    private async Task OpenSettings()
+    {
+        if (SettingsRequester is null)
+            return;
+        if (await SettingsRequester(_settings.Current))
+        {
+            await _settings.SaveAsync();
+            ThemeChanged?.Invoke(this, EventArgs.Empty);
+            await LoadSidebarAsync();
         }
     }
 

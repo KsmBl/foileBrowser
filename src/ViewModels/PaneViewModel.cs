@@ -23,6 +23,9 @@ public partial class PaneViewModel : ViewModelBase
 
     public ObservableCollection<FileTabViewModel> Tabs { get; } = [];
 
+    /// <summary>Invoked on each newly created tab so the shell can wire it (e.g. tag lookup).</summary>
+    public Action<FileTabViewModel>? ConfigureTab { get; set; }
+
     /// <summary>Raised when the user interacts with the pane so the window can mark it active.</summary>
     public event EventHandler? Activated;
 
@@ -35,6 +38,7 @@ public partial class PaneViewModel : ViewModelBase
     public FileTabViewModel AddTab(bool activate = true)
     {
         var tab = new FileTabViewModel(_fileSystem, _search);
+        ConfigureTab?.Invoke(tab);
         Tabs.Add(tab);
         if (activate || ActiveTab is null)
             ActiveTab = tab;
@@ -57,6 +61,7 @@ public partial class PaneViewModel : ViewModelBase
 
         var index = Tabs.IndexOf(tab);
         Tabs.Remove(tab);
+        tab.Dispose();
 
         if (ReferenceEquals(ActiveTab, tab))
             ActiveTab = Tabs[Math.Clamp(index, 0, Tabs.Count - 1)];
@@ -70,5 +75,31 @@ public partial class PaneViewModel : ViewModelBase
     {
         var tab = AddTab();
         return tab.InitializeAsync();
+    }
+
+    /// <summary>Reopens the given tab paths (PRD §6.2 restore across restart), falling back to a default tab.</summary>
+    public async Task RestoreAsync(IReadOnlyList<string> paths, int activeIndex)
+    {
+        var valid = paths.Where(p => !string.IsNullOrEmpty(p) && _fileSystem.DirectoryExists(p)).ToList();
+        if (valid.Count == 0)
+        {
+            await InitializeAsync();
+            return;
+        }
+
+        foreach (var path in valid)
+        {
+            var tab = AddTab(activate: false);
+            await tab.NavigateToAsync(path);
+        }
+        ActiveTab = Tabs[Math.Clamp(activeIndex, 0, Tabs.Count - 1)];
+    }
+
+    /// <summary>Captures the open tab paths and active index for persistence.</summary>
+    public (List<string> Paths, int ActiveIndex) Snapshot()
+    {
+        var paths = Tabs.Select(t => t.CurrentPath).Where(p => !string.IsNullOrEmpty(p)).ToList();
+        var active = ActiveTab is null ? 0 : Math.Max(0, Tabs.IndexOf(ActiveTab));
+        return (paths, active);
     }
 }

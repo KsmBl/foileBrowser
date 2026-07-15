@@ -10,15 +10,21 @@ namespace FoileBrowser.ViewModels;
 /// One browsing context: a single directory view with its own navigation history, sort
 /// state and hidden-file toggle. A pane owns one or more of these as tabs (PRD §6.2).
 /// </summary>
-public partial class FileTabViewModel : ViewModelBase
+public partial class FileTabViewModel : ViewModelBase, IDisposable
 {
     private readonly IFileSystemService _fileSystem;
     private readonly ISearchService _search;
+    private readonly IShellService _shell;
     private readonly NavigationHistory _history = new();
+    private readonly SynchronizationContext? _sync = SynchronizationContext.Current;
 
     private IReadOnlyList<FileSystemEntry> _rawEntries = [];
     private CancellationTokenSource? _loadCts;
     private CancellationTokenSource? _searchCts;
+
+    // Auto-refresh: watch the current folder for external changes (PRD §6.12).
+    private FileSystemWatcher? _watcher;
+    private Timer? _debounce;
 
     [ObservableProperty]
     private string _currentPath = string.Empty;
@@ -58,15 +64,23 @@ public partial class FileTabViewModel : ViewModelBase
     [ObservableProperty]
     private bool _isSearching;
 
+    // Filter to a single color tag when set (PRD §6.7 filterable tags).
+    [ObservableProperty]
+    private string? _tagFilter;
+
+    /// <summary>Resolves the color tag for a path; set by the shell so entries show their tag dot.</summary>
+    public Func<string, string?>? TagLookup { get; set; }
+
     /// <summary>Raised after any navigation completes so the owning pane can react (title, active path).</summary>
     public event EventHandler? Navigated;
 
     public ObservableCollection<FileEntryViewModel> Entries { get; } = [];
 
-    public FileTabViewModel(IFileSystemService fileSystem, ISearchService? search = null)
+    public FileTabViewModel(IFileSystemService fileSystem, ISearchService? search = null, IShellService? shell = null)
     {
         _fileSystem = fileSystem;
         _search = search ?? new SearchService();
+        _shell = shell ?? new ShellService();
     }
 
     /// <summary>Short label for the tab header — the current folder name, or the path for roots.</summary>
@@ -114,9 +128,10 @@ public partial class FileTabViewModel : ViewModelBase
     private Task OpenAsync(FileEntryViewModel? item)
     {
         item ??= SelectedEntry;
-        if (item is { IsDirectory: true })
-            return NavigateToAsync(item.FullPath);
-        return Task.CompletedTask;
+        if (item is null)
+            return Task.CompletedTask;
+        // Directories are entered in-place; files open with the OS default handler (PRD §6.9).
+        return item.IsDirectory ? NavigateToAsync(item.FullPath) : _shell.OpenAsync(item.FullPath);
     }
 
     [RelayCommand]
@@ -157,7 +172,7 @@ public partial class FileTabViewModel : ViewModelBase
         {
             await foreach (var hit in _search.SearchAsync(CurrentPath, SearchQuery.Trim(), exts, token))
             {
-                Entries.Add(new FileEntryViewModel(hit, Path.GetDirectoryName(hit.FullPath)));
+                Entries.Add(new FileEntryViewModel(hit, Path.GetDirectoryName(hit.FullPath), TagLookup?.Invoke(hit.FullPath)));
                 count++;
                 if ((count & 31) == 0)
                     StatusText = $"Searching… {count} matches";
@@ -217,6 +232,7 @@ public partial class FileTabViewModel : ViewModelBase
                 _history.Visit(path);
 
             RebuildEntries();
+            SetupWatcher(path);
         }
         catch (OperationCanceledException)
         {
@@ -247,14 +263,90 @@ public partial class FileTabViewModel : ViewModelBase
         IEnumerable<FileSystemEntry> visible = ShowHidden ? _rawEntries : _rawEntries.Where(e => !e.IsHidden);
         if (!string.IsNullOrWhiteSpace(FilterText))
             visible = visible.Where(e => FuzzyMatcher.IsMatch(FilterText, e.Name));
+        if (!string.IsNullOrEmpty(TagFilter))
+            visible = visible.Where(e => string.Equals(TagLookup?.Invoke(e.FullPath), TagFilter, StringComparison.OrdinalIgnoreCase));
         var sorted = EntrySorter.Sort(visible, SortColumn, SortDirection);
 
         Entries.Clear();
         foreach (var entry in sorted)
-            Entries.Add(new FileEntryViewModel(entry));
+            Entries.Add(new FileEntryViewModel(entry, tagColor: TagLookup?.Invoke(entry.FullPath)));
 
         var folders = sorted.Count(e => e.IsDirectory);
         StatusText = $"{sorted.Count} items ({folders} folders, {sorted.Count - folders} files)";
+    }
+
+    // ---- filesystem watcher (auto-refresh) ----
+
+    private void SetupWatcher(string path)
+    {
+        DisposeWatcher();
+
+        // Skip virtual/non-existent paths (also keeps unit tests, which use fake paths, watcher-free).
+        if (!Directory.Exists(path))
+            return;
+
+        try
+        {
+            var watcher = new FileSystemWatcher(path)
+            {
+                NotifyFilter = NotifyFilters.FileName | NotifyFilters.DirectoryName
+                    | NotifyFilters.LastWrite | NotifyFilters.Size,
+            };
+            watcher.Created += OnFsEvent;
+            watcher.Deleted += OnFsEvent;
+            watcher.Renamed += OnFsEvent;
+            watcher.Changed += OnFsEvent;
+            watcher.EnableRaisingEvents = true;
+            _watcher = watcher;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+        {
+            // Some filesystems/paths can't be watched; auto-refresh is simply unavailable there.
+        }
+    }
+
+    private void OnFsEvent(object sender, FileSystemEventArgs e)
+    {
+        // Coalesce bursts of events into a single refresh ~250 ms after the last one.
+        _debounce ??= new Timer(_ => PostRefresh(), null, Timeout.Infinite, Timeout.Infinite);
+        _debounce.Change(250, Timeout.Infinite);
+    }
+
+    private void PostRefresh()
+    {
+        void Refresh()
+        {
+            if (!IsSearching)
+                _ = RefreshCommand.ExecuteAsync(null);
+        }
+
+        if (_sync is not null)
+            _sync.Post(_ => Refresh(), null);
+        else
+            Refresh();
+    }
+
+    private void DisposeWatcher()
+    {
+        if (_watcher is not null)
+        {
+            _watcher.EnableRaisingEvents = false;
+            _watcher.Created -= OnFsEvent;
+            _watcher.Deleted -= OnFsEvent;
+            _watcher.Renamed -= OnFsEvent;
+            _watcher.Changed -= OnFsEvent;
+            _watcher.Dispose();
+            _watcher = null;
+        }
+    }
+
+    public void Dispose()
+    {
+        DisposeWatcher();
+        _debounce?.Dispose();
+        _debounce = null;
+        _loadCts?.Cancel();
+        _searchCts?.Cancel();
     }
 
     private void NotifyNavigationState()
@@ -270,6 +362,7 @@ public partial class FileTabViewModel : ViewModelBase
 
     partial void OnShowHiddenChanged(bool value) => RebuildEntries();
     partial void OnFilterTextChanged(string value) => RebuildEntries();
+    partial void OnTagFilterChanged(string? value) => RebuildEntries();
     partial void OnCurrentPathChanged(string value) => PathBarText = value;
 
     // Clear any active filter when navigating so a new folder shows in full.
