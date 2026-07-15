@@ -52,6 +52,44 @@ public sealed class FileSystemService : IFileSystemService
             return results;
         }, cancellationToken);
 
+    public Task<IReadOnlyList<DriveVolume>> ListVolumesAsync(CancellationToken cancellationToken = default)
+        => Task.Run<IReadOnlyList<DriveVolume>>(() =>
+        {
+            var results = new List<DriveVolume>();
+
+            foreach (var drive in DriveInfo.GetDrives())
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (!drive.IsReady)
+                    continue;
+
+                var root = drive.RootDirectory.FullName;
+                string? fs = null;
+                long? free = null, total = null;
+                try
+                {
+                    fs = drive.DriveFormat;
+                    free = drive.AvailableFreeSpace;
+                    total = drive.TotalSize;
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    // Capacity unavailable (e.g. permission); still list the volume.
+                }
+
+                results.Add(new DriveVolume
+                {
+                    Label = string.IsNullOrWhiteSpace(drive.VolumeLabel) ? root : drive.VolumeLabel,
+                    RootPath = root,
+                    FreeBytes = free,
+                    TotalBytes = total,
+                    FileSystem = fs,
+                });
+            }
+
+            return results;
+        }, cancellationToken);
+
     public string? GetParent(string path)
     {
         try

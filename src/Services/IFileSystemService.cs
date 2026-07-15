@@ -21,6 +21,10 @@ public interface IFileSystemService
     Task<IReadOnlyList<FileSystemEntry>> ListDrivesAsync(
         CancellationToken cancellationToken = default);
 
+    /// <summary>Lists mounted volumes with capacity/filesystem info for the sidebar (PRD §6.1, §6.10).</summary>
+    Task<IReadOnlyList<DriveVolume>> ListVolumesAsync(
+        CancellationToken cancellationToken = default);
+
     /// <summary>
     /// Returns the parent directory of <paramref name="path"/>, or null if it is already a root.
     /// </summary>
