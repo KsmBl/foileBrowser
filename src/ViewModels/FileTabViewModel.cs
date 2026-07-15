@@ -157,8 +157,9 @@ public partial class FileTabViewModel : ViewModelBase, IDisposable
             await _archives.ExtractAllAsync(archivePath, temp);
             await NavigateToAsync(temp);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
+        catch (Exception ex)
         {
+            // Third-party format readers can throw anything; never let a bad archive crash the app.
             StatusText = $"Cannot open archive: {ex.Message}";
             IsLoading = false;
         }

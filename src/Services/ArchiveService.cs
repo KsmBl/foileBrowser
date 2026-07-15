@@ -49,12 +49,14 @@ public sealed class ArchiveService : IArchiveService
         if (string.IsNullOrEmpty(ext))
             return null;
 
-        var byExt = FormatRegistry.GetByExtension(ext);
-        if (byExt is not null)
-            return byExt;
+        // Scan the registry directly rather than trusting GetByExtension, whose extension index can
+        // return a non-matching descriptor once every format is registered (e.g. resolving ".zip" to
+        // the VDI reader). Prefer a descriptor that both claims the extension and can list entries.
+        var matches = FormatRegistry.All
+            .Where(d => d.Extensions.Any(e => string.Equals(e.TrimStart('.'), ext, StringComparison.OrdinalIgnoreCase)))
+            .ToList();
 
-        return FormatRegistry.All.FirstOrDefault(d =>
-            d.Extensions.Any(e => string.Equals(e.TrimStart('.'), ext, StringComparison.OrdinalIgnoreCase)));
+        return matches.FirstOrDefault(CanList) ?? matches.FirstOrDefault();
     }
 
     private static bool CanList(IFormatDescriptor d) => d.Capabilities.HasFlag(FormatCapabilities.CanList);

@@ -544,8 +544,9 @@ public partial class MainWindowViewModel : ViewModelBase
             await _archives.ExtractAllAsync(e.FullPath, dest);
             RefreshActiveTab();
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
+        catch (Exception ex)
         {
+            // Third-party format readers can throw arbitrary exceptions; keep the app alive.
             ActiveTab.StatusText = $"Extract failed: {ex.Message}";
         }
     }
