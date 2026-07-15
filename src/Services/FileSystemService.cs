@@ -52,6 +52,15 @@ public sealed class FileSystemService : IFileSystemService
             return results;
         }, cancellationToken);
 
+    // Real storage filesystems worth showing as drives; everything else (proc, sysfs, cgroup,
+    // tmpfs, …) is a pseudo-filesystem we hide from the drive list (PRD §6.10).
+    private static readonly HashSet<string> RealFileSystems = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "ext2", "ext3", "ext4", "btrfs", "xfs", "f2fs", "zfs", "reiserfs", "jfs", "nilfs2",
+        "ntfs", "ntfs3", "fuseblk", "vfat", "exfat", "msdos", "iso9660", "udf", "hfs", "hfsplus",
+        "apfs", "NTFS", "FAT32", "exFAT", "APFS", "HFS",
+    };
+
     public Task<IReadOnlyList<DriveVolume>> ListVolumesAsync(CancellationToken cancellationToken = default)
         => Task.Run<IReadOnlyList<DriveVolume>>(() =>
         {
@@ -74,8 +83,13 @@ public sealed class FileSystemService : IFileSystemService
                 }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                 {
-                    // Capacity unavailable (e.g. permission); still list the volume.
+                    // Capacity unavailable (e.g. permission); still consider the volume.
                 }
+
+                // On Unix, DriveInfo lists every mount; keep only real storage plus the root.
+                if (!OperatingSystem.IsWindows() && root != "/"
+                    && (fs is null || !RealFileSystems.Contains(fs)))
+                    continue;
 
                 results.Add(new DriveVolume
                 {
@@ -84,11 +98,68 @@ public sealed class FileSystemService : IFileSystemService
                     FreeBytes = free,
                     TotalBytes = total,
                     FileSystem = fs,
+                    Kind = ClassifyVolume(root, drive.DriveType),
                 });
             }
 
+            if (!OperatingSystem.IsWindows())
+                results.AddRange(EnumerateGvfsMounts(cancellationToken));
+
             return results;
         }, cancellationToken);
+
+    private static VolumeKind ClassifyVolume(string root, DriveType type)
+    {
+        if (type == DriveType.Removable)
+            return VolumeKind.Removable;
+        // Media auto-mount locations are treated as removable for sidebar grouping.
+        if (root.StartsWith("/media/", StringComparison.Ordinal)
+            || root.StartsWith("/run/media/", StringComparison.Ordinal)
+            || root.StartsWith("/mnt/", StringComparison.Ordinal))
+            return VolumeKind.Removable;
+        return VolumeKind.Fixed;
+    }
+
+    /// <summary>Lists GVfs/GIO mounts (MTP phones, cameras, SMB, …) under /run/user/&lt;uid&gt;/gvfs (PRD §6.10).</summary>
+    private static IEnumerable<DriveVolume> EnumerateGvfsMounts(CancellationToken cancellationToken)
+    {
+        var uid = GetUnixUid();
+        var gvfs = uid is null ? null : $"/run/user/{uid}/gvfs";
+        if (gvfs is null || !Directory.Exists(gvfs))
+            yield break;
+
+        foreach (var dir in Directory.EnumerateDirectories(gvfs))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            yield return new DriveVolume
+            {
+                Label = PrettifyGvfsName(Path.GetFileName(dir)),
+                RootPath = dir,
+                Kind = VolumeKind.Gvfs,
+            };
+        }
+    }
+
+    private static string PrettifyGvfsName(string raw)
+    {
+        // e.g. "mtp:host=SAMSUNG_..." → "MTP", "smb-share:server=nas,share=x" → "SMB-SHARE"
+        var scheme = raw.Split(':', 2)[0];
+        return scheme.ToUpperInvariant();
+    }
+
+    [System.Runtime.InteropServices.DllImport("libc", EntryPoint = "getuid")]
+    private static extern uint LibcGetUid();
+
+    private static uint? GetUnixUid()
+    {
+        // XDG_RUNTIME_DIR is /run/user/<uid> on desktop sessions; fall back to getuid(2).
+        var runtime = Environment.GetEnvironmentVariable("XDG_RUNTIME_DIR");
+        if (!string.IsNullOrEmpty(runtime) && uint.TryParse(Path.GetFileName(runtime.TrimEnd('/')), out var uid))
+            return uid;
+
+        try { return LibcGetUid(); }
+        catch { return null; }
+    }
 
     public string? GetParent(string path)
     {
