@@ -6,193 +6,241 @@ using FoileBrowser.Services;
 
 namespace FoileBrowser.ViewModels;
 
+/// <summary>
+/// The window shell: two panes of tabs, a sidebar, and a background operation queue,
+/// plus the cross-pane file-operation commands (PRD §6.2, §6.3).
+/// </summary>
 public partial class MainWindowViewModel : ViewModelBase
 {
     private readonly IFileSystemService _fileSystem;
-    private readonly NavigationHistory _history = new();
-
-    // Unfiltered/unsorted snapshot from the last successful load; the visible Entries
-    // collection is derived from this whenever sort or hidden-visibility changes.
-    private IReadOnlyList<FileSystemEntry> _rawEntries = [];
-
-    // Guards against a slow load clobbering a newer one (PRD §6.12 async I/O).
-    private CancellationTokenSource? _loadCts;
+    private readonly IFileOperationService _operations;
+    private readonly ITrashService _trash;
 
     [ObservableProperty]
-    private string _currentPath = string.Empty;
-
-    // Two-way bound to the editable path bar; kept in sync with CurrentPath after each load
-    // so typing a new path and pressing Enter navigates there (PRD §6.1 editable path bar).
-    [ObservableProperty]
-    private string _pathBarText = string.Empty;
+    private PaneViewModel _activePane;
 
     [ObservableProperty]
-    private FileEntryViewModel? _selectedEntry;
+    [NotifyCanExecuteChangedFor(nameof(CopyToOtherCommand))]
+    [NotifyCanExecuteChangedFor(nameof(MoveToOtherCommand))]
+    private bool _isDualPane = true;
 
-    [ObservableProperty]
-    private bool _isLoading;
+    public PaneViewModel LeftPane { get; }
+    public PaneViewModel RightPane { get; }
+    public OperationQueueViewModel OperationQueue { get; }
+    public ObservableCollection<SidebarItemViewModel> Sidebar { get; } = [];
 
-    [ObservableProperty]
-    private string _statusText = string.Empty;
+    /// <summary>Set by the view to prompt the user for a name (rename). Returns null if cancelled.</summary>
+    public Func<string, Task<string?>>? NameRequester { get; set; }
 
-    [ObservableProperty]
-    private bool _showHidden;
+    /// <summary>Raised when the VM wants text placed on the clipboard (path/name copy — PRD §6.3).</summary>
+    public event EventHandler<string>? ClipboardCopyRequested;
 
-    [ObservableProperty]
-    private SortColumn _sortColumn = SortColumn.Name;
-
-    [ObservableProperty]
-    private SortDirection _sortDirection = SortDirection.Ascending;
-
-    public ObservableCollection<FileEntryViewModel> Entries { get; } = [];
-
-    /// <summary>Design-time constructor used by the XAML previewer only.</summary>
-    public MainWindowViewModel() : this(new FileSystemService())
+    /// <summary>Design-time constructor for the XAML previewer only.</summary>
+    public MainWindowViewModel()
+        : this(new FileSystemService(), new FileOperationService(), new TrashService())
     {
     }
 
-    public MainWindowViewModel(IFileSystemService fileSystem)
+    public MainWindowViewModel(
+        IFileSystemService fileSystem, IFileOperationService operations, ITrashService trash)
     {
         _fileSystem = fileSystem;
+        _operations = operations;
+        _trash = trash;
+
+        LeftPane = new PaneViewModel(fileSystem);
+        RightPane = new PaneViewModel(fileSystem);
+        _activePane = LeftPane;
+        LeftPane.IsActive = true;
+
+        LeftPane.Activated += (_, _) => SetActivePane(LeftPane);
+        RightPane.Activated += (_, _) => SetActivePane(RightPane);
+
+        OperationQueue = new OperationQueueViewModel(operations);
+        OperationQueue.OperationCompleted += (_, _) => RefreshPanes();
     }
 
-    /// <summary>
-    /// Loads the initial directory (the user's home folder, falling back to the working
-    /// directory). Called by the view once on open so the constructor stays synchronous and
-    /// side-effect-free, keeping the view model unit-testable.
-    /// </summary>
-    public Task InitializeAsync()
-    {
-        var start = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        if (string.IsNullOrEmpty(start) || !_fileSystem.DirectoryExists(start))
-            start = Directory.GetCurrentDirectory();
+    public FileTabViewModel? ActiveTab => ActivePane.ActiveTab;
 
-        return NavigateToAsync(start);
+    private PaneViewModel OtherPane => ReferenceEquals(ActivePane, LeftPane) ? RightPane : LeftPane;
+
+    public async Task InitializeAsync()
+    {
+        await LeftPane.InitializeAsync();
+        await RightPane.InitializeAsync();
+        await LoadSidebarAsync();
     }
 
-    public bool CanGoBack => _history.CanGoBack;
-
-    public bool CanGoForward => _history.CanGoForward;
-
-    public bool CanGoUp => !string.IsNullOrEmpty(CurrentPath) && _fileSystem.GetParent(CurrentPath) is not null;
-
-    [RelayCommand(CanExecute = nameof(CanGoBack))]
-    private Task GoBackAsync() => _history.GoBack() is { } path ? LoadAsync(path, record: false) : Task.CompletedTask;
-
-    [RelayCommand(CanExecute = nameof(CanGoForward))]
-    private Task GoForwardAsync() => _history.GoForward() is { } path ? LoadAsync(path, record: false) : Task.CompletedTask;
-
-    [RelayCommand(CanExecute = nameof(CanGoUp))]
-    private Task GoUpAsync()
+    private void SetActivePane(PaneViewModel pane)
     {
-        var parent = _fileSystem.GetParent(CurrentPath);
-        return parent is null ? Task.CompletedTask : NavigateToAsync(parent);
+        ActivePane = pane;
+        LeftPane.IsActive = ReferenceEquals(pane, LeftPane);
+        RightPane.IsActive = ReferenceEquals(pane, RightPane);
+        CopyToOtherCommand.NotifyCanExecuteChanged();
+        MoveToOtherCommand.NotifyCanExecuteChanged();
+    }
+
+    // ---- layout ----
+
+    [RelayCommand]
+    private void ToggleDualPane()
+    {
+        IsDualPane = !IsDualPane;
+        if (!IsDualPane)
+            SetActivePane(LeftPane);
+    }
+
+    // ---- sidebar ----
+
+    private async Task LoadSidebarAsync()
+    {
+        Sidebar.Clear();
+        Sidebar.Add(new SidebarItemViewModel { Name = "Favorites", Kind = SidebarItemKind.Header });
+        foreach (var fav in BuildFavorites())
+            Sidebar.Add(fav);
+
+        Sidebar.Add(new SidebarItemViewModel { Name = "Drives", Kind = SidebarItemKind.Header });
+        foreach (var volume in await _fileSystem.ListVolumesAsync())
+        {
+            Sidebar.Add(new SidebarItemViewModel
+            {
+                Name = volume.Label,
+                Path = volume.RootPath,
+                Kind = SidebarItemKind.Drive,
+                FreeBytes = volume.FreeBytes,
+                TotalBytes = volume.TotalBytes,
+            });
+        }
+    }
+
+    private IEnumerable<SidebarItemViewModel> BuildFavorites()
+    {
+        (string name, Environment.SpecialFolder folder)[] wanted =
+        [
+            ("Home", Environment.SpecialFolder.UserProfile),
+            ("Desktop", Environment.SpecialFolder.DesktopDirectory),
+            ("Documents", Environment.SpecialFolder.MyDocuments),
+            ("Downloads", Environment.SpecialFolder.UserProfile), // Downloads has no SpecialFolder; derived below
+        ];
+
+        foreach (var (name, folder) in wanted)
+        {
+            var path = name == "Downloads"
+                ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads")
+                : Environment.GetFolderPath(folder);
+
+            if (!string.IsNullOrEmpty(path) && _fileSystem.DirectoryExists(path))
+                yield return new SidebarItemViewModel { Name = name, Path = path, Kind = SidebarItemKind.Favorite };
+        }
     }
 
     [RelayCommand]
-    private Task RefreshAsync() =>
-        string.IsNullOrEmpty(CurrentPath) ? Task.CompletedTask : LoadAsync(CurrentPath, record: false);
-
-    /// <summary>Opens the selected entry: descends into directories (files are handled by the OS later).</summary>
-    [RelayCommand]
-    private Task OpenAsync(FileEntryViewModel? item)
+    private Task OpenSidebarItem(SidebarItemViewModel? item)
     {
-        item ??= SelectedEntry;
-        if (item is { IsDirectory: true })
-            return NavigateToAsync(item.FullPath);
-
+        if (item is { IsNavigable: true } && ActiveTab is { } tab)
+            return tab.NavigateToAsync(item.Path);
         return Task.CompletedTask;
     }
 
-    [RelayCommand]
-    private void SortBy(SortColumn column)
-    {
-        if (SortColumn == column)
-            SortDirection = SortDirection == SortDirection.Ascending
-                ? SortDirection.Descending
-                : SortDirection.Ascending;
-        else
-        {
-            SortColumn = column;
-            SortDirection = SortDirection.Ascending;
-        }
+    // ---- file operations ----
 
-        RebuildEntries();
+    private bool CanTransfer => IsDualPane;
+
+    [RelayCommand(CanExecute = nameof(CanTransfer))]
+    private void CopyToOther() => EnqueueTransfer(FileOperationKind.Copy);
+
+    [RelayCommand(CanExecute = nameof(CanTransfer))]
+    private void MoveToOther() => EnqueueTransfer(FileOperationKind.Move);
+
+    private void EnqueueTransfer(FileOperationKind kind)
+    {
+        var sources = SelectedPaths(ActivePane);
+        var dest = OtherPane.ActiveTab?.CurrentPath;
+        if (sources.Count == 0 || string.IsNullOrEmpty(dest))
+            return;
+
+        OperationQueue.Enqueue(kind, sources, dest);
     }
 
     [RelayCommand]
-    private Task NavigatePathBarAsync() =>
-        string.IsNullOrWhiteSpace(PathBarText) ? Task.CompletedTask : NavigateToAsync(PathBarText.Trim());
-
-    public Task NavigateToAsync(string path) => LoadAsync(path, record: true);
-
-    private async Task LoadAsync(string path, bool record)
+    private async Task DeleteSelectedAsync()
     {
-        // Cancel any in-flight load; last request wins.
-        _loadCts?.Cancel();
-        _loadCts?.Dispose();
-        var cts = _loadCts = new CancellationTokenSource();
-        var token = cts.Token;
+        var sources = SelectedPaths(ActivePane);
+        foreach (var path in sources)
+        {
+            try
+            {
+                await _trash.TrashAsync(path);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or FileNotFoundException)
+            {
+                if (ActiveTab is { } t) t.StatusText = $"Delete failed: {ex.Message}";
+            }
+        }
+        RefreshActiveTab();
+    }
 
-        IsLoading = true;
+    [RelayCommand]
+    private async Task NewFolderAsync()
+    {
+        if (ActiveTab?.CurrentPath is not { Length: > 0 } dir) return;
+        await _operations.CreateFolderAsync(dir, "New folder");
+        RefreshActiveTab();
+    }
+
+    [RelayCommand]
+    private async Task NewFileAsync()
+    {
+        if (ActiveTab?.CurrentPath is not { Length: > 0 } dir) return;
+        await _operations.CreateFileAsync(dir, "New file.txt");
+        RefreshActiveTab();
+    }
+
+    [RelayCommand]
+    private async Task RenameSelectedAsync()
+    {
+        if (ActiveTab?.SelectedEntry is not { } selected || NameRequester is null)
+            return;
+
+        var newName = await NameRequester(selected.Name);
+        if (string.IsNullOrWhiteSpace(newName) || newName == selected.Name)
+            return;
+
         try
         {
-            var entries = await _fileSystem.ListDirectoryAsync(path, token);
-            if (token.IsCancellationRequested)
-                return;
-
-            _rawEntries = entries;
-            CurrentPath = path;
-            if (record)
-                _history.Visit(path);
-
-            RebuildEntries();
+            await _operations.RenameAsync(selected.FullPath, newName.Trim());
+            RefreshActiveTab();
         }
-        catch (OperationCanceledException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            // Superseded by a newer navigation; leave the UI to that load.
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException
-                                       or DirectoryNotFoundException or ArgumentException)
-        {
-            _rawEntries = [];
-            RebuildEntries();
-            StatusText = $"Cannot open “{path}”: {ex.Message}";
-        }
-        finally
-        {
-            if (_loadCts == cts)
-                IsLoading = false;
-            NotifyNavigationState();
+            ActiveTab.StatusText = $"Rename failed: {ex.Message}";
         }
     }
 
-    private void RebuildEntries()
+    [RelayCommand]
+    private void CopyPath()
     {
-        var visible = ShowHidden ? _rawEntries : _rawEntries.Where(e => !e.IsHidden);
-        var sorted = EntrySorter.Sort(visible, SortColumn, SortDirection);
-
-        Entries.Clear();
-        foreach (var entry in sorted)
-            Entries.Add(new FileEntryViewModel(entry));
-
-        var folders = sorted.Count(e => e.IsDirectory);
-        StatusText = $"{sorted.Count} items ({folders} folders, {sorted.Count - folders} files)";
+        if (ActiveTab?.SelectedEntry is { } e)
+            ClipboardCopyRequested?.Invoke(this, e.FullPath);
     }
 
-    private void NotifyNavigationState()
+    [RelayCommand]
+    private void CopyName()
     {
-        OnPropertyChanged(nameof(CanGoBack));
-        OnPropertyChanged(nameof(CanGoForward));
-        OnPropertyChanged(nameof(CanGoUp));
-        GoBackCommand.NotifyCanExecuteChanged();
-        GoForwardCommand.NotifyCanExecuteChanged();
-        GoUpCommand.NotifyCanExecuteChanged();
+        if (ActiveTab?.SelectedEntry is { } e)
+            ClipboardCopyRequested?.Invoke(this, e.Name);
     }
 
-    // Re-derive the visible list when the hidden-file toggle flips (PRD §6.1).
-    partial void OnShowHiddenChanged(bool value) => RebuildEntries();
+    // ---- helpers ----
 
-    // Mirror committed navigation back into the editable path bar.
-    partial void OnCurrentPathChanged(string value) => PathBarText = value;
+    private static IReadOnlyList<string> SelectedPaths(PaneViewModel pane)
+        => pane.ActiveTab?.SelectedEntry is { } e ? [e.FullPath] : [];
+
+    private void RefreshActiveTab() => _ = ActiveTab?.RefreshCommand.ExecuteAsync(null);
+
+    private void RefreshPanes()
+    {
+        _ = LeftPane.ActiveTab?.RefreshCommand.ExecuteAsync(null);
+        _ = RightPane.ActiveTab?.RefreshCommand.ExecuteAsync(null);
+    }
 }
