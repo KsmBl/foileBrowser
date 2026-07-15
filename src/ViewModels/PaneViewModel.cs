@@ -13,6 +13,7 @@ public partial class PaneViewModel : ViewModelBase
 {
     private readonly IFileSystemService _fileSystem;
     private readonly ISearchService _search;
+    private readonly IArchiveService? _archives;
 
     [ObservableProperty]
     private FileTabViewModel? _activeTab;
@@ -29,15 +30,16 @@ public partial class PaneViewModel : ViewModelBase
     /// <summary>Raised when the user interacts with the pane so the window can mark it active.</summary>
     public event EventHandler? Activated;
 
-    public PaneViewModel(IFileSystemService fileSystem, ISearchService? search = null)
+    public PaneViewModel(IFileSystemService fileSystem, ISearchService? search = null, IArchiveService? archives = null)
     {
         _fileSystem = fileSystem;
         _search = search ?? new SearchService();
+        _archives = archives;
     }
 
     public FileTabViewModel AddTab(bool activate = true)
     {
-        var tab = new FileTabViewModel(_fileSystem, _search);
+        var tab = new FileTabViewModel(_fileSystem, _search, null, _archives);
         ConfigureTab?.Invoke(tab);
         Tabs.Add(tab);
         if (activate || ActiveTab is null)

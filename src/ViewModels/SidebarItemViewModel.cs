@@ -7,6 +7,7 @@ public enum SidebarItemKind
     Header,
     Favorite,
     Drive,
+    Device,
 }
 
 /// <summary>An entry in the collapsible sidebar: a section header, pinned favorite, or drive (PRD §6.2).</summary>
@@ -24,16 +25,25 @@ public sealed class SidebarItemViewModel
 
     public long? TotalBytes { get; init; }
 
-    public bool IsNavigable => Kind is SidebarItemKind.Favorite or SidebarItemKind.Drive;
+    /// <summary>Filesystem type label (e.g. "ext4", "MTP"), shown for devices (PRD §6.10).</summary>
+    public string? FileSystem { get; init; }
+
+    /// <summary>True for removable/GVfs volumes that can be ejected (PRD §6.10).</summary>
+    public bool IsEjectable { get; init; }
+
+    public bool IsNavigable => Kind is SidebarItemKind.Favorite or SidebarItemKind.Drive or SidebarItemKind.Device;
 
     public bool IsHeader => Kind is SidebarItemKind.Header;
 
     public bool HasCapacity => TotalBytes is > 0;
 
+    public bool HasFileSystem => !string.IsNullOrEmpty(FileSystem);
+
     public string Glyph => Kind switch
     {
-        SidebarItemKind.Drive => "\U0001F5B4",
-        SidebarItemKind.Favorite => "\U0001F4CC", // 📌
+        SidebarItemKind.Drive => "\U0001F5B4",     // 🖴
+        SidebarItemKind.Device => "\U0001F4F1",    // 📱 removable / phone
+        SidebarItemKind.Favorite => "\U0001F4CC",  // 📌
         _ => string.Empty,
     };
 

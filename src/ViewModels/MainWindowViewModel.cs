@@ -19,9 +19,14 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly ISettingsService _settings;
     private readonly ITagService _tags;
     private readonly IShellService _shell;
+    private readonly IArchiveService _archives;
+    private readonly IDeviceService _device;
 
     private FileTabViewModel? _observedTab;
     private CancellationTokenSource? _previewCts;
+    private readonly SynchronizationContext? _sync = SynchronizationContext.Current;
+    private Timer? _devicePoll;
+    private string _volumeSignature = string.Empty;
 
     [ObservableProperty]
     private PaneViewModel _activePane;
@@ -59,7 +64,8 @@ public partial class MainWindowViewModel : ViewModelBase
     public MainWindowViewModel(
         IFileSystemService fileSystem, IFileOperationService operations, ITrashService trash,
         ISearchService? search = null, IPreviewService? preview = null,
-        ISettingsService? settings = null, ITagService? tags = null, IShellService? shell = null)
+        ISettingsService? settings = null, ITagService? tags = null, IShellService? shell = null,
+        IArchiveService? archives = null, IDeviceService? device = null)
     {
         _fileSystem = fileSystem;
         _operations = operations;
@@ -68,10 +74,12 @@ public partial class MainWindowViewModel : ViewModelBase
         _settings = settings ?? new SettingsService();
         _tags = tags ?? new TagService(_settings);
         _shell = shell ?? new ShellService();
+        _archives = archives ?? new ArchiveService();
+        _device = device ?? new DeviceService();
         search ??= new SearchService();
 
-        LeftPane = new PaneViewModel(fileSystem, search) { ConfigureTab = ConfigureTab };
-        RightPane = new PaneViewModel(fileSystem, search) { ConfigureTab = ConfigureTab };
+        LeftPane = new PaneViewModel(fileSystem, search, _archives) { ConfigureTab = ConfigureTab };
+        RightPane = new PaneViewModel(fileSystem, search, _archives) { ConfigureTab = ConfigureTab };
         _activePane = LeftPane;
         LeftPane.IsActive = true;
 
@@ -127,6 +135,8 @@ public partial class MainWindowViewModel : ViewModelBase
             new("tag.clear", "Clear Tag", "Tag", null, () => ClearTagCommand.ExecuteAsync(null)),
             new("tag.filterClear", "Clear Tag Filter", "Tag", null, () => { ClearTagFilterCommand.Execute(null); return Task.CompletedTask; }),
             new("app.settings", "Settings…", "App", null, () => OpenSettingsCommand.ExecuteAsync(null)),
+            new("archive.extract", "Extract Archive Here", "Archive", null, () => ExtractHereCommand.ExecuteAsync(null)),
+            new("archive.identify", "Identify File", "Archive", null, () => { IdentifyFileCommand.Execute(null); return Task.CompletedTask; }),
             .. _tags.Palette.Select(c => new CommandItem(
                 $"tag.set.{c.Name}", $"Tag: {c.Name}", "Tag", null, () => AssignTagCommand.ExecuteAsync(c.Hex))),
             .. _tags.Palette.Select(c => new CommandItem(
@@ -150,6 +160,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
         await LoadSidebarAsync();
         RewireInspector();
+        StartDevicePolling();
         ThemeChanged?.Invoke(this, EventArgs.Empty);
     }
 
@@ -252,18 +263,71 @@ public partial class MainWindowViewModel : ViewModelBase
         foreach (var fav in BuildFavorites())
             Sidebar.Add(fav);
 
+        var volumes = await _fileSystem.ListVolumesAsync();
+        _volumeSignature = VolumeSignature(volumes);
+
         Sidebar.Add(new SidebarItemViewModel { Name = "Drives", Kind = SidebarItemKind.Header });
-        foreach (var volume in await _fileSystem.ListVolumesAsync())
+        foreach (var volume in volumes.Where(v => v.Kind == VolumeKind.Fixed))
+            Sidebar.Add(ToSidebar(volume, SidebarItemKind.Drive));
+
+        var removable = volumes.Where(v => v.IsRemovable).ToList();
+        if (removable.Count > 0)
         {
-            Sidebar.Add(new SidebarItemViewModel
-            {
-                Name = volume.Label,
-                Path = volume.RootPath,
-                Kind = SidebarItemKind.Drive,
-                FreeBytes = volume.FreeBytes,
-                TotalBytes = volume.TotalBytes,
-            });
+            Sidebar.Add(new SidebarItemViewModel { Name = "Devices", Kind = SidebarItemKind.Header });
+            foreach (var volume in removable)
+                Sidebar.Add(ToSidebar(volume, SidebarItemKind.Device));
         }
+    }
+
+    private static SidebarItemViewModel ToSidebar(DriveVolume volume, SidebarItemKind kind) => new()
+    {
+        Name = volume.Label,
+        Path = volume.RootPath,
+        Kind = kind,
+        FreeBytes = volume.FreeBytes,
+        TotalBytes = volume.TotalBytes,
+        FileSystem = volume.FileSystem ?? (volume.Kind == VolumeKind.Gvfs ? "GVfs" : null),
+        IsEjectable = volume.IsRemovable,
+    };
+
+    private static string VolumeSignature(IReadOnlyList<DriveVolume> volumes) =>
+        string.Join("|", volumes.Select(v => v.RootPath).OrderBy(p => p));
+
+    [RelayCommand]
+    private async Task Eject(SidebarItemViewModel? item)
+    {
+        if (item is { IsEjectable: true })
+        {
+            await _device.EjectAsync(item.Path);
+            await LoadSidebarAsync();
+        }
+    }
+
+    /// <summary>Polls for volume plug/unplug and refreshes the sidebar only when the set changes (PRD §6.10).</summary>
+    private void StartDevicePolling()
+    {
+        _devicePoll ??= new Timer(async _ =>
+        {
+            try
+            {
+                var volumes = await _fileSystem.ListVolumesAsync();
+                if (VolumeSignature(volumes) == _volumeSignature)
+                    return;
+                Post(() => _ = LoadSidebarAsync());
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                // transient enumeration error; try again next tick
+            }
+        }, null, TimeSpan.FromSeconds(4), TimeSpan.FromSeconds(4));
+    }
+
+    private void Post(Action action)
+    {
+        if (_sync is not null)
+            _sync.Post(_ => action(), null);
+        else
+            action();
     }
 
     private IEnumerable<SidebarItemViewModel> BuildFavorites()
@@ -464,6 +528,33 @@ public partial class MainWindowViewModel : ViewModelBase
             }
         }
         RefreshActiveTab();
+    }
+
+    [RelayCommand]
+    private async Task ExtractHere()
+    {
+        if (ActiveTab?.SelectedEntry is not { } e || !_archives.IsArchive(e.FullPath))
+            return;
+
+        var dest = FileOperationService.UniquePath(
+            Path.Combine(ActiveTab.CurrentPath, Path.GetFileNameWithoutExtension(e.Name)));
+        try
+        {
+            ActiveTab.StatusText = $"Extracting {e.Name}…";
+            await _archives.ExtractAllAsync(e.FullPath, dest);
+            RefreshActiveTab();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
+        {
+            ActiveTab.StatusText = $"Extract failed: {ex.Message}";
+        }
+    }
+
+    [RelayCommand]
+    private void IdentifyFile()
+    {
+        if (ActiveTab?.SelectedEntry is { } e)
+            ActiveTab.StatusText = $"{e.Name}: {_archives.Identify(e.FullPath) ?? "unrecognised format"}";
     }
 
     [RelayCommand]

@@ -15,6 +15,7 @@ public partial class FileTabViewModel : ViewModelBase, IDisposable
     private readonly IFileSystemService _fileSystem;
     private readonly ISearchService _search;
     private readonly IShellService _shell;
+    private readonly IArchiveService _archives;
     private readonly NavigationHistory _history = new();
     private readonly SynchronizationContext? _sync = SynchronizationContext.Current;
 
@@ -76,11 +77,14 @@ public partial class FileTabViewModel : ViewModelBase, IDisposable
 
     public ObservableCollection<FileEntryViewModel> Entries { get; } = [];
 
-    public FileTabViewModel(IFileSystemService fileSystem, ISearchService? search = null, IShellService? shell = null)
+    public FileTabViewModel(
+        IFileSystemService fileSystem, ISearchService? search = null,
+        IShellService? shell = null, IArchiveService? archives = null)
     {
         _fileSystem = fileSystem;
         _search = search ?? new SearchService();
         _shell = shell ?? new ShellService();
+        _archives = archives ?? new ArchiveService();
     }
 
     /// <summary>Short label for the tab header — the current folder name, or the path for roots.</summary>
@@ -130,8 +134,34 @@ public partial class FileTabViewModel : ViewModelBase, IDisposable
         item ??= SelectedEntry;
         if (item is null)
             return Task.CompletedTask;
-        // Directories are entered in-place; files open with the OS default handler (PRD §6.9).
-        return item.IsDirectory ? NavigateToAsync(item.FullPath) : _shell.OpenAsync(item.FullPath);
+        if (item.IsDirectory)
+            return NavigateToAsync(item.FullPath);
+        // Archives are entered as virtual folders (PRD §6.11); other files open with the OS default.
+        if (_archives.IsArchive(item.FullPath))
+            return EnterArchiveAsync(item.FullPath);
+        return _shell.OpenAsync(item.FullPath);
+    }
+
+    /// <summary>
+    /// Enters an archive by extracting it to a temp folder and browsing that (PRD §6.11).
+    /// Nested archives are entered the same way, giving descent without manual extraction.
+    /// </summary>
+    private async Task EnterArchiveAsync(string archivePath)
+    {
+        IsLoading = true;
+        StatusText = $"Opening {Path.GetFileName(archivePath)}…";
+        try
+        {
+            var temp = Path.Combine(Path.GetTempPath(), "foileBrowser", "archives",
+                Path.GetFileNameWithoutExtension(archivePath) + "-" + Guid.NewGuid().ToString("N")[..8]);
+            await _archives.ExtractAllAsync(archivePath, temp);
+            await NavigateToAsync(temp);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
+        {
+            StatusText = $"Cannot open archive: {ex.Message}";
+            IsLoading = false;
+        }
     }
 
     [RelayCommand]

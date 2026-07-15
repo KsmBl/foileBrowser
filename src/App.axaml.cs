@@ -28,10 +28,11 @@ public partial class App : Application
             var settings = new SettingsService();
             var tags = new TagService(settings);
             var shell = new ShellService();
+            var archives = new ArchiveService();
             desktop.MainWindow = new MainWindow
             {
                 DataContext = new MainWindowViewModel(
-                    fileSystem, operations, trash, search, preview, settings, tags, shell),
+                    fileSystem, operations, trash, search, preview, settings, tags, shell, archives),
             };
         }
 
