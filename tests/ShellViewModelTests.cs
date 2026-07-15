@@ -11,6 +11,18 @@ public class ShellViewModelTests
     private static MainWindowViewModel CreateShell(FakeFileSystem fs, RecordingTrash trash)
         => new(fs, new FileOperationService(), trash);
 
+    private static async Task<bool> WaitUntilAsync(Func<bool> condition, int timeoutMs = 2000)
+    {
+        var deadline = DateTime.UtcNow.AddMilliseconds(timeoutMs);
+        while (DateTime.UtcNow < deadline)
+        {
+            if (condition())
+                return true;
+            await Task.Delay(15);
+        }
+        return condition();
+    }
+
     [Test]
     public async Task Initialize_Builds_Both_Panes_And_Sidebar()
     {
@@ -92,6 +104,43 @@ public class ShellViewModelTests
             new SidebarItemViewModel { Name = "Root", Path = "/somewhere", Kind = SidebarItemKind.Favorite });
 
         Assert.That(vm.ActiveTab!.CurrentPath, Is.EqualTo("/somewhere"));
+    }
+
+    [Test]
+    public async Task Inspector_Follows_Active_Tab_Selection()
+    {
+        var fs = new FakeFileSystem();
+        fs.Entries.Add(File("doc.txt"));
+        var preview = new FakePreview();
+        var vm = new MainWindowViewModel(fs, new FileOperationService(), new RecordingTrash(), new SearchService(), preview);
+        await vm.InitializeAsync();
+
+        vm.ActiveTab!.SelectedEntry = vm.ActiveTab.Entries.First();
+
+        Assert.That(await WaitUntilAsync(() => vm.Preview is not null), Is.True);
+        Assert.That(preview.Last!.Name, Is.EqualTo("doc.txt"));
+    }
+
+    [Test]
+    public async Task ToggleInspector_Flips_Visibility()
+    {
+        var vm = CreateShell(new FakeFileSystem(), new RecordingTrash());
+        await vm.InitializeAsync();
+        Assert.That(vm.IsInspectorOpen, Is.True);
+
+        vm.ToggleInspectorCommand.Execute(null);
+
+        Assert.That(vm.IsInspectorOpen, Is.False);
+    }
+
+    [Test]
+    public void CommandPalette_Has_Registered_Commands()
+    {
+        var vm = CreateShell(new FakeFileSystem(), new RecordingTrash());
+        vm.OpenCommandPaletteCommand.Execute(null);
+
+        Assert.That(vm.CommandPalette.IsOpen, Is.True);
+        Assert.That(vm.CommandPalette.Results.Any(c => c.Title == "New Folder"), Is.True);
     }
 
     [Test]

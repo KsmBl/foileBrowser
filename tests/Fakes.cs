@@ -36,6 +36,23 @@ internal sealed class RecordingTrash : ITrashService
     }
 }
 
+/// <summary>Returns a fixed preview immediately and records how many times it was asked.</summary>
+internal sealed class FakePreview : IPreviewService
+{
+    public int Calls { get; private set; }
+    public FileSystemEntry? Last { get; private set; }
+
+    public Task<PreviewResult> CreateAsync(FileSystemEntry entry, CancellationToken cancellationToken = default)
+    {
+        Calls++;
+        Last = entry;
+        return Task.FromResult(new PreviewResult
+        {
+            Kind = PreviewKind.None, Title = entry.Name, Info = "fake",
+        });
+    }
+}
+
 internal static class FakeEntries
 {
     public static FileSystemEntry Dir(string name) => new()

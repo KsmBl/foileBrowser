@@ -97,6 +97,32 @@ public class FileTabViewModelTests
     }
 
     [Test]
+    public async Task FilterText_Narrows_Entries_As_You_Type()
+    {
+        var fs = new FakeFileSystem();
+        fs.Entries.AddRange([File("report.md"), File("notes.txt"), File("readme.md")]);
+        var tab = await CreateAndLoadAsync(fs);
+
+        tab.FilterText = "rme"; // subsequence of readme
+
+        Assert.That(tab.Entries.Select(e => e.Name), Does.Contain("readme.md"));
+        Assert.That(tab.Entries.Select(e => e.Name), Does.Not.Contain("notes.txt"));
+    }
+
+    [Test]
+    public async Task Navigating_Clears_An_Active_Filter()
+    {
+        var fs = new FakeFileSystem();
+        fs.Entries.Add(File("a.txt"));
+        var tab = await CreateAndLoadAsync(fs);
+        tab.FilterText = "zzz";
+
+        await tab.NavigateToAsync("/x/other");
+
+        Assert.That(tab.FilterText, Is.Empty);
+    }
+
+    [Test]
     public async Task Title_Is_Current_Folder_Name()
     {
         var fs = new FakeFileSystem();
