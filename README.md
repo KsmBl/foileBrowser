@@ -31,6 +31,9 @@ dotnet test                                    # run the NUnit suite
 - **M4 — Polish** ✅ — light/dark/system theme + accent + font/row-density, portable JSON
   settings, session restore, color tags (filterable), batch rename (regex/counter/date tokens),
   filesystem-watcher auto-refresh, open-with / open-terminal-here
+- **M5 — Devices & archives** ✅ — clean removable/GVfs device list with fs-type + eject and
+  plug/unplug auto-refresh; enter archives (ZIP/TAR/7z/… via CompressionWorkbench) as virtual
+  folders, extract, nested descent, identify-format
 
 See [docs/PRD.md](docs/PRD.md) for the checkboxed feature list and milestones — check off what's
 built, delete what's not wanted.

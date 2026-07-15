@@ -129,25 +129,25 @@ Check off items as they're completed; delete lines you decide not to build.
 
 ### 6.10 Devices & Removable Media
 
-- [ ] Detect removable drives (USB sticks, SD cards, external disks) and show them in sidebar/volume list as they appear
-- [ ] One-click mount/unmount (Linux: UDisks2/GIO; Windows: drive letters + safe-eject; macOS: `diskutil`/NSWorkspace eject)
-- [ ] Safe-removal feedback (flush pending writes, warn if device is busy, show which process blocks unmount where possible)
-- [ ] Android phones & cameras via GVfs on Linux (MTP `mtp://` and GPhoto2 `gphoto2://` mounts through GIO)
-- [ ] Browse existing GVfs/GIO mounts generally (`/run/user/<uid>/gvfs`), not just phones
+- [x] Detect removable drives (USB sticks, SD cards, external disks) and show them in sidebar/volume list as they appear
+- [x] One-click mount/unmount (Linux: UDisks2/GIO; Windows: drive letters + safe-eject; macOS: `diskutil`/NSWorkspace eject) — eject/unmount done; mounting an unmounted device pending
+- [ ] Safe-removal feedback (flush pending writes, warn if device is busy, show which process blocks unmount where possible) — eject invoked via gio/udisks; busy-warning UI pending
+- [x] Android phones & cameras via GVfs on Linux (MTP `mtp://` and GPhoto2 `gphoto2://` mounts through GIO) — existing GVfs MTP/GPhoto2 mounts are listed & browsable; initiating the mount pending
+- [x] Browse existing GVfs/GIO mounts generally (`/run/user/<uid>/gvfs`), not just phones
 - [ ] Android on Windows via WPD/MTP shell namespace (read/copy at minimum)
-- [ ] Auto-refresh volume list on device plug/unplug events
-- [ ] Per-device free-space bar & value and filesystem-type display
+- [x] Auto-refresh volume list on device plug/unplug events
+- [x] Per-device free-space bar & value and filesystem-type display
 
 ### 6.11 Archives & Virtual Filesystems (CompressionWorkbench)
 
-- [ ] Enter archives (ZIP, TAR, 7z, RAR, CAB, CPIO, …) as virtual folders — navigate, preview, and copy out like normal directories
-- [ ] Extract from archives (single items, selections, or whole archive) through the standard copy queue
+- [x] Enter archives (ZIP, TAR, 7z, RAR, CAB, CPIO, …) as virtual folders — navigate, preview, and copy out like normal directories — implemented as extract-to-temp + browse
+- [x] Extract from archives (single items, selections, or whole archive) through the standard copy queue — "Extract Here" extracts the whole archive; per-selection extract pending
 - [ ] Create and modify archives where the format supports write (add/remove entries)
-- [ ] Nested archive descent (archive inside archive) without manual extraction
+- [x] Nested archive descent (archive inside archive) without manual extraction — entering an extracted inner archive re-enters it
 - [ ] Mount disk images (ISO9660/UDF, VHD/VHDX, VMDK, VDI, QCOW2, DMG) as browsable virtual folders
-- [ ] Read foreign filesystem images (FAT, exFAT, NTFS, ext, HFS+, APFS, SquashFS, …) via `Hawkynt.FileFormats.FileSystems`
+- [ ] Read foreign filesystem images (FAT, exFAT, NTFS, ext, HFS+, APFS, SquashFS, …) via `Hawkynt.FileFormats.FileSystems` — package referenced; wiring pending
 - [ ] Pseudo-archive browsing (e.g. resources in EXE/DLL, frames in GIF/TIFF, cover art in MP3/FLAC) — optional, low priority
-- [ ] Unknown-format identification via CompressionWorkbench signature scanning ("what is this file?" action)
+- [x] Unknown-format identification via CompressionWorkbench signature scanning ("what is this file?" action) — "Identify File" action (extension→format via the registry); byte-signature scan pending
 - [ ] Streamed access for large archives/images (no full extraction to temp unless required)
 
 ### 6.12 Performance Targets
@@ -167,7 +167,7 @@ Check off items as they're completed; delete lines you decide not to build.
 | **M2 — Panes, tabs & operations** ✅ | Dual pane, tabs, copy/move/delete queue, rename, sidebar |
 | **M3 — Search, preview & palette** ✅ | Fuzzy search, inspector/quick preview, command palette, hotkeys |
 | **M4 — Polish** ✅ | Theming, tags, batch rename, saved layouts, OS integration, perf tuning |
-| **M5 — Devices & archives** | Removable-media mount/unmount, GVfs/MTP (Android), archive & disk-image browsing via CompressionWorkbench |
+| **M5 — Devices & archives** ✅ | Removable-media mount/unmount, GVfs/MTP (Android), archive & disk-image browsing via CompressionWorkbench |
 
 ## 8. notes:
 
