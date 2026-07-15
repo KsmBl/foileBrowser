@@ -4,18 +4,50 @@ A fast, keyboard-first, cross-platform (Windows / Linux / macOS) file browser, i
 
 **Stack:** C# 14 · .NET 10 · Avalonia UI · MVVM (CommunityToolkit.Mvvm) · NUnit
 
+## Screenshots
+
+Dual-pane browsing with per-pane tabs, color tags, an inspector panel, and a sidebar of
+favorites, drives and removable devices:
+
+![Dual-pane browsing](docs/screenshots/dual-pane.png)
+
+Fuzzy command palette (`Ctrl+P`) — every action, searchable:
+
+![Command palette](docs/screenshots/command-palette.png)
+
 ## Layout
 
 - `src/` — application code
-- `tests/` — xUnit tests
-- `docs/` — documentation, including the [PRD](docs/PRD.md)
+- `tests/` — NUnit tests
+- `docs/` — documentation, including the [PRD](docs/PRD.md) and `screenshots/`
 
 ## Build & run
 
 ```sh
 dotnet run --project src/FoileBrowser.csproj   # launch the app
 dotnet test                                    # run the NUnit suite
+dotnet build foileBrowser.slnx                 # build the whole solution
 ```
+
+## Install
+
+Installs a `foilebrowser` launcher (plus, on Linux, an icon and a menu entry that can be set
+as the default file manager). No root required — it installs under `~/.local` by default.
+
+```sh
+# Linux / macOS
+./install.sh                 # or: ./install.sh --prefix /usr/local --self-contained
+./uninstall.sh
+```
+
+```powershell
+# Windows (PowerShell)
+./install.ps1                # or: ./install.ps1 -SelfContained
+./uninstall.ps1
+```
+
+Without `--self-contained` the launcher runs on the installed .NET 10 runtime; with it, a
+standalone build is published that needs no runtime.
 
 ## Status
 
