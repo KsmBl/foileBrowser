@@ -82,27 +82,27 @@ Check off items as they're completed; delete lines you decide not to build.
 
 ### 6.4 Search & Filter
 
-- [ ] As-you-type filter within the current folder
-- [ ] Recursive fuzzy search across a folder tree or whole drive
-- [ ] Flattened search results view (path shown per hit)
-- [ ] Extension/type filters on search results
-- [ ] Search cancellation and progressive result streaming
+- [x] As-you-type filter within the current folder
+- [x] Recursive fuzzy search across a folder tree or whole drive
+- [x] Flattened search results view (path shown per hit)
+- [x] Extension/type filters on search results
+- [x] Search cancellation and progressive result streaming
 
 ### 6.5 Preview
 
-- [ ] Spacebar quick-preview popup (images, plain text)
-- [ ] Inspector side panel: persistent preview of the selected item (File Pilot style)
-- [ ] Folder preview in inspector (item count, size, top-level contents)
-- [ ] Thumbnail generation with cache (async, off UI thread)
-- [ ] Syntax-highlighted text/code preview
+- [x] Spacebar quick-preview popup (images, plain text)
+- [x] Inspector side panel: persistent preview of the selected item (File Pilot style)
+- [x] Folder preview in inspector (item count, size, top-level contents) — count + top-level listing; aggregate byte size pending
+- [ ] Thumbnail generation with cache (async, off UI thread) — images decode to bounded width (thumbnail-like); persistent cache pending
+- [ ] Syntax-highlighted text/code preview — plain-text preview done; highlighting pending
 - [ ] PDF first-page preview
 
 ### 6.6 Keyboard & Commands
 
-- [ ] Command palette listing every action, fuzzy-searchable
-- [ ] Fully rebindable hotkeys, including multi-key sequences
+- [x] Command palette listing every action, fuzzy-searchable
+- [ ] Fully rebindable hotkeys, including multi-key sequences — palette shows default gestures; persisted rebinding pending (M4 settings)
 - [ ] Hotkey assignment directly from the command palette
-- [ ] Complete keyboard operability: navigation, selection, dialogs, panels
+- [x] Complete keyboard operability: navigation, selection, dialogs, panels — core flows keyboard-driven (nav, palette, search, dialogs)
 - [ ] Type-ahead selection in file lists
 
 ### 6.7 Organization
@@ -165,7 +165,7 @@ Check off items as they're completed; delete lines you decide not to build.
 | **M0 — Scaffold** ✅ | Repo layout, PRD, README |
 | **M1 — MVP browsing** ✅ | Avalonia app shell, single pane, directory listing, navigation, sorting |
 | **M2 — Panes, tabs & operations** ✅ | Dual pane, tabs, copy/move/delete queue, rename, sidebar |
-| **M3 — Search, preview & palette** | Fuzzy search, inspector/quick preview, command palette, hotkeys |
+| **M3 — Search, preview & palette** ✅ | Fuzzy search, inspector/quick preview, command palette, hotkeys |
 | **M4 — Polish** | Theming, tags, batch rename, saved layouts, OS integration, perf tuning |
 | **M5 — Devices & archives** | Removable-media mount/unmount, GVfs/MTP (Android), archive & disk-image browsing via CompressionWorkbench |
 

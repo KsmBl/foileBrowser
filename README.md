@@ -25,6 +25,9 @@ dotnet test                                    # run the NUnit suite
 - **M2 — Panes, tabs & operations** ✅ — dual pane + splitter, per-pane tabs, sidebar
   (favorites + drives with free-space), background copy/move queue, delete-to-trash,
   rename, new file/folder, copy path/name
+- **M3 — Search, preview & palette** ✅ — as-you-type filter, recursive streaming fuzzy
+  search with extension filters, inspector panel + spacebar quick-preview (text/image/folder),
+  fuzzy command palette (Ctrl+P)
 
 See [docs/PRD.md](docs/PRD.md) for the checkboxed feature list and milestones — check off what's
 built, delete what's not wanted.
