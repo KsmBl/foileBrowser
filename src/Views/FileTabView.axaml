@@ -29,6 +29,30 @@
       </Grid>
     </Border>
 
+    <!-- Button-style breadcrumb bar: click any segment to jump there (PRD §6.1) -->
+    <Border DockPanel.Dock="Top" Padding="4,2" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" BorderThickness="0,0,0,1">
+      <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+        <ItemsControl ItemsSource="{Binding Breadcrumbs}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <StackPanel Orientation="Horizontal" Spacing="1" />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="vm:BreadcrumbSegment">
+              <StackPanel Orientation="Horizontal" Spacing="1" VerticalAlignment="Center">
+                <TextBlock Text="›" Opacity="0.5" VerticalAlignment="Center" Margin="2,0"
+                           IsVisible="{Binding ShowSeparator}" />
+                <Button Content="{Binding Name}" Padding="6,2" FontSize="12" Background="Transparent"
+                        Command="{Binding $parent[ItemsControl].((vm:FileTabViewModel)DataContext).NavigateBreadcrumbCommand}"
+                        CommandParameter="{Binding}" />
+              </StackPanel>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </ScrollViewer>
+    </Border>
+
     <!-- Status bar -->
     <Border DockPanel.Dock="Bottom" Padding="6,3" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" BorderThickness="0,1,0,0">
       <Grid ColumnDefinitions="*,Auto">
