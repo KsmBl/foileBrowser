@@ -20,8 +20,8 @@
     <KeyBinding Gesture="Ctrl+P" Command="{Binding OpenCommandPaletteCommand}" />
     <KeyBinding Gesture="Ctrl+L" Command="{Binding FocusPathBarCommand}" />
     <KeyBinding Gesture="Ctrl+Shift+P" Command="{Binding OpenCommandPaletteCommand}" />
-    <KeyBinding Gesture="F2" Command="{Binding RenameSelectedCommand}" />
-    <KeyBinding Gesture="Delete" Command="{Binding DeleteSelectedCommand}" />
+    <!-- F2 (rename) and Delete (trash) are handled inside the file list only, so they don't
+         hijack those keys while typing in a text box (path bar, filter, rename dialog). -->
     <KeyBinding Gesture="Ctrl+Shift+N" Command="{Binding NewFolderCommand}" />
     <KeyBinding Gesture="F6" Command="{Binding CopyToOtherCommand}" />
     <KeyBinding Gesture="F7" Command="{Binding MoveToOtherCommand}" />

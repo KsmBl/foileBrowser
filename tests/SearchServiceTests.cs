@@ -45,6 +45,17 @@ public class SearchServiceTests
     }
 
     [Test]
+    public async Task Empty_Query_With_Extension_Filter_Returns_All_Of_That_Type()
+    {
+        // Extension-only search: no name query, just a type filter.
+        var names = await CollectAsync("", ["md"]);
+
+        Assert.That(names, Is.EquivalentTo(new[] { "readme.md", "report.md" }));
+        Assert.That(names, Does.Not.Contain("notes.txt"));
+        Assert.That(names, Does.Not.Contain("image.png"));
+    }
+
+    [Test]
     public async Task Extension_Filter_Limits_Results_To_Files()
     {
         var names = await CollectAsync("", ["png"]);

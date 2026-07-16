@@ -76,8 +76,9 @@ Check off items as they're completed; delete lines you decide not to build.
 - [ ] Grid view mode with thumbnails (generated with https://github.com/Hawkynt/PNGCrushCS)
 - [x] Computed folder sizes: calculated recursively in the background as folders come into view,
   showing a live "…/300 MiB+" counting hint, with results kept in an in-memory LRU cache shared
-  process-wide. A single walk caches every descendant folder's size too, so drilling into an
-  already-counted folder is instant rather than restarting — configurable column set still pending
+  process-wide (lock-free reads via a concurrent dictionary + interlocked recency ticks). A single
+  walk caches every descendant folder's size too, so drilling into an already-counted folder is
+  instant rather than restarting — configurable column set still pending
 - [x] Switch file sizes between binary (KiB/MiB), decimal (KB/MB) and exact bytes, quick-toggle in
   the toolbar / View menu / command palette (persisted)
 - [x] Collapsible sidebar with favorites/pinned folders and drives — sidebar with favorites + drives (free-space bars); collapse toggle pending
@@ -88,11 +89,15 @@ Check off items as they're completed; delete lines you decide not to build.
 - [x] Copy / move with progress dialog and background operation queue
 - [x] Blazing-fast transfers: overlapped async read/write with configurable buffers, and an adaptive
   strategy that profiles the drives — overlapped read+write for SSD/cross-device, large sequential
-  slurp for a single mechanical/optical spindle (avoids head-seek thrashing)
+  slurp for a single mechanical/optical spindle (avoids head-seek thrashing). Drive profiling works on
+  Linux (/proc/mounts + /sys/block rotational) and Windows (DriveType + IncursSeekPenalty query),
+  cached per device
 - [x] Delete to OS trash (platform-specific: Recycle Bin / gio trash / NSFileManager)
 - [ ] Permanent delete with confirmation (optional overwriting disk space with zeros / random to fully erase file)
 - [ ] Conflict resolution dialog (overwrite / skip / rename / apply-to-all) — resolver supports overwrite/skip/rename/cancel; interactive dialog + apply-to-all pending (defaults to auto-rename)
-- [x] Inline rename (F2) — via a rename prompt; true in-list inline editing pending
+- [x] Inline rename (F2) — via a rename prompt; true in-list inline editing pending. F2 (rename) and
+  Delete (trash) are scoped to the focused file list, so they never hijack those keys while typing in
+  a text box (path bar, filter, dialogs)
 - [x] Batch rename with RegEx, counters, and file-date tokens (OneCommander File Automator style)
 - [x] New file / new folder
 - [ ] multi Undo / redo for rename/move/delete-to-trash
@@ -105,7 +110,8 @@ Check off items as they're completed; delete lines you decide not to build.
 - [x] As-you-type filter within the current folder
 - [x] Recursive fuzzy search across a folder tree or whole drive
 - [x] Flattened search results view (path shown per hit)
-- [x] Extension/type filters on search results
+- [x] Extension/type filters on search results, including extension-only search (empty name query +
+  extension filter returns every file of that type); Enter in the extension box starts the search
 - [x] Search cancellation and progressive result streaming
 
 ### 6.5 Preview

@@ -45,16 +45,28 @@ public partial class FileTabView : UserControl
 
     private void OnListKeyDown(object? sender, KeyEventArgs e)
     {
-        if (e.Key == Key.Enter)
+        var shell = (TopLevel.GetTopLevel(this) as MainWindow)?.DataContext as MainWindowViewModel;
+        switch (e.Key)
         {
-            OnEntryActivated(sender, e);
-            e.Handled = true;
-        }
-        else if (e.Key == Key.Space)
-        {
-            // Spacebar quick-preview popup (PRD §6.5).
-            (TopLevel.GetTopLevel(this) as MainWindow)?.ShowQuickPreview();
-            e.Handled = true;
+            case Key.Enter:
+                OnEntryActivated(sender, e);
+                e.Handled = true;
+                break;
+            case Key.Space:
+                // Spacebar quick-preview popup (PRD §6.5).
+                (TopLevel.GetTopLevel(this) as MainWindow)?.ShowQuickPreview();
+                e.Handled = true;
+                break;
+            // Delete/F2 live here (not as window shortcuts) so they only act on files when the
+            // list has focus, never while typing in a text box.
+            case Key.Delete:
+                shell?.DeleteSelectedCommand.Execute(null);
+                e.Handled = true;
+                break;
+            case Key.F2:
+                shell?.RenameSelectedCommand.Execute(null);
+                e.Handled = true;
+                break;
         }
     }
 }

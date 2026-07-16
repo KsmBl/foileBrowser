@@ -1,71 +1,86 @@
+using System.Collections.Concurrent;
+
 namespace FoileBrowser.Services;
 
 /// <summary>
-/// A small thread-safe least-recently-used cache. Reads and writes touch an entry, moving it to the
-/// front; when the cache is full the least-recently-touched entry is evicted. Used to keep computed
-/// folder sizes in memory without unbounded growth (PRD §6.2).
+/// A thread-safe, approximately-least-recently-used cache tuned for a read-heavy workload (folder
+/// sizes are read far more often than written, PRD §6.2). Lookups and stores go through a lock-free
+/// <see cref="ConcurrentDictionary{TKey,TValue}"/>; recency is tracked with an <see cref="Interlocked"/>
+/// tick counter instead of a locked linked list, so hot reads never contend on a lock. Eviction
+/// (only when over capacity) removes the lowest-tick entries with a small margin so it runs rarely.
 /// </summary>
 public sealed class LruCache<TKey, TValue>(int capacity) where TKey : notnull
 {
-    private readonly int _capacity = capacity > 0 ? capacity : throw new ArgumentOutOfRangeException(nameof(capacity));
-    private readonly Dictionary<TKey, LinkedListNode<Entry>> _map = new();
-    private readonly LinkedList<Entry> _order = new();
-    private readonly Lock _gate = new();
-
-    private readonly record struct Entry(TKey Key, TValue Value);
-
-    public int Count
+    private sealed class Node(TValue value, long tick)
     {
-        get { lock (_gate) return _map.Count; }
+        public TValue Value = value;
+        public long Tick = tick;
     }
+
+    private readonly int _capacity = capacity > 0 ? capacity : throw new ArgumentOutOfRangeException(nameof(capacity));
+    private readonly ConcurrentDictionary<TKey, Node> _map = new();
+    private long _tick;
+    private int _evicting; // 0/1 guard so only one thread evicts at a time
+
+    public int Count => _map.Count;
 
     public bool TryGet(TKey key, out TValue value)
     {
-        lock (_gate)
+        if (_map.TryGetValue(key, out var node))
         {
-            if (_map.TryGetValue(key, out var node))
-            {
-                _order.Remove(node);
-                _order.AddFirst(node);
-                value = node.Value.Value;
-                return true;
-            }
+            // Touch: a plain write of an interlocked tick is fine — recency only needs to be approximate.
+            node.Tick = Interlocked.Increment(ref _tick);
+            value = node.Value;
+            return true;
         }
+
         value = default!;
         return false;
     }
 
     public void Set(TKey key, TValue value)
     {
-        lock (_gate)
-        {
-            if (_map.TryGetValue(key, out var existing))
-            {
-                _order.Remove(existing);
-                existing.Value = new Entry(key, value);
-                _order.AddFirst(existing);
-                return;
-            }
+        var tick = Interlocked.Increment(ref _tick);
+        _map.AddOrUpdate(
+            key,
+            static (_, state) => new Node(state.value, state.tick),
+            static (_, node, state) => { node.Value = state.value; node.Tick = state.tick; return node; },
+            (value, tick));
 
-            var node = new LinkedListNode<Entry>(new Entry(key, value));
-            _order.AddFirst(node);
-            _map[key] = node;
-
-            if (_map.Count > _capacity)
-            {
-                var lru = _order.Last!;
-                _order.RemoveLast();
-                _map.Remove(lru.Value.Key);
-            }
-        }
+        if (_map.Count > _capacity)
+            Evict();
     }
 
-    public void Clear()
+    private void Evict()
     {
-        lock (_gate)
+        // Only one evictor at a time; other threads that overflow just skip and let it catch up.
+        if (Interlocked.Exchange(ref _evicting, 1) == 1)
+            return;
+        try
         {
-            _map.Clear();
-            _order.Clear();
+            while (_map.Count > _capacity)
+            {
+                TKey? oldestKey = default;
+                var oldestTick = long.MaxValue;
+                var found = false;
+                foreach (var pair in _map)
+                {
+                    if (pair.Value.Tick >= oldestTick)
+                        continue;
+                    oldestTick = pair.Value.Tick;
+                    oldestKey = pair.Key;
+                    found = true;
+                }
+
+                if (!found || !_map.TryRemove(oldestKey!, out _))
+                    break;
+            }
+        }
+        finally
+        {
+            Interlocked.Exchange(ref _evicting, 0);
         }
     }
+
+    public void Clear() => _map.Clear();
 }

@@ -257,7 +257,9 @@ public partial class FileTabViewModel : ViewModelBase, IDisposable
     [RelayCommand]
     private async Task StartSearchAsync()
     {
-        if (string.IsNullOrWhiteSpace(SearchQuery) || string.IsNullOrEmpty(CurrentPath))
+        // Allow searching by extension alone (empty query = match every name, then filter by extension).
+        if (string.IsNullOrEmpty(CurrentPath)
+            || (string.IsNullOrWhiteSpace(SearchQuery) && string.IsNullOrWhiteSpace(SearchExtensions)))
             return;
 
         _searchCts?.Cancel();
@@ -280,7 +282,8 @@ public partial class FileTabViewModel : ViewModelBase, IDisposable
                 if ((count & 31) == 0)
                     StatusText = $"Searching… {count} matches";
             }
-            StatusText = $"{count} matches for “{SearchQuery.Trim()}”";
+            var label = string.IsNullOrWhiteSpace(SearchQuery) ? SearchExtensions.Trim() : SearchQuery.Trim();
+            StatusText = $"{count} matches for “{label}”";
         }
         catch (OperationCanceledException)
         {

@@ -1,5 +1,8 @@
 using System.Collections.Concurrent;
+using System.Runtime.InteropServices;
+using System.Runtime.Versioning;
 using FoileBrowser.Models;
+using Microsoft.Win32.SafeHandles;
 
 namespace FoileBrowser.Services;
 
@@ -40,11 +43,19 @@ internal static class DriveProfiler
 
     private static Profile ProfileFor(string path)
     {
-        // Only Linux exposes a cheap, dependency-free way to classify the backing device; on other
-        // platforms we assume fast random access (overlapped), which is correct for modern SSDs.
-        if (!OperatingSystem.IsLinux())
-            return default;
+        if (OperatingSystem.IsLinux())
+            return LinuxProfileFor(path);
+        if (OperatingSystem.IsWindows())
+            return WindowsProfileFor(path);
 
+        // Other platforms: assume fast random access (overlapped), correct for modern SSDs.
+        return default;
+    }
+
+    // ---- Linux: /proc/mounts + /sys/block ----
+
+    private static Profile LinuxProfileFor(string path)
+    {
         var mount = FindMount(path);
         return Cache.GetOrAdd(mount.Device is { Length: > 0 } dev ? dev : path, _ =>
         {
@@ -53,6 +64,93 @@ internal static class DriveProfiler
             return new Profile(mount.Device, optical || rotational);
         });
     }
+
+    // ---- Windows: DriveType + IncursSeekPenalty query, cached per volume root ----
+
+    [SupportedOSPlatform("windows")]
+    private static Profile WindowsProfileFor(string path)
+    {
+        var root = Path.GetPathRoot(Path.GetFullPath(path));
+        if (string.IsNullOrEmpty(root))
+            return default;
+
+        return Cache.GetOrAdd(root, r =>
+        {
+            var sequential = false;
+            try
+            {
+                var type = new DriveInfo(r).DriveType;
+                sequential = type == DriveType.CDRom || (type == DriveType.Fixed && HasSeekPenalty(r));
+            }
+            catch
+            {
+                // Unreadable/odd volume — leave as overlapped.
+            }
+            return new Profile(r, sequential);
+        });
+    }
+
+    [SupportedOSPlatform("windows")]
+    private static bool HasSeekPenalty(string root)
+    {
+        var volume = root.TrimEnd('\\', '/'); // "C:\" -> "C:"
+        if (volume.Length < 2)
+            return false;
+
+        using var handle = CreateFileW(
+            $@"\\.\{volume}", 0, FileShareRead | FileShareWrite, IntPtr.Zero, OpenExisting, 0, IntPtr.Zero);
+        if (handle.IsInvalid)
+            return false;
+
+        var query = new StoragePropertyQuery
+        {
+            PropertyId = StorageDeviceSeekPenaltyProperty,
+            QueryType = PropertyStandardQuery,
+        };
+
+        return DeviceIoControl(
+                   handle, IoctlStorageQueryProperty,
+                   ref query, Marshal.SizeOf<StoragePropertyQuery>(),
+                   out var descriptor, Marshal.SizeOf<DeviceSeekPenaltyDescriptor>(),
+                   out _, IntPtr.Zero)
+               && descriptor.IncursSeekPenalty;
+    }
+
+    private const uint IoctlStorageQueryProperty = 0x002D1400;
+    private const int StorageDeviceSeekPenaltyProperty = 7;
+    private const int PropertyStandardQuery = 0;
+    private const uint OpenExisting = 3;
+    private const uint FileShareRead = 1;
+    private const uint FileShareWrite = 2;
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct StoragePropertyQuery
+    {
+        public int PropertyId;
+        public int QueryType;
+        public byte AdditionalParameters;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct DeviceSeekPenaltyDescriptor
+    {
+        public uint Version;
+        public uint Size;
+        [MarshalAs(UnmanagedType.U1)] public bool IncursSeekPenalty;
+    }
+
+    [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode, EntryPoint = "CreateFileW")]
+    private static extern SafeFileHandle CreateFileW(
+        string lpFileName, uint dwDesiredAccess, uint dwShareMode, IntPtr lpSecurityAttributes,
+        uint dwCreationDisposition, uint dwFlagsAndAttributes, IntPtr hTemplateFile);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool DeviceIoControl(
+        SafeFileHandle hDevice, uint dwIoControlCode,
+        ref StoragePropertyQuery lpInBuffer, int nInBufferSize,
+        out DeviceSeekPenaltyDescriptor lpOutBuffer, int nOutBufferSize,
+        out int lpBytesReturned, IntPtr lpOverlapped);
 
     private readonly record struct Mount(string Device, string FsType);
 

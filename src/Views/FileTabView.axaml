@@ -80,9 +80,13 @@
             <KeyBinding Gesture="Enter" Command="{Binding StartSearchCommand}" />
           </TextBox.KeyBindings>
         </TextBox>
-        <TextBox Grid.Column="3" Text="{Binding SearchExtensions, Mode=TwoWay}" Width="90"
+        <TextBox Grid.Column="3" Text="{Binding SearchExtensions, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Width="90"
                  Watermark="ext,ext" FontSize="12" Margin="4,0,0,0"
-                 ToolTip.Tip="Restrict search to these extensions (comma-separated)" />
+                 ToolTip.Tip="Restrict search to these extensions (comma-separated) — press Enter to search by extension alone">
+          <TextBox.KeyBindings>
+            <KeyBinding Gesture="Enter" Command="{Binding StartSearchCommand}" />
+          </TextBox.KeyBindings>
+        </TextBox>
         <Button Grid.Column="4" Content="✕" Margin="4,0,0,0" Command="{Binding StopSearchCommand}"
                 IsVisible="{Binding IsSearching}" ToolTip.Tip="Stop search / clear" />
       </Grid>
