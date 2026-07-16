@@ -1,14 +1,26 @@
+using CommunityToolkit.Mvvm.ComponentModel;
 using FoileBrowser.Models;
 
 namespace FoileBrowser.ViewModels;
 
 /// <summary>
 /// Display wrapper around a <see cref="FileSystemEntry"/> for binding in the file list.
-/// Immutable — a new instance is created per enumeration snapshot.
+/// A new instance is created per enumeration snapshot; only the background-computed folder
+/// size is mutable/observable (PRD §6.2).
 /// </summary>
-public sealed class FileEntryViewModel(FileSystemEntry entry, string? location = null, string? tagColor = null)
+public sealed partial class FileEntryViewModel(FileSystemEntry entry, string? location = null, string? tagColor = null)
+    : ObservableObject
 {
     public FileSystemEntry Entry { get; } = entry;
+
+    /// <summary>Recursively computed folder size, filled in on a background thread (PRD §6.2). Null until known.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SizeDisplay))]
+    private long? _computedSize;
+
+    /// <summary>True while the folder size is being calculated, driving a per-folder progress indicator.</summary>
+    [ObservableProperty]
+    private bool _isCalculatingSize;
 
     /// <summary>Containing directory, shown under the name for flattened search hits (PRD §6.4). Null when browsing.</summary>
     public string? LocationDisplay { get; } = location;
@@ -36,7 +48,9 @@ public sealed class FileEntryViewModel(FileSystemEntry entry, string? location =
         _ => "\U0001F4C4",                              // 📄 page
     };
 
-    public string SizeDisplay => Entry.Size is { } bytes ? FormatSize(bytes) : string.Empty;
+    public string SizeDisplay => IsDirectory
+        ? (ComputedSize is { } folderBytes ? FormatSize(folderBytes) : string.Empty)
+        : (Entry.Size is { } bytes ? FormatSize(bytes) : string.Empty);
 
     public string TypeDisplay => Entry switch
     {

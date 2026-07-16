@@ -62,7 +62,9 @@ Check off items as they're completed; delete lines you decide not to build.
 - [x] Tabs per pane, restored across restart
 - [x] Details (list) view mode
 - [ ] Grid view mode with thumbnails (generated with https://github.com/Hawkynt/PNGCrushCS)
-- [ ] Configurable columns, including computed folder sizes (on demand, async)
+- [x] Computed folder sizes: calculated recursively in the background as folders come into view,
+  with a per-folder progress indicator and results kept in an in-memory LRU cache (shared
+  process-wide, so re-visited folders are instant) — configurable column set still pending
 - [x] Collapsible sidebar with favorites/pinned folders and drives — sidebar with favorites + drives (free-space bars); collapse toggle pending
 - [ ] Drag-and-drop reordering of sidebar favorites
 

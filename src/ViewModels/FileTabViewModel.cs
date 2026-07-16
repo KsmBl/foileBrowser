@@ -16,12 +16,14 @@ public partial class FileTabViewModel : ViewModelBase, IDisposable
     private readonly ISearchService _search;
     private readonly IShellService _shell;
     private readonly IArchiveService _archives;
+    private readonly IDirectorySizeService _sizes;
     private readonly NavigationHistory _history = new();
     private readonly SynchronizationContext? _sync = SynchronizationContext.Current;
 
     private IReadOnlyList<FileSystemEntry> _rawEntries = [];
     private CancellationTokenSource? _loadCts;
     private CancellationTokenSource? _searchCts;
+    private CancellationTokenSource? _sizeCts;
 
     // Auto-refresh: watch the current folder for external changes (PRD §6.12).
     private FileSystemWatcher? _watcher;
@@ -79,12 +81,13 @@ public partial class FileTabViewModel : ViewModelBase, IDisposable
 
     public FileTabViewModel(
         IFileSystemService fileSystem, ISearchService? search = null,
-        IShellService? shell = null, IArchiveService? archives = null)
+        IShellService? shell = null, IArchiveService? archives = null, IDirectorySizeService? sizes = null)
     {
         _fileSystem = fileSystem;
         _search = search ?? new SearchService();
         _shell = shell ?? new ShellService();
         _archives = archives ?? new ArchiveService();
+        _sizes = sizes ?? new DirectorySizeService();
     }
 
     /// <summary>Short label for the tab header — the current folder name, or the path for roots.</summary>
@@ -304,6 +307,65 @@ public partial class FileTabViewModel : ViewModelBase, IDisposable
 
         var folders = sorted.Count(e => e.IsDirectory);
         StatusText = $"{sorted.Count} items ({folders} folders, {sorted.Count - folders} files)";
+
+        ScheduleFolderSizes();
+    }
+
+    // ---- background folder sizing (PRD §6.2) ----
+
+    /// <summary>
+    /// Kicks off recursive size calculation for every folder currently shown. Cached sizes are
+    /// applied instantly; the rest compute in the background (throttled by the size service) and
+    /// fill in live. Rescheduling cancels any still-running walks from the previous view.
+    /// </summary>
+    private void ScheduleFolderSizes()
+    {
+        _sizeCts?.Cancel();
+        _sizeCts?.Dispose();
+        var cts = _sizeCts = new CancellationTokenSource();
+        var token = cts.Token;
+
+        foreach (var vm in Entries)
+        {
+            if (!vm.IsDirectory || vm.Entry.Kind == FileSystemEntryKind.Drive)
+                continue;
+
+            if (_sizes.TryGetCached(vm.FullPath, out var cached))
+            {
+                vm.ComputedSize = cached;
+                continue;
+            }
+
+            vm.IsCalculatingSize = true;
+            _ = CalculateSizeAsync(vm, token);
+        }
+    }
+
+    private async Task CalculateSizeAsync(FileEntryViewModel vm, CancellationToken token)
+    {
+        try
+        {
+            // Progress<T> marshals to the captured (UI) context, so the running total updates safely.
+            var progress = new Progress<long>(running => vm.ComputedSize = running);
+            var size = await _sizes.GetSizeAsync(vm.FullPath, progress, token);
+            Post(() =>
+            {
+                vm.ComputedSize = size;
+                vm.IsCalculatingSize = false;
+            });
+        }
+        catch (OperationCanceledException)
+        {
+            // Navigated away or re-sorted; the new schedule owns the folders now.
+        }
+    }
+
+    private void Post(Action action)
+    {
+        if (_sync is not null)
+            _sync.Post(_ => action(), null);
+        else
+            action();
     }
 
     // ---- filesystem watcher (auto-refresh) ----
@@ -378,6 +440,7 @@ public partial class FileTabViewModel : ViewModelBase, IDisposable
         _debounce = null;
         _loadCts?.Cancel();
         _searchCts?.Cancel();
+        _sizeCts?.Cancel();
     }
 
     private void NotifyNavigationState()

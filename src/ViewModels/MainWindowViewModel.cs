@@ -21,6 +21,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly IShellService _shell;
     private readonly IArchiveService _archives;
     private readonly IDeviceService _device;
+    private readonly IDirectorySizeService _sizes;
 
     private FileTabViewModel? _observedTab;
     private CancellationTokenSource? _previewCts;
@@ -76,10 +77,11 @@ public partial class MainWindowViewModel : ViewModelBase
         _shell = shell ?? new ShellService();
         _archives = archives ?? new ArchiveService();
         _device = device ?? new DeviceService();
+        _sizes = new DirectorySizeService();
         search ??= new SearchService();
 
-        LeftPane = new PaneViewModel(fileSystem, search, _archives) { ConfigureTab = ConfigureTab };
-        RightPane = new PaneViewModel(fileSystem, search, _archives) { ConfigureTab = ConfigureTab };
+        LeftPane = new PaneViewModel(fileSystem, search, _archives, _sizes) { ConfigureTab = ConfigureTab };
+        RightPane = new PaneViewModel(fileSystem, search, _archives, _sizes) { ConfigureTab = ConfigureTab };
         _activePane = LeftPane;
         LeftPane.IsActive = true;
 

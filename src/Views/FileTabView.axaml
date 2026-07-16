@@ -100,7 +100,13 @@
               <TextBlock Text="{Binding LocationDisplay}" IsVisible="{Binding HasLocation}"
                          FontSize="10" Opacity="0.6" TextTrimming="CharacterEllipsis" />
             </StackPanel>
-            <TextBlock Grid.Column="2" Text="{Binding SizeDisplay}" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,0,8,0" FontSize="12" />
+            <!-- Size, with a per-folder progress indicator while it's being calculated (PRD §6.2) -->
+            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4"
+                        HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0">
+              <ProgressBar IsIndeterminate="True" Width="24" Height="2" VerticalAlignment="Center"
+                           IsVisible="{Binding IsCalculatingSize}" ToolTip.Tip="Calculating folder size…" />
+              <TextBlock Text="{Binding SizeDisplay}" FontSize="12" />
+            </StackPanel>
             <TextBlock Grid.Column="3" Text="{Binding TypeDisplay}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" FontSize="12" />
             <TextBlock Grid.Column="4" Text="{Binding ModifiedDisplay}" VerticalAlignment="Center" FontSize="12" />
           </Grid>
