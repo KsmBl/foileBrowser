@@ -40,6 +40,8 @@ public partial class App : Application
         base.OnFrameworkInitializationCompleted();
     }
 
+    [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage(
+        "Trimming", "IL2026", Justification = "Standard Avalonia startup; no data-annotation validation used.")]
     private static void DisableAvaloniaDataAnnotationValidation()
     {
         var dataValidationPluginsToRemove =

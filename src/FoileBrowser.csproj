@@ -9,6 +9,52 @@
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
   </PropertyGroup>
 
+  <!-- Memory-footprint tuning (see docs/PRD §6.12) -->
+  <PropertyGroup>
+    <!-- Drop ICU (~22 MB); dates/sizes use invariant formatting (defers German i18n). -->
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <!-- Workstation, non-concurrent GC keeps the managed heap smaller for a desktop app. -->
+    <ServerGarbageCollection>false</ServerGarbageCollection>
+    <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
+    <!-- Feature switches: shrink the trimmed output and avoid unused subsystems. -->
+    <EventSourceSupport>false</EventSourceSupport>
+    <HttpActivityPropagationSupport>false</HttpActivityPropagationSupport>
+    <MetadataUpdaterSupport>false</MetadataUpdaterSupport>
+    <UseSystemResourceKeys>true</UseSystemResourceKeys>
+    <NullabilityInfoContextSupport>false</NullabilityInfoContextSupport>
+    <AutoreleasePoolSupport>false</AutoreleasePoolSupport>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Ask the GC to keep the heap tight (0..9); also set for the launcher via DOTNET_GCConserveMemory. -->
+    <RuntimeHostConfigurationOption Include="System.GC.ConserveMemory" Value="9" Trim="false" />
+  </ItemGroup>
+
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <DebuggerSupport>false</DebuggerSupport>
+  </PropertyGroup>
+
+  <!-- Trimming (applies at publish only). Reflection is made trim-safe in code; the archive-format
+       assemblies are discovered reflectively, so they are rooted below to survive trimming. -->
+  <PropertyGroup Condition="'$(PublishTrimmed)' == 'true'">
+    <TrimMode>full</TrimMode>
+    <SuppressTrimAnalysisWarnings>false</SuppressTrimAnalysisWarnings>
+  </PropertyGroup>
+
+  <!-- The CompressionWorkbench format descriptors (FileFormat.*/FileSystem.*/Compression.*) are found
+       by reflection, and Dock.* uses reflection too; root them so the trimmer keeps their types. -->
+  <Target Name="RootReflectiveAssemblies" BeforeTargets="PrepareForILLink" Condition="'$(PublishTrimmed)' == 'true'">
+    <ItemGroup>
+      <TrimmerRootAssembly Include="@(RuntimeCopyLocalItems->'%(FileName)')"
+        Condition="'%(Extension)' == '.dll' And (
+             $([System.String]::Copy('%(FileName)').StartsWith('FileFormat.'))
+          Or $([System.String]::Copy('%(FileName)').StartsWith('FileSystem.'))
+          Or $([System.String]::Copy('%(FileName)').StartsWith('Compression.'))
+          Or $([System.String]::Copy('%(FileName)').StartsWith('Dock.')) )" />
+    </ItemGroup>
+    <Message Importance="high" Text="Rooted @(TrimmerRootAssembly->Count()) reflective assemblies for trimming." />
+  </Target>
+
   <ItemGroup>
     <AvaloniaResource Include="Assets/**" />
   </ItemGroup>

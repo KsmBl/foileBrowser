@@ -204,7 +204,11 @@ Check off items as they're completed; delete lines you decide not to build.
 - [x] 100k-entry directory lists without UI freeze (virtualized lists) — ListBox virtualizes; enumeration is off-thread and cancellable
 - [x] All I/O async; UI thread never blocks on disks / removeables / opticals / floppys etc (also r/w errors)
 - [x] Directory change detection via file-system watchers (auto-refresh)
-- [ ] Memory: idle footprint < 129 MB with two panes open
+- [x] Low memory footprint: idle RSS ~103 MB (down from ~293 MB) via CPU/software rendering (skips the
+  ~120 MB Mesa/GL stack; `FOILE_GPU=1` re-enables GPU), InvariantGlobalization (drops ICU), trimmed
+  self-contained publish (reflection made trim-safe; archive descriptors trim-rooted), and workstation
+  GC + ConserveMemory. Note: 64 MB is not reachable for an Avalonia+Skia+.NET stack — the floor is set
+  by Skia + Avalonia native + the .NET runtime (per-instance private ~90 MB)
 
 ## 7. Milestones
 
@@ -220,5 +224,7 @@ Check off items as they're completed; delete lines you decide not to build.
 ## 8. notes:
 
 - License: LGPL-3.0
-- Localization: i18n. english default, german second
+- Localization: i18n. english default, german second — **currently deferred**: InvariantGlobalization
+  is enabled for the memory savings (drops ICU), so locale-aware formatting/German are off until we
+  re-enable ICU (revert `<InvariantGlobalization>` when localization work begins)
 - Android device dont support on macOS

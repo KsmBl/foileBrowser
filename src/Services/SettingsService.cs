@@ -1,16 +1,17 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using FoileBrowser.Models;
 
 namespace FoileBrowser.Services;
 
+/// <summary>Source-generated JSON context so settings (de)serialize without reflection (trim/AOT-safe).</summary>
+[JsonSourceGenerationOptions(WriteIndented = true, PropertyNameCaseInsensitive = true)]
+[JsonSerializable(typeof(AppSettings))]
+internal sealed partial class SettingsJsonContext : JsonSerializerContext;
+
 /// <inheritdoc />
 public sealed class SettingsService : ISettingsService
 {
-    private static readonly JsonSerializerOptions JsonOptions = new()
-    {
-        WriteIndented = true,
-        PropertyNameCaseInsensitive = true,
-    };
 
     public SettingsService(string? filePath = null)
     {
@@ -32,7 +33,7 @@ public sealed class SettingsService : ISettingsService
             }
 
             await using var stream = File.OpenRead(FilePath);
-            Current = await JsonSerializer.DeserializeAsync<AppSettings>(stream, JsonOptions)
+            Current = await JsonSerializer.DeserializeAsync(stream, SettingsJsonContext.Default.AppSettings)
                       ?? new AppSettings();
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
@@ -53,7 +54,7 @@ public sealed class SettingsService : ISettingsService
             // Write to a temp file then move, so a crash mid-write can't corrupt the settings.
             var tmp = FilePath + ".tmp";
             await using (var stream = File.Create(tmp))
-                await JsonSerializer.SerializeAsync(stream, Current, JsonOptions);
+                await JsonSerializer.SerializeAsync(stream, Current, SettingsJsonContext.Default.AppSettings);
             File.Move(tmp, FilePath, overwrite: true);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)

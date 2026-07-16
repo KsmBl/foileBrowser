@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using Compression.Registry;
 using FoileBrowser.Models;
@@ -11,6 +12,11 @@ public sealed class ArchiveService : IArchiveService
     // bootstrap, so we discover and register them reflectively, once, on first use.
     private static readonly Lazy<bool> Registration = new(RegisterAllFormats);
 
+    // The FileFormat.*/FileSystem.*/Compression.* assemblies are rooted for trimming (see the csproj
+    // RootReflectiveAssemblies target), so their descriptor types survive and this reflection is safe.
+    [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = "Descriptor assemblies are trim-rooted.")]
+    [UnconditionalSuppressMessage("Trimming", "IL2072", Justification = "Descriptor assemblies are trim-rooted.")]
+    [UnconditionalSuppressMessage("Trimming", "IL2075", Justification = "Descriptor assemblies are trim-rooted.")]
     private static bool RegisterAllFormats()
     {
         FormatRegistry.Initialize();

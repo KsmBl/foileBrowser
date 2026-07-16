@@ -34,7 +34,10 @@ command -v dotnet >/dev/null 2>&1 || { echo "error: the .NET SDK ('dotnet') is r
 echo "==> Publishing (Release) to $APP_DIR"
 PUBLISH_ARGS=(-c Release -o "$APP_DIR" --nologo)
 if [ "$SELF_CONTAINED" -eq 1 ]; then
-  PUBLISH_ARGS+=(--self-contained true -p:PublishSingleFile=false)
+  # Self-contained build is trimmed for a much smaller memory/disk footprint (see docs/PRD §6.12).
+  RID="$(dotnet --info 2>/dev/null | awk -F: '/RID:/{gsub(/ /,"",$2);print $2;exit}')"
+  [ -n "$RID" ] && PUBLISH_ARGS+=(-r "$RID")
+  PUBLISH_ARGS+=(--self-contained true -p:PublishSingleFile=false -p:PublishTrimmed=true)
 else
   PUBLISH_ARGS+=(--self-contained false)
 fi
@@ -43,14 +46,18 @@ dotnet publish "$REPO_DIR/src/FoileBrowser.csproj" "${PUBLISH_ARGS[@]}"
 
 echo "==> Installing launcher: $LAUNCHER"
 mkdir -p "$BIN_DIR"
+# DOTNET_GCConserveMemory keeps the managed heap tight; FOILE_GPU=1 re-enables GPU rendering
+# (smoother, but maps the ~120 MB Mesa/GL stack — off by default to save memory).
 if [ "$SELF_CONTAINED" -eq 1 ]; then
   cat > "$LAUNCHER" <<EOF
 #!/usr/bin/env bash
+export DOTNET_GCConserveMemory=\${DOTNET_GCConserveMemory:-9}
 exec "$APP_DIR/FoileBrowser" "\$@"
 EOF
 else
   cat > "$LAUNCHER" <<EOF
 #!/usr/bin/env bash
+export DOTNET_GCConserveMemory=\${DOTNET_GCConserveMemory:-9}
 exec dotnet "$APP_DIR/FoileBrowser.dll" "\$@"
 EOF
 fi

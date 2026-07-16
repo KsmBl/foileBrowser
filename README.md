@@ -47,7 +47,10 @@ as the default file manager). No root required — it installs under `~/.local` 
 ```
 
 Without `--self-contained` the launcher runs on the installed .NET 10 runtime; with it, a
-standalone build is published that needs no runtime.
+standalone **trimmed** build is published that needs no runtime and has the smallest footprint.
+
+**Memory:** the app renders on the CPU (software) by default, which skips the ~120 MB GPU/Mesa stack —
+idle RSS is ~100 MB instead of ~290 MB. Set `FOILE_GPU=1` to use GPU rendering (smoother, more RAM).
 
 ## Status
 

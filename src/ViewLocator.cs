@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using Avalonia.Controls;
 using Avalonia.Controls.Templates;
 using FoileBrowser.ViewModels;
@@ -5,25 +7,19 @@ using FoileBrowser.ViewModels;
 namespace FoileBrowser;
 
 /// <summary>
-/// Resolves a view for a given view model by naming convention
-/// (FoileBrowser.ViewModels.FooViewModel -> FoileBrowser.Views.FooView).
+/// Resolves a view for a view-model via an explicit, trim/AOT-safe map (no reflection). Most views
+/// are wired through explicit <c>DataTemplate</c>s or are Windows; this locator is only the fallback
+/// for any <see cref="ViewModelBase"/> placed directly in content — add entries here as needed.
 /// </summary>
 public sealed class ViewLocator : IDataTemplate
 {
-    public Control? Build(object? param)
+    private static readonly Dictionary<Type, Func<Control>> Views = new()
     {
-        if (param is null)
-            return null;
+        // [typeof(SomeViewModel)] = static () => new SomeView(),
+    };
 
-        var name = param.GetType().FullName!
-            .Replace("ViewModels", "Views", StringComparison.Ordinal)
-            .Replace("ViewModel", "View", StringComparison.Ordinal);
-        var type = Type.GetType(name);
+    public Control? Build(object? param) =>
+        param is not null && Views.TryGetValue(param.GetType(), out var factory) ? factory() : null;
 
-        return type is not null
-            ? (Control)Activator.CreateInstance(type)!
-            : new TextBlock { Text = "Not Found: " + name };
-    }
-
-    public bool Match(object? data) => data is ViewModelBase;
+    public bool Match(object? data) => data is ViewModelBase && Views.ContainsKey(data.GetType());
 }
