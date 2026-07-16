@@ -7,19 +7,25 @@
 # set as the default file manager. Run uninstall.sh to reverse it.
 #
 # Usage:
-#   ./install.sh [--prefix DIR] [--self-contained]
+#   ./install.sh [--prefix DIR] [--self-contained] [--aot]
+#
+#   --self-contained  trimmed, runtime-free build (smaller footprint; no .NET needed to run)
+#   --aot             NativeAOT build (smallest memory, ~80 MB RSS; requires 'clang' to build,
+#                     and implies --self-contained). Publish is slower.
 #
 set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PREFIX="${PREFIX:-$HOME/.local}"
 SELF_CONTAINED=0
+AOT=0
 
 while [ $# -gt 0 ]; do
   case "$1" in
     --prefix) PREFIX="$2"; shift 2 ;;
     --prefix=*) PREFIX="${1#*=}"; shift ;;
     --self-contained) SELF_CONTAINED=1; shift ;;
+    --aot) AOT=1; SELF_CONTAINED=1; shift ;;
     -h|--help) grep '^#' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) echo "Unknown option: $1" >&2; exit 2 ;;
   esac
@@ -34,10 +40,15 @@ command -v dotnet >/dev/null 2>&1 || { echo "error: the .NET SDK ('dotnet') is r
 echo "==> Publishing (Release) to $APP_DIR"
 PUBLISH_ARGS=(-c Release -o "$APP_DIR" --nologo)
 if [ "$SELF_CONTAINED" -eq 1 ]; then
-  # Self-contained build is trimmed for a much smaller memory/disk footprint (see docs/PRD §6.12).
+  # Self-contained/AOT builds are trimmed for a much smaller memory/disk footprint (see docs/PRD §6.12).
   RID="$(dotnet --info 2>/dev/null | awk -F: '/RID:/{gsub(/ /,"",$2);print $2;exit}')"
   [ -n "$RID" ] && PUBLISH_ARGS+=(-r "$RID")
-  PUBLISH_ARGS+=(--self-contained true -p:PublishSingleFile=false -p:PublishTrimmed=true)
+  if [ "$AOT" -eq 1 ]; then
+    command -v clang >/dev/null 2>&1 || { echo "error: --aot needs 'clang' (and zlib) to compile natively." >&2; exit 1; }
+    PUBLISH_ARGS+=(--self-contained true -p:FoileAot=true)  # NativeAOT (smallest footprint)
+  else
+    PUBLISH_ARGS+=(--self-contained true -p:PublishSingleFile=false -p:PublishTrimmed=true)
+  fi
 else
   PUBLISH_ARGS+=(--self-contained false)
 fi

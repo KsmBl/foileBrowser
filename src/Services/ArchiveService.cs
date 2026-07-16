@@ -1,5 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
-using System.Reflection;
 using Compression.Registry;
 using FoileBrowser.Models;
 
@@ -9,42 +7,15 @@ namespace FoileBrowser.Services;
 public sealed class ArchiveService : IArchiveService
 {
     // CompressionWorkbench ships one descriptor per format in separate assemblies with no central
-    // bootstrap, so we discover and register them reflectively, once, on first use.
+    // bootstrap. A source generator (FoileBrowser.Generators) enumerates them at compile time and
+    // emits static `new XxxDescriptor()` registrations — no runtime reflection, so archives are
+    // trim/NativeAOT-safe. Registration runs once, lazily, on first archive use.
     private static readonly Lazy<bool> Registration = new(RegisterAllFormats);
 
-    // The FileFormat.*/FileSystem.*/Compression.* assemblies are rooted for trimming (see the csproj
-    // RootReflectiveAssemblies target), so their descriptor types survive and this reflection is safe.
-    [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = "Descriptor assemblies are trim-rooted.")]
-    [UnconditionalSuppressMessage("Trimming", "IL2072", Justification = "Descriptor assemblies are trim-rooted.")]
-    [UnconditionalSuppressMessage("Trimming", "IL2075", Justification = "Descriptor assemblies are trim-rooted.")]
     private static bool RegisterAllFormats()
     {
         FormatRegistry.Initialize();
-
-        var dir = AppContext.BaseDirectory;
-        foreach (var dll in Directory.GetFiles(dir, "*.dll"))
-        {
-            var name = Path.GetFileNameWithoutExtension(dll);
-            if (!name.StartsWith("FileFormat.", StringComparison.Ordinal)
-                && !name.StartsWith("FileSystem.", StringComparison.Ordinal))
-                continue;
-
-            Type[] types;
-            try { types = Assembly.LoadFrom(dll).GetTypes(); }
-            catch (ReflectionTypeLoadException ex) { types = ex.Types.Where(t => t is not null).ToArray()!; }
-            catch { continue; }
-
-            foreach (var type in types)
-            {
-                if (!type.IsPublic || type.IsAbstract
-                    || !typeof(IFormatDescriptor).IsAssignableFrom(type)
-                    || type.GetConstructor(Type.EmptyTypes) is null)
-                    continue;
-                try { FormatRegistry.Register((IFormatDescriptor)Activator.CreateInstance(type)!); }
-                catch { /* skip a descriptor that fails to construct */ }
-            }
-        }
-
+        FoileBrowser.Generated.GeneratedFormats.RegisterAll();
         return true;
     }
 

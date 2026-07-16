@@ -51,6 +51,8 @@ standalone **trimmed** build is published that needs no runtime and has the smal
 
 **Memory:** the app renders on the CPU (software) by default, which skips the ~120 MB GPU/Mesa stack —
 idle RSS is ~100 MB instead of ~290 MB. Set `FOILE_GPU=1` to use GPU rendering (smoother, more RAM).
+For the smallest footprint (~80 MB RSS), build with `./install.sh --aot` (NativeAOT; needs `clang`) —
+archive support is preserved via a compile-time source generator, so no runtime reflection is used.
 
 ## Status
 

@@ -204,11 +204,14 @@ Check off items as they're completed; delete lines you decide not to build.
 - [x] 100k-entry directory lists without UI freeze (virtualized lists) — ListBox virtualizes; enumeration is off-thread and cancellable
 - [x] All I/O async; UI thread never blocks on disks / removeables / opticals / floppys etc (also r/w errors)
 - [x] Directory change detection via file-system watchers (auto-refresh)
-- [x] Low memory footprint: idle RSS ~103 MB (down from ~293 MB) via CPU/software rendering (skips the
-  ~120 MB Mesa/GL stack; `FOILE_GPU=1` re-enables GPU), InvariantGlobalization (drops ICU), trimmed
-  self-contained publish (reflection made trim-safe; archive descriptors trim-rooted), and workstation
-  GC + ConserveMemory. Note: 64 MB is not reachable for an Avalonia+Skia+.NET stack — the floor is set
-  by Skia + Avalonia native + the .NET runtime (per-instance private ~90 MB)
+- [x] Low memory footprint via layered options (down from ~293 MB idle RSS):
+  - CPU/software rendering by default (skips the ~120 MB Mesa/GL stack; `FOILE_GPU=1` re-enables GPU),
+    InvariantGlobalization (drops ICU), workstation GC + ConserveMemory.
+  - **Trimmed self-contained** (`install.sh --self-contained`): ~103 MB RSS, no runtime needed.
+  - **NativeAOT** (`install.sh --aot`, needs clang): **~79 MB RSS / ~68 MB private per instance**, with
+    full archive support — the reflective format discovery was replaced by a compile-time **source
+    generator** (`src/Generators`) that statically registers every CompressionWorkbench descriptor, so
+    no runtime reflection/`Assembly.LoadFrom` is used and the whole app is trim/AOT-safe.
 
 ## 7. Milestones
 

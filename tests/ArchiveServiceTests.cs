@@ -33,6 +33,14 @@ public class ArchiveServiceTests
     }
 
     [Test]
+    public void SourceGenerator_Statically_Registered_The_Formats()
+    {
+        // The compile-time generator replaces reflective discovery; it should find the descriptors
+        // across the FileFormat.*/FileSystem.*/Compression.* assemblies (no Assembly.LoadFrom, AOT-safe).
+        Assert.That(FoileBrowser.Generated.GeneratedFormats.Count, Is.GreaterThan(100));
+    }
+
+    [Test]
     public void IsArchive_Recognises_Zip_And_Rejects_Text()
     {
         Assert.That(_archives.IsArchive("/x/file.zip"), Is.True);

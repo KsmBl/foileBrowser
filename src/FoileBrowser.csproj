@@ -36,24 +36,15 @@
 
   <!-- Trimming (applies at publish only). Reflection is made trim-safe in code; the archive-format
        assemblies are discovered reflectively, so they are rooted below to survive trimming. -->
-  <PropertyGroup Condition="'$(PublishTrimmed)' == 'true'">
-    <TrimMode>full</TrimMode>
-    <SuppressTrimAnalysisWarnings>false</SuppressTrimAnalysisWarnings>
+  <!-- Opt into NativeAOT via -p:FoileAot=true (a custom prop the analyzer project never sees, so it
+       isn't asked to AOT-compile). -->
+  <PropertyGroup Condition="'$(FoileAot)' == 'true'">
+    <PublishAot>true</PublishAot>
   </PropertyGroup>
 
-  <!-- The CompressionWorkbench format descriptors (FileFormat.*/FileSystem.*/Compression.*) are found
-       by reflection, and Dock.* uses reflection too; root them so the trimmer keeps their types. -->
-  <Target Name="RootReflectiveAssemblies" BeforeTargets="PrepareForILLink" Condition="'$(PublishTrimmed)' == 'true'">
-    <ItemGroup>
-      <TrimmerRootAssembly Include="@(RuntimeCopyLocalItems->'%(FileName)')"
-        Condition="'%(Extension)' == '.dll' And (
-             $([System.String]::Copy('%(FileName)').StartsWith('FileFormat.'))
-          Or $([System.String]::Copy('%(FileName)').StartsWith('FileSystem.'))
-          Or $([System.String]::Copy('%(FileName)').StartsWith('Compression.'))
-          Or $([System.String]::Copy('%(FileName)').StartsWith('Dock.')) )" />
-    </ItemGroup>
-    <Message Importance="high" Text="Rooted @(TrimmerRootAssembly->Count()) reflective assemblies for trimming." />
-  </Target>
+  <PropertyGroup Condition="'$(PublishTrimmed)' == 'true' Or '$(PublishAot)' == 'true'">
+    <TrimMode>full</TrimMode>
+  </PropertyGroup>
 
   <ItemGroup>
     <AvaloniaResource Include="Assets/**" />
@@ -61,6 +52,16 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="FoileBrowser.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The generator is a separate project; don't compile its sources into the app. -->
+    <Compile Remove="Generators/**/*.cs" />
+    <!-- Source generator: statically registers all archive-format descriptors (no reflection).
+         Strip publish/AOT/RID properties so this netstandard2.0 analyzer isn't asked to AOT/trim. -->
+    <ProjectReference Include="Generators\FoileBrowser.Generators.csproj"
+                      OutputItemType="Analyzer" ReferenceOutputAssembly="false"
+                      UndefineProperties="RuntimeIdentifier;PublishAot;PublishTrimmed;SelfContained;PublishSingleFile" />
   </ItemGroup>
 
   <ItemGroup>
