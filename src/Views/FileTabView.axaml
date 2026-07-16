@@ -14,7 +14,7 @@
 
     <!-- Per-tab navigation toolbar + editable path bar (PRD §6.1) -->
     <Border DockPanel.Dock="Top" Padding="4" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" BorderThickness="0,0,0,1">
-      <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,6,*,Auto">
+      <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,6,*,Auto,Auto">
         <Button Grid.Column="0" Content="←" ToolTip.Tip="Back (Alt+Left)" Command="{Binding GoBackCommand}" />
         <Button Grid.Column="1" Content="→" ToolTip.Tip="Forward (Alt+Right)" Command="{Binding GoForwardCommand}" Margin="3,0,0,0" />
         <Button Grid.Column="2" Content="↑" ToolTip.Tip="Up (Alt+Up)" Command="{Binding GoUpCommand}" Margin="3,0,0,0" />
@@ -58,6 +58,10 @@
         </Panel>
         <ToggleButton Grid.Column="6" Content="Hidden" ToolTip.Tip="Show hidden files"
                       IsChecked="{Binding ShowHidden, Mode=TwoWay}" Margin="3,0,0,0" />
+        <!-- Show/hide the global operations toolbar from within the tab (like the Hidden toggle) -->
+        <ToggleButton Grid.Column="7" Content="🧰" ToolTip.Tip="Show/hide the operations toolbar" Margin="3,0,0,0"
+                      IsChecked="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).IsToolbarVisible, Mode=OneWay}"
+                      Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ToggleToolbarCommand}" />
       </Grid>
     </Border>
 

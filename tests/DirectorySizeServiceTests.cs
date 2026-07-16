@@ -48,6 +48,31 @@ public class DirectorySizeServiceTests
     }
 
     [Test]
+    public async Task Does_Not_Follow_Symlinks_While_Counting()
+    {
+        await File.WriteAllBytesAsync(Path.Combine(_root, "real.bin"), new byte[100]);
+        var sub = Directory.CreateDirectory(Path.Combine(_root, "sub")).FullName;
+        await File.WriteAllBytesAsync(Path.Combine(sub, "inner.bin"), new byte[50]);
+
+        // A symlink back to the root would loop forever if followed; and a symlink to a file
+        // must not be counted as its target's bytes.
+        try
+        {
+            Directory.CreateSymbolicLink(Path.Combine(_root, "loop"), _root);
+            File.CreateSymbolicLink(Path.Combine(_root, "alias.bin"), Path.Combine(_root, "real.bin"));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
+        {
+            Assert.Ignore("symlink creation not permitted in this environment");
+        }
+
+        var service = new DirectorySizeService();
+        var size = await service.GetSizeAsync(_root);
+
+        Assert.That(size, Is.EqualTo(150), "counts only real files once, never following symlinks");
+    }
+
+    [Test]
     public async Task Result_Is_Cached_For_Instant_Reuse()
     {
         await File.WriteAllBytesAsync(Path.Combine(_root, "a.bin"), new byte[64]);

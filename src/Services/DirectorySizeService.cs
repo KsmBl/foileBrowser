@@ -3,13 +3,21 @@ namespace FoileBrowser.Services;
 /// <inheritdoc />
 public sealed class DirectorySizeService : IDirectorySizeService
 {
+    // Hard caps so sizing a huge or pathological tree can never blow up RAM/CPU (PRD §6.2/§6.12).
+    private const int MaxEntries = 400_000;   // stop after this many files+dirs; report a partial size
+    private const long ReportEvery = 8 << 20; // push a running-total update roughly every 8 MiB
+
+    // Linux pseudo-filesystems report bogus/huge sizes (e.g. /proc/kcore) and cyclic trees — never size them.
+    private static readonly string[] PseudoRoots =
+        OperatingSystem.IsLinux() ? ["/proc", "/sys", "/dev", "/run"] : [];
+
     private readonly LruCache<string, long> _cache;
     private readonly SemaphoreSlim _throttle;
 
-    public DirectorySizeService(int cacheCapacity = 4096, int maxConcurrency = 0)
+    public DirectorySizeService(int cacheCapacity = 512, int maxConcurrency = 0)
     {
         _cache = new LruCache<string, long>(cacheCapacity);
-        var workers = maxConcurrency > 0 ? maxConcurrency : Math.Max(2, Environment.ProcessorCount / 2);
+        var workers = maxConcurrency > 0 ? maxConcurrency : Math.Max(1, Environment.ProcessorCount / 2);
         _throttle = new SemaphoreSlim(workers, workers);
     }
 
@@ -25,18 +33,31 @@ public sealed class DirectorySizeService : IDirectorySizeService
             return cached;
         }
 
+        // Don't even schedule a walk for pseudo filesystems — their sizes are meaningless.
+        if (IsPseudo(key))
+        {
+            _cache.Set(key, 0);
+            progress?.Report(0);
+            return 0;
+        }
+
         await _throttle.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            // Re-check: another scheduler may have computed this while we waited for a slot.
             if (_cache.TryGet(key, out cached))
             {
                 progress?.Report(cached);
                 return cached;
             }
 
-            return await Task.Run(() => MeasureTree(key, progress, cancellationToken), cancellationToken)
+            var (size, complete) = await Task
+                .Run(() => Measure(key, progress, cancellationToken), cancellationToken)
                 .ConfigureAwait(false);
+
+            // Only cache a complete result; a partial (capped) size would otherwise stick as wrong.
+            if (complete)
+                _cache.Set(key, size);
+            return size;
         }
         finally
         {
@@ -45,77 +66,90 @@ public sealed class DirectorySizeService : IDirectorySizeService
     }
 
     /// <summary>
-    /// Walks the whole subtree once and caches the total for <paramref name="root"/> <em>and every
-    /// descendant directory</em>. That way, after a folder's size is known, drilling into any folder
-    /// inside it is instant instead of restarting the calculation (PRD §6.2).
+    /// Iterative DFS that sums bytes without ever holding the whole subtree in memory: it keeps only
+    /// the frontier stack plus one subtotal per <em>immediate</em> child (so drilling one level in is
+    /// instant). Symlinks/reparse points are never followed (avoids cycles and huge link targets),
+    /// pseudo-filesystems are skipped, and the walk stops at <see cref="MaxEntries"/>.
     /// </summary>
-    private long MeasureTree(string root, IProgress<long>? progress, CancellationToken cancellationToken)
+    private (long Size, bool Complete) Measure(string root, IProgress<long>? progress, CancellationToken cancellationToken)
     {
-        // Files summed per directory; parents fold in their children's totals in a post-order pass.
-        var acc = new Dictionary<string, long>(StringComparer.Ordinal);
-        var discovered = new List<string>();
-        var stack = new Stack<string>();
-        stack.Push(root);
-
-        long running = 0;
+        long total = 0;
         long lastReport = 0;
+        var visited = 0;
+        var complete = true;
+
+        // Cache one subtotal per immediate child of the root; bounded by the number of children.
+        var childTotals = new Dictionary<string, long>(StringComparer.Ordinal);
+        var stack = new Stack<(string Dir, string? Bucket)>();
+        stack.Push((root, null));
 
         while (stack.Count > 0)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var dir = stack.Pop();
-            discovered.Add(dir);
-            acc[dir] = 0;
+            var (dir, bucket) = stack.Pop();
 
-            IEnumerable<string> entries;
+            IEnumerable<FileSystemInfo> infos;
             try
             {
-                entries = Directory.EnumerateFileSystemEntries(dir);
+                infos = new DirectoryInfo(dir).EnumerateFileSystemInfos();
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or DirectoryNotFoundException)
             {
-                continue; // unreadable subtree contributes nothing
+                continue;
             }
 
-            foreach (var entry in entries)
+            foreach (var info in infos)
             {
-                if (Directory.Exists(entry))
+                if (visited++ >= MaxEntries)
                 {
-                    stack.Push(entry);
+                    complete = false;
+                    break;
+                }
+
+                // Never follow symlinks/junctions — they cause cycles and can point at huge targets.
+                if (info.LinkTarget is not null || (info.Attributes & FileAttributes.ReparsePoint) != 0)
+                    continue;
+
+                if (info is DirectoryInfo)
+                {
+                    if (IsPseudo(info.FullName))
+                        continue;
+                    // A direct child of the root becomes its own subtotal bucket.
+                    stack.Push((info.FullName, bucket ?? info.FullName));
                 }
                 else
                 {
                     long length;
-                    try { length = new FileInfo(entry).Length; }
+                    try { length = ((FileInfo)info).Length; }
                     catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { length = 0; }
 
-                    acc[dir] += length;
-                    running += length;
-                    if (running - lastReport > (4 << 20)) // report the running total every ~4 MiB
+                    total += length;
+                    if (bucket is not null)
+                        childTotals[bucket] = childTotals.GetValueOrDefault(bucket) + length;
+
+                    if (total - lastReport > ReportEvery)
                     {
-                        progress?.Report(running);
-                        lastReport = running;
+                        progress?.Report(total);
+                        lastReport = total;
                     }
                 }
             }
+
+            if (!complete)
+                break;
         }
 
-        // Post-order: parents are discovered before children, so folding totals back in reverse
-        // discovery order guarantees a directory's own files + all descendants are summed before it.
-        for (var i = discovered.Count - 1; i >= 0; i--)
-        {
-            var dir = discovered[i];
-            var total = acc[dir];
-            _cache.Set(dir, total);
+        // Cache immediate children only when the walk finished (otherwise their subtotals are partial).
+        if (complete)
+            foreach (var (child, size) in childTotals)
+                _cache.Set(child, size);
 
-            if (Path.GetDirectoryName(dir) is { } parent && acc.ContainsKey(parent))
-                acc[parent] += total;
-        }
-
-        var rootTotal = acc[root];
-        progress?.Report(rootTotal);
-        return rootTotal;
+        progress?.Report(total);
+        return (total, complete);
     }
+
+    private static bool IsPseudo(string path) =>
+        PseudoRoots.Any(root => path == root || path.StartsWith(root + "/", StringComparison.Ordinal));
 
     // Normalise so cache keys are stable regardless of a trailing separator.
     private static string Key(string path) =>

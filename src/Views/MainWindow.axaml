@@ -115,7 +115,6 @@
         <Button Content="💻" Command="{Binding OpenTerminalHereCommand}" ToolTip.Tip="Open terminal here" />
         <Button Content="⭐" Command="{Binding PinFavoriteCommand}" ToolTip.Tip="Pin current folder to favorites" />
         <Button Content="🗂️" Command="{Binding AddTabCommand}" ToolTip.Tip="New tab (Ctrl+T) — drag a tab out to make a new pane" />
-        <Button Content="🪟" Command="{Binding AddPaneCommand}" ToolTip.Tip="New pane (split, side by side)" />
         <ToggleButton Content="🔍" IsChecked="{Binding IsInspectorOpen, Mode=OneWay}"
                       Command="{Binding ToggleInspectorCommand}" ToolTip.Tip="Toggle inspector (Ctrl+I)" />
         <Border Width="1" Background="{DynamicResource SystemControlForegroundBaseLowBrush}" Margin="4,2" />

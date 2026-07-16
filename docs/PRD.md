@@ -71,7 +71,8 @@ Check off items as they're completed; delete lines you decide not to build.
   new pane, tabbed together, or floated into its own window. New Tab (Ctrl+T) adds a tab to the active
   pane; New Pane splits one off side by side. The dual-pane toggle is retired — arrange any number of
   tabs/panes freely; the layout (panes + tabs) is restored across restart. New Pane works even after
-  every tab is closed.
+  every tab is closed. The operations toolbar can also be shown/hidden from a button inside each tab's
+  nav bar (like the hidden-files toggle).
 - [ ] Toolbar and copy/move queue as dockable/floatable tool panels — the queue already auto-hides
   when idle and the toolbar can be hidden; turning them into draggable Dock tools is still pending
 - [x] Dockable multi-pane layout: open any number of panes and arrange them by splitting, tabbing,
@@ -82,10 +83,12 @@ Check off items as they're completed; delete lines you decide not to build.
 - [x] Details (list) view mode
 - [ ] Grid view mode with thumbnails (generated with https://github.com/Hawkynt/PNGCrushCS)
 - [x] Computed folder sizes: calculated recursively in the background as folders come into view,
-  showing a live "…/300 MiB+" counting hint, with results kept in an in-memory LRU cache shared
-  process-wide (lock-free reads via a concurrent dictionary + interlocked recency ticks). A single
-  walk caches every descendant folder's size too, so drilling into an already-counted folder is
-  instant rather than restarting — configurable column set still pending
+  showing a live "…/300 MiB+" counting hint, with results kept in a small bounded in-memory LRU cache
+  (lock-free reads via a concurrent dictionary + interlocked recency ticks). The walk **never follows
+  symlinks/junctions** (so cyclic links can't loop and link targets aren't double-counted), skips
+  pseudo-filesystems (/proc, /sys, /dev, /run — no more bogus multi-TiB sizes), and is capped so a
+  huge tree can't blow up RAM/CPU. Computing a folder also caches its immediate subfolders, so
+  drilling one level in is instant — configurable column set still pending
 - [x] Switch file sizes between binary (KiB/MiB), decimal (KB/MB) and exact bytes, quick-toggle in
   the toolbar / View menu / command palette (persisted)
 - [x] Collapsible sidebar with favorites/pinned folders and drives — sidebar with favorites + drives (free-space bars); collapse toggle pending. Pinned favorites can be unpinned via a right-click context menu
