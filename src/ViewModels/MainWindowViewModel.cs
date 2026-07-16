@@ -1,14 +1,20 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Dock.Model.Controls;
+using Dock.Model.Core;
+using Dock.Model.Core.Events;
+using Dock.Model.Mvvm;
+using Dock.Model.Mvvm.Controls;
 using FoileBrowser.Models;
 using FoileBrowser.Services;
 
 namespace FoileBrowser.ViewModels;
 
 /// <summary>
-/// The window shell: two panes of tabs, a sidebar, and a background operation queue,
-/// plus the cross-pane file-operation commands (PRD §6.2, §6.3).
+/// The window shell: a dockable set of panes, a sidebar, and a background operation queue, plus the
+/// cross-pane file-operation commands (PRD §6.2, §6.3). Panes are Dock documents, so any number can
+/// be opened and arranged by splitting, tabbing, or floating them.
 /// </summary>
 public partial class MainWindowViewModel : ViewModelBase
 {
@@ -32,11 +38,22 @@ public partial class MainWindowViewModel : ViewModelBase
     [ObservableProperty]
     private PaneViewModel _activePane;
 
-    [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(CopyToOtherCommand))]
-    [NotifyCanExecuteChangedFor(nameof(MoveToOtherCommand))]
-    private bool _isDualPane = true;
+    // Dockable layout: panes tiled in a horizontal proportional dock, each in its own document dock
+    // so they sit side by side with a draggable splitter and can be re-docked/tabbed/floated (PRD §6.2).
+    private readonly Factory _dockFactory = new();
+    private ProportionalDock _paneArea = null!;
+    private readonly List<PaneViewModel> _panes = [];
+    private PaneViewModel? _lastOtherPane;
 
+    [ObservableProperty]
+    private IRootDock _layout = null!;
+
+    public IFactory DockFactory => _dockFactory;
+
+    /// <summary>True when more than one pane is open (enables cross-pane copy/move).</summary>
+    public bool IsDualPane => _panes.Count > 1;
+
+    /// <summary>The first two panes, kept as named handles for the classic side-by-side workflow.</summary>
     public PaneViewModel LeftPane { get; }
     public PaneViewModel RightPane { get; }
     public OperationQueueViewModel OperationQueue { get; }
@@ -78,22 +95,131 @@ public partial class MainWindowViewModel : ViewModelBase
         _archives = archives ?? new ArchiveService();
         _device = device ?? new DeviceService();
         _sizes = new DirectorySizeService();
-        search ??= new SearchService();
+        _search = search ??= new SearchService();
 
-        LeftPane = new PaneViewModel(fileSystem, search, _archives, _sizes) { ConfigureTab = ConfigureTab };
-        RightPane = new PaneViewModel(fileSystem, search, _archives, _sizes) { ConfigureTab = ConfigureTab };
+        LeftPane = CreatePane();
+        RightPane = CreatePane();
         _activePane = LeftPane;
         LeftPane.IsActive = true;
 
-        LeftPane.Activated += (_, _) => SetActivePane(LeftPane);
-        RightPane.Activated += (_, _) => SetActivePane(RightPane);
-        LeftPane.PropertyChanged += OnPanePropertyChanged;
-        RightPane.PropertyChanged += OnPanePropertyChanged;
+        BuildLayout(LeftPane, RightPane);
 
         OperationQueue = new OperationQueueViewModel(operations);
         OperationQueue.OperationCompleted += (_, _) => RefreshPanes();
 
         CommandPalette = new CommandPaletteViewModel(BuildCommands());
+    }
+
+    private readonly ISearchService _search;
+
+    /// <summary>Creates a pane, wires its activation/observation, and registers it in the pane set.</summary>
+    private PaneViewModel CreatePane()
+    {
+        var pane = new PaneViewModel(_fileSystem, _search, _archives, _sizes) { ConfigureTab = ConfigureTab };
+        pane.Activated += OnPaneActivated;
+        pane.PropertyChanged += OnPanePropertyChanged;
+        _panes.Add(pane);
+        return pane;
+    }
+
+    private void OnPaneActivated(object? sender, EventArgs e)
+    {
+        if (sender is PaneViewModel pane)
+            SetActivePane(pane);
+    }
+
+    /// <summary>Wraps a pane in its own document dock (so panes tile side by side, not as tabs).</summary>
+    private DocumentDock MakeDock(PaneViewModel pane)
+    {
+        var dock = new DocumentDock
+        {
+            Id = "Dock_" + pane.Id,
+            Title = "Pane",
+            IsCollapsable = true, // an emptied dock collapses so its space is reclaimed
+            CanCreateDocument = true,
+            VisibleDockables = _dockFactory.CreateList<IDockable>(pane),
+            ActiveDockable = pane,
+        };
+        dock.CreateDocument = new RelayCommand(() => _ = AddPane());
+        return dock;
+    }
+
+    /// <summary>Assembles the initial dock layout: panes side by side with a splitter between them.</summary>
+    private void BuildLayout(params PaneViewModel[] panes)
+    {
+        var children = new List<IDockable>();
+        foreach (var pane in panes)
+        {
+            if (children.Count > 0)
+                children.Add(new ProportionalDockSplitter());
+            children.Add(MakeDock(pane));
+        }
+
+        _paneArea = new ProportionalDock
+        {
+            Id = "PaneArea",
+            Title = "Panes",
+            Orientation = Orientation.Horizontal,
+            VisibleDockables = _dockFactory.CreateList(children.ToArray()),
+        };
+
+        var root = _dockFactory.CreateRootDock();
+        root.Id = "Root";
+        root.Title = "Root";
+        root.VisibleDockables = _dockFactory.CreateList<IDockable>(_paneArea);
+        root.DefaultDockable = _paneArea;
+        root.ActiveDockable = _paneArea;
+
+        Layout = root;
+        _dockFactory.InitLayout(root);
+
+        // Track panes the user closes via the dock UI so IsDualPane / OtherPane stay correct.
+        _dockFactory.DockableClosed += OnDockableClosed;
+    }
+
+    private void OnDockableClosed(object? sender, DockableClosedEventArgs e)
+    {
+        if (e.Dockable is PaneViewModel pane && _panes.Remove(pane))
+        {
+            pane.Activated -= OnPaneActivated;
+            pane.PropertyChanged -= OnPanePropertyChanged;
+            if (ReferenceEquals(_lastOtherPane, pane))
+                _lastOtherPane = null;
+            if (ReferenceEquals(ActivePane, pane) && _panes.Count > 0)
+                SetActivePane(_panes[0]);
+            NotifyPaneCountChanged();
+        }
+    }
+
+    /// <summary>Opens a new pane, split to the right of the active one, and focuses it (View ▸ New Pane).</summary>
+    [RelayCommand]
+    private async Task AddPane()
+    {
+        var pane = CreatePane();
+        SplitInPane(pane);
+        _dockFactory.SetActiveDockable(pane);
+        _dockFactory.SetFocusedDockable(Layout, pane);
+        SetActivePane(pane);
+        NotifyPaneCountChanged();
+        await pane.InitializeAsync();
+    }
+
+    /// <summary>Docks a freshly-created pane to the right of the current panes.</summary>
+    private void SplitInPane(PaneViewModel pane)
+    {
+        var target = (ActivePane.Owner as IDock)
+            ?? _paneArea.VisibleDockables?.OfType<IDock>().LastOrDefault();
+        if (target is not null)
+            _dockFactory.SplitToDock(target, pane, DockOperation.Right);
+        else
+            _dockFactory.AddDockable(_paneArea, pane); // empty layout fallback
+    }
+
+    private void NotifyPaneCountChanged()
+    {
+        OnPropertyChanged(nameof(IsDualPane));
+        CopyToOtherCommand.NotifyCanExecuteChanged();
+        MoveToOtherCommand.NotifyCanExecuteChanged();
     }
 
     public AppSettings Settings => _settings.Current;
@@ -124,6 +250,7 @@ public partial class MainWindowViewModel : ViewModelBase
             new("nav.forward", "Go Forward", "Navigate", "Alt+Right", () => Tab(t => t.GoForwardCommand.ExecuteAsync(null))),
             new("nav.up", "Go Up", "Navigate", "Alt+Up", () => Tab(t => t.GoUpCommand.ExecuteAsync(null))),
             new("nav.refresh", "Refresh", "Navigate", "F5", () => Tab(t => t.RefreshCommand.ExecuteAsync(null))),
+            new("view.newPane", "New Pane", "View", null, () => AddPaneCommand.ExecuteAsync(null)),
             new("view.toggleDual", "Toggle Dual Pane", "View", null, () => { ToggleDualPaneCommand.Execute(null); return Task.CompletedTask; }),
             new("view.toggleInspector", "Toggle Inspector", "View", "Ctrl+I", () => { ToggleInspectorCommand.Execute(null); return Task.CompletedTask; }),
             new("view.toggleHidden", "Toggle Hidden Files", "View", null, () => Tab(t => { t.ShowHidden = !t.ShowHidden; return Task.CompletedTask; })),
@@ -148,17 +275,18 @@ public partial class MainWindowViewModel : ViewModelBase
 
     public FileTabViewModel? ActiveTab => ActivePane.ActiveTab;
 
-    private PaneViewModel OtherPane => ReferenceEquals(ActivePane, LeftPane) ? RightPane : LeftPane;
+    /// <summary>The transfer target for F6/F7: the most-recently-active <em>other</em> pane.</summary>
+    private PaneViewModel? OtherPane =>
+        _lastOtherPane is { } p && _panes.Contains(p) && !ReferenceEquals(p, ActivePane)
+            ? p
+            : _panes.FirstOrDefault(x => !ReferenceEquals(x, ActivePane));
 
     public async Task InitializeAsync()
     {
         await _settings.LoadAsync();
-        IsDualPane = _settings.Current.IsDualPane;
         IsInspectorOpen = _settings.Current.IsInspectorOpen;
 
-        var session = _settings.Current.Session;
-        await LeftPane.RestoreAsync(session.LeftTabs, session.LeftActiveIndex);
-        await RightPane.RestoreAsync(session.RightTabs, session.RightActiveIndex);
+        await RestorePanesAsync(_settings.Current.Session);
 
         await LoadSidebarAsync();
         RewireInspector();
@@ -166,18 +294,56 @@ public partial class MainWindowViewModel : ViewModelBase
         ThemeChanged?.Invoke(this, EventArgs.Empty);
     }
 
-    /// <summary>Snapshots the session and layout into settings and persists (called on window close).</summary>
+    /// <summary>Rebuilds the open panes from the saved session (any number of panes, PRD §6.2).</summary>
+    private async Task RestorePanesAsync(SessionLayout session)
+    {
+        // Prefer the N-pane list; fall back to the legacy Left/Right fields for old settings files.
+        var panes = session.Panes.Count > 0
+            ? session.Panes
+            :
+            [
+                new PaneSession { Tabs = session.LeftTabs, ActiveIndex = session.LeftActiveIndex },
+                new PaneSession { Tabs = session.RightTabs, ActiveIndex = session.RightActiveIndex },
+            ];
+
+        // Pane 0 → LeftPane, pane 1 → RightPane (both already created). Extra panes are added; a
+        // single persisted pane collapses to just LeftPane.
+        await LeftPane.RestoreAsync(panes[0].Tabs, panes[0].ActiveIndex);
+
+        if (panes.Count >= 2)
+            await RightPane.RestoreAsync(panes[1].Tabs, panes[1].ActiveIndex);
+        else
+            ClosePane(RightPane);
+
+        for (var i = 2; i < panes.Count; i++)
+        {
+            var pane = CreatePane();
+            SplitInPane(pane);
+            SetActivePane(pane); // chain the next split to the right of this newest pane
+            await pane.RestoreAsync(panes[i].Tabs, panes[i].ActiveIndex);
+        }
+
+        NotifyPaneCountChanged();
+        SetActivePane(LeftPane);
+    }
+
+    /// <summary>Snapshots every open pane's tabs into settings and persists (called on window close).</summary>
     public Task SaveSessionAsync()
     {
-        var left = LeftPane.Snapshot();
-        var right = RightPane.Snapshot();
-        _settings.Current.Session = new SessionLayout
+        var paneSessions = _panes.Select(p =>
         {
-            LeftTabs = left.Paths,
-            LeftActiveIndex = left.ActiveIndex,
-            RightTabs = right.Paths,
-            RightActiveIndex = right.ActiveIndex,
-        };
+            var snap = p.Snapshot();
+            return new PaneSession { Tabs = snap.Paths, ActiveIndex = snap.ActiveIndex };
+        }).ToList();
+
+        var session = new SessionLayout { Panes = paneSessions };
+        // Mirror the first two panes into the legacy fields so downgrades still restore something.
+        if (paneSessions.Count > 0)
+            (session.LeftTabs, session.LeftActiveIndex) = (paneSessions[0].Tabs, paneSessions[0].ActiveIndex);
+        if (paneSessions.Count > 1)
+            (session.RightTabs, session.RightActiveIndex) = (paneSessions[1].Tabs, paneSessions[1].ActiveIndex);
+
+        _settings.Current.Session = session;
         _settings.Current.IsDualPane = IsDualPane;
         _settings.Current.IsInspectorOpen = IsInspectorOpen;
         return _settings.SaveAsync();
@@ -185,9 +351,14 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private void SetActivePane(PaneViewModel pane)
     {
+        // Remember the previously-active pane as the default transfer target for F6/F7.
+        if (!ReferenceEquals(ActivePane, pane))
+            _lastOtherPane = ActivePane;
+
         ActivePane = pane;
-        LeftPane.IsActive = ReferenceEquals(pane, LeftPane);
-        RightPane.IsActive = ReferenceEquals(pane, RightPane);
+        foreach (var p in _panes)
+            p.IsActive = ReferenceEquals(p, pane);
+
         CopyToOtherCommand.NotifyCanExecuteChanged();
         MoveToOtherCommand.NotifyCanExecuteChanged();
         RewireInspector();
@@ -277,13 +448,26 @@ public partial class MainWindowViewModel : ViewModelBase
 
     // ---- layout ----
 
+    /// <summary>
+    /// Convenience toggle: collapse to a single pane, or add a second one. (Beyond this, panes are
+    /// added/closed/arranged freely through the dock UI and View ▸ New Pane.)
+    /// </summary>
     [RelayCommand]
     private void ToggleDualPane()
     {
-        IsDualPane = !IsDualPane;
-        if (!IsDualPane)
+        if (_panes.Count > 1)
+        {
+            foreach (var extra in _panes.Where(p => !ReferenceEquals(p, LeftPane)).ToList())
+                ClosePane(extra);
             SetActivePane(LeftPane);
+        }
+        else
+        {
+            _ = AddPane();
+        }
     }
+
+    private void ClosePane(PaneViewModel pane) => _dockFactory.CloseDockable(pane);
 
     // ---- sidebar ----
 
@@ -415,7 +599,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private void EnqueueTransfer(FileOperationKind kind)
     {
         var sources = SelectedPaths(ActivePane);
-        var dest = OtherPane.ActiveTab?.CurrentPath;
+        var dest = OtherPane?.ActiveTab?.CurrentPath;
         if (sources.Count == 0 || string.IsNullOrEmpty(dest))
             return;
 
@@ -625,7 +809,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private void RefreshPanes()
     {
-        _ = LeftPane.ActiveTab?.RefreshCommand.ExecuteAsync(null);
-        _ = RightPane.ActiveTab?.RefreshCommand.ExecuteAsync(null);
+        foreach (var pane in _panes)
+            _ = pane.ActiveTab?.RefreshCommand.ExecuteAsync(null);
     }
 }

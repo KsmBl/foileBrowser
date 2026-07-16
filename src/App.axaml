@@ -1,6 +1,9 @@
 <Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:local="using:FoileBrowser"
+             xmlns:vm="using:FoileBrowser.ViewModels"
+             xmlns:views="using:FoileBrowser.Views"
+             xmlns:dockThemes="using:Dock.Avalonia.Themes.Fluent"
              x:Class="FoileBrowser.App"
              RequestedThemeVariant="Default">
   <!-- "Default" theme variant follows the OS light/dark setting (PRD §6.8). -->
@@ -11,10 +14,15 @@
   </Application.Resources>
 
   <Application.DataTemplates>
+    <!-- A pane is a Dock document, not a ViewModelBase, so it needs an explicit view mapping. -->
+    <DataTemplate DataType="vm:PaneViewModel">
+      <views:PaneView />
+    </DataTemplate>
     <local:ViewLocator />
   </Application.DataTemplates>
 
   <Application.Styles>
     <FluentTheme />
+    <dockThemes:DockFluentTheme />
   </Application.Styles>
 </Application>

@@ -1,15 +1,17 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Dock.Model.Mvvm.Controls;
 using FoileBrowser.Services;
 
 namespace FoileBrowser.ViewModels;
 
 /// <summary>
-/// One side of the window: a strip of tabs over a shared file view (PRD §6.2 "Tabs per pane").
-/// A pane always has at least one tab.
+/// One pane: a strip of tabs over a shared file view (PRD §6.2 "Tabs per pane"). A pane always has
+/// at least one tab. It is a dockable <see cref="Document"/> so panes can be split, tabbed together,
+/// and floated into their own windows.
 /// </summary>
-public partial class PaneViewModel : ViewModelBase
+public partial class PaneViewModel : Document
 {
     private readonly IFileSystemService _fileSystem;
     private readonly ISearchService _search;
@@ -25,6 +27,9 @@ public partial class PaneViewModel : ViewModelBase
 
     public ObservableCollection<FileTabViewModel> Tabs { get; } = [];
 
+    /// <summary>The inner folder-tab strip only shows when a pane holds more than one folder tab.</summary>
+    public bool HasMultipleTabs => Tabs.Count > 1;
+
     /// <summary>Invoked on each newly created tab so the shell can wire it (e.g. tag lookup).</summary>
     public Action<FileTabViewModel>? ConfigureTab { get; set; }
 
@@ -39,6 +44,14 @@ public partial class PaneViewModel : ViewModelBase
         _search = search ?? new SearchService();
         _archives = archives;
         _sizes = sizes;
+        Tabs.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasMultipleTabs));
+    }
+
+    [RelayCommand]
+    private void SelectTab(FileTabViewModel? tab)
+    {
+        if (tab is not null)
+            ActiveTab = tab;
     }
 
     public FileTabViewModel AddTab(bool activate = true)
@@ -75,6 +88,26 @@ public partial class PaneViewModel : ViewModelBase
 
     [RelayCommand]
     private void Activate() => Activated?.Invoke(this, EventArgs.Empty);
+
+    // Keep the dockable tab header showing the active tab's folder, and highlight the active tab.
+    partial void OnActiveTabChanged(FileTabViewModel? oldValue, FileTabViewModel? newValue)
+    {
+        if (oldValue is not null)
+        {
+            oldValue.Navigated -= OnActiveTabNavigated;
+            oldValue.IsSelectedTab = false;
+        }
+        if (newValue is not null)
+        {
+            newValue.Navigated += OnActiveTabNavigated;
+            newValue.IsSelectedTab = true;
+        }
+        UpdateTitle();
+    }
+
+    private void OnActiveTabNavigated(object? sender, EventArgs e) => UpdateTitle();
+
+    private void UpdateTitle() => Title = ActiveTab?.Title ?? "Pane";
 
     /// <summary>Creates the pane's first tab and navigates it to the start folder.</summary>
     public Task InitializeAsync()

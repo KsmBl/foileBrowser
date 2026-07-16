@@ -50,7 +50,7 @@ Check off items as they're completed; delete lines you decide not to build.
 - [x] Sorting by any column, ascending/descending
 - [x] Hidden/system file visibility toggle
 - [x] Navigation history: back / forward / up
-- [ ] Breadcrumb path bar, click any segment to jump
+- [x] Breadcrumb path bar, click any segment to jump
 - [ ] Editable path bar with autocompletion and recent-folder suggestions (File Pilot "GoTo") — basic type-and-Enter path bar done; autocompletion/suggestions pending
 - [ ] Drive/volume list with free-space indicators
 - [ ] Long-path (>260 chars), emoji and full Unicode path support (Windows caveat: `\\?\` prefix handling)
@@ -59,7 +59,9 @@ Check off items as they're completed; delete lines you decide not to build.
 
 - [x] Application menu bar (File / Edit / View / Go / Tools / Help) with accelerators and gesture hints
 - [x] Toolbar with emoji icons and descriptive tooltips
-- [x] optional multi-pane side-by-side layout with adjustable splitter
+- [x] Dockable multi-pane layout: open any number of panes and arrange them by splitting, tabbing,
+  or floating them into their own windows, with draggable splitters (via Dock.Avalonia); panes tile
+  side by side by default and the layout (pane count + tabs) is restored across restart
 - [x] Single-pane mode toggle
 - [x] Tabs per pane, restored across restart
 - [x] Details (list) view mode

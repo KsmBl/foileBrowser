@@ -16,6 +16,11 @@ public partial class PaneView : UserControl
         new FuncValueConverter<bool, IBrush>(active =>
             active ? new SolidColorBrush(Color.FromRgb(0x3D, 0x8B, 0xFD)) : Brushes.Transparent);
 
+    /// <summary>Subtle highlight behind the pane's selected folder tab.</summary>
+    public static readonly IValueConverter SelectedTabBackgroundConverter =
+        new FuncValueConverter<bool, IBrush>(selected =>
+            selected ? new SolidColorBrush(Color.FromArgb(0x33, 0x3D, 0x8B, 0xFD)) : Brushes.Transparent);
+
     public PaneView()
     {
         InitializeComponent();

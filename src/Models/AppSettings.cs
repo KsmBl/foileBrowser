@@ -52,8 +52,18 @@ public sealed class AppSettings
 
 public sealed class SessionLayout
 {
+    // Legacy two-pane fields, kept so old settings files still restore (superseded by Panes).
     public List<string> LeftTabs { get; set; } = [];
     public int LeftActiveIndex { get; set; }
     public List<string> RightTabs { get; set; } = [];
     public int RightActiveIndex { get; set; }
+
+    /// <summary>Open panes (any number) to restore, each with its tab paths (PRD §6.2).</summary>
+    public List<PaneSession> Panes { get; set; } = [];
+}
+
+public sealed class PaneSession
+{
+    public List<string> Tabs { get; set; } = [];
+    public int ActiveIndex { get; set; }
 }

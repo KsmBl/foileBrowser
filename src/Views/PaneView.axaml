@@ -12,25 +12,36 @@
   <Border BorderThickness="2" Padding="1"
           BorderBrush="{Binding IsActive, Converter={x:Static views:PaneView.ActiveBorderConverter}}">
     <DockPanel>
-      <TabControl DockPanel.Dock="Top"
-                  ItemsSource="{Binding Tabs}"
-                  SelectedItem="{Binding ActiveTab, Mode=TwoWay}">
-        <TabControl.ItemTemplate>
-          <DataTemplate x:DataType="vm:FileTabViewModel">
-            <StackPanel Orientation="Horizontal" Spacing="6">
-              <TextBlock Text="{Binding Title}" VerticalAlignment="Center" />
-              <Button Content="✕" Padding="4,0" FontSize="10" Background="Transparent"
-                      Command="{Binding $parent[TabControl].((vm:PaneViewModel)DataContext).CloseTabCommand}"
-                      CommandParameter="{Binding}" />
-            </StackPanel>
-          </DataTemplate>
-        </TabControl.ItemTemplate>
-        <TabControl.ContentTemplate>
-          <DataTemplate x:DataType="vm:FileTabViewModel">
-            <views:FileTabView />
-          </DataTemplate>
-        </TabControl.ContentTemplate>
-      </TabControl>
+      <!-- Compact folder-tab strip — only shown when the pane holds more than one folder tab
+           (a single-folder pane relies on the dock's own pane tab, avoiding a duplicate row). -->
+      <Border DockPanel.Dock="Top" IsVisible="{Binding HasMultipleTabs}" Padding="2,2,2,0"
+              BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" BorderThickness="0,0,0,1">
+        <ItemsControl ItemsSource="{Binding Tabs}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <StackPanel Orientation="Horizontal" Spacing="2" />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="vm:FileTabViewModel">
+              <Button Padding="8,3" FontSize="12" CornerRadius="4,4,0,0"
+                      Background="{Binding IsSelectedTab, Converter={x:Static views:PaneView.SelectedTabBackgroundConverter}}"
+                      Command="{Binding $parent[ItemsControl].((vm:PaneViewModel)DataContext).SelectTabCommand}"
+                      CommandParameter="{Binding}">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                  <TextBlock Text="{Binding Title}" VerticalAlignment="Center" />
+                  <Button Content="✕" Padding="4,0" FontSize="10" Background="Transparent"
+                          Command="{Binding $parent[ItemsControl].((vm:PaneViewModel)DataContext).CloseTabCommand}"
+                          CommandParameter="{Binding}" />
+                </StackPanel>
+              </Button>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </Border>
+
+      <!-- Active folder view (ViewLocator resolves FileTabViewModel → FileTabView) -->
+      <ContentControl Content="{Binding ActiveTab}" />
     </DockPanel>
   </Border>
 </UserControl>

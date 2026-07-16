@@ -4,6 +4,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="using:FoileBrowser.ViewModels"
         xmlns:views="using:FoileBrowser.Views"
+        xmlns:dock="using:Dock.Avalonia.Controls"
         mc:Ignorable="d" d:DesignWidth="1100" d:DesignHeight="680"
         x:Class="FoileBrowser.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
@@ -52,6 +53,7 @@
         <MenuItem Header="Identify File" Command="{Binding IdentifyFileCommand}" />
       </MenuItem>
       <MenuItem Header="_View">
+        <MenuItem Header="_New Pane" Command="{Binding AddPaneCommand}" />
         <MenuItem Header="_Inspector" InputGesture="Ctrl+I" Command="{Binding ToggleInspectorCommand}" />
         <MenuItem Header="_Dual Pane" Command="{Binding ToggleDualPaneCommand}" />
         <MenuItem Header="_Hidden Files" Command="{Binding ToggleHiddenCommand}" />
@@ -102,6 +104,7 @@
         <Border Width="1" Background="{DynamicResource SystemControlForegroundBaseLowBrush}" Margin="4,2" />
         <Button Content="💻" Command="{Binding OpenTerminalHereCommand}" ToolTip.Tip="Open terminal here" />
         <Button Content="⭐" Command="{Binding PinFavoriteCommand}" ToolTip.Tip="Pin current folder to favorites" />
+        <Button Content="➕" Command="{Binding AddPaneCommand}" ToolTip.Tip="New pane (drag to split/tab/float)" />
         <ToggleButton Content="🪟" IsChecked="{Binding IsDualPane, Mode=OneWay}"
                       Command="{Binding ToggleDualPaneCommand}" ToolTip.Tip="Toggle single/dual pane" />
         <ToggleButton Content="🔍" IsChecked="{Binding IsInspectorOpen, Mode=OneWay}"
@@ -181,19 +184,8 @@
       </Panel>
     </Border>
 
-    <!-- Panes with splitter (PRD §6.2 dual pane) -->
-    <Grid x:Name="PaneGrid">
-      <Grid.ColumnDefinitions>
-        <ColumnDefinition Width="*" />
-        <ColumnDefinition Width="Auto" />
-        <ColumnDefinition Width="{Binding IsDualPane, Converter={x:Static views:MainWindow.PaneColumnWidthConverter}}" />
-      </Grid.ColumnDefinitions>
-      <views:PaneView Grid.Column="0" DataContext="{Binding LeftPane}" />
-      <GridSplitter Grid.Column="1" Width="4" ResizeDirection="Columns"
-                    IsVisible="{Binding IsDualPane}" Background="{DynamicResource SystemControlForegroundBaseLowBrush}" />
-      <views:PaneView Grid.Column="2" DataContext="{Binding RightPane}"
-                      IsVisible="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).IsDualPane}" />
-    </Grid>
+    <!-- Dockable panes: split / tab / float freely with sizable splitters (PRD §6.2) -->
+    <dock:DockControl Layout="{Binding Layout}" Factory="{Binding DockFactory}" InitializeLayout="False" InitializeFactory="False" />
 
   </DockPanel>
 

@@ -47,6 +47,10 @@ public partial class FileTabViewModel : ViewModelBase, IDisposable
     [ObservableProperty]
     private bool _showHidden;
 
+    /// <summary>True when this is the pane's active tab, used to highlight it in the tab strip.</summary>
+    [ObservableProperty]
+    private bool _isSelectedTab;
+
     // As-you-type filter over the current folder (PRD §6.4). Empty shows everything.
     [ObservableProperty]
     private string _filterText = string.Empty;
@@ -78,6 +82,9 @@ public partial class FileTabViewModel : ViewModelBase, IDisposable
     public event EventHandler? Navigated;
 
     public ObservableCollection<FileEntryViewModel> Entries { get; } = [];
+
+    /// <summary>Clickable path segments for the breadcrumb bar (PRD §6.1), root → current folder.</summary>
+    public ObservableCollection<BreadcrumbSegment> Breadcrumbs { get; } = [];
 
     public FileTabViewModel(
         IFileSystemService fileSystem, ISearchService? search = null,
@@ -184,6 +191,35 @@ public partial class FileTabViewModel : ViewModelBase, IDisposable
     [RelayCommand]
     private Task NavigatePathBarAsync() =>
         string.IsNullOrWhiteSpace(PathBarText) ? Task.CompletedTask : NavigateToAsync(PathBarText.Trim());
+
+    [RelayCommand]
+    private Task NavigateBreadcrumbAsync(BreadcrumbSegment? segment) =>
+        segment is null ? Task.CompletedTask : NavigateToAsync(segment.Path);
+
+    /// <summary>Rebuilds the breadcrumb trail by walking parents from the current folder to the root.</summary>
+    private void RebuildBreadcrumbs()
+    {
+        Breadcrumbs.Clear();
+        if (string.IsNullOrEmpty(CurrentPath))
+            return;
+
+        var trail = new List<BreadcrumbSegment>();
+        var cursor = CurrentPath;
+        var guard = 0;
+        while (!string.IsNullOrEmpty(cursor) && guard++ < 256)
+        {
+            var name = Path.GetFileName(cursor.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+            trail.Insert(0, new BreadcrumbSegment(string.IsNullOrEmpty(name) ? cursor : name, cursor));
+
+            var parent = _fileSystem.GetParent(cursor);
+            if (parent is null || string.Equals(parent, cursor, StringComparison.Ordinal))
+                break;
+            cursor = parent;
+        }
+
+        for (var i = 0; i < trail.Count; i++)
+            Breadcrumbs.Add(trail[i] with { ShowSeparator = i > 0 });
+    }
 
     [RelayCommand]
     private async Task StartSearchAsync()
@@ -457,7 +493,11 @@ public partial class FileTabViewModel : ViewModelBase, IDisposable
     partial void OnShowHiddenChanged(bool value) => RebuildEntries();
     partial void OnFilterTextChanged(string value) => RebuildEntries();
     partial void OnTagFilterChanged(string? value) => RebuildEntries();
-    partial void OnCurrentPathChanged(string value) => PathBarText = value;
+    partial void OnCurrentPathChanged(string value)
+    {
+        PathBarText = value;
+        RebuildBreadcrumbs();
+    }
 
     // Clear any active filter when navigating so a new folder shows in full.
     partial void OnCurrentPathChanging(string value)
