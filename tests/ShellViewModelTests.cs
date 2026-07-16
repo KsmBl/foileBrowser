@@ -55,8 +55,9 @@ public class ShellViewModelTests
 
         await vm.InitializeAsync();
 
-        Assert.That(vm.LeftPane.ActiveTab, Is.Not.Null);
-        Assert.That(vm.RightPane.ActiveTab, Is.Not.Null);
+        Assert.That(vm.Tabs, Has.Count.EqualTo(2), "two panes side by side by default");
+        Assert.That(vm.ActiveTab, Is.Not.Null);
+        Assert.That(vm.IsDualPane, Is.True);
         Assert.That(vm.Sidebar.Any(s => s.Kind == SidebarItemKind.Header && s.Name == "Drives"), Is.True);
         var drive = vm.Sidebar.Single(s => s.Kind == SidebarItemKind.Drive);
         Assert.That(drive.Name, Is.EqualTo("System"));
@@ -64,32 +65,34 @@ public class ShellViewModelTests
     }
 
     [Test]
-    public async Task AddPane_Works_After_All_Panes_Are_Closed()
+    public async Task AddPane_Works_After_All_Tabs_Are_Closed()
     {
         var vm = CreateShell(new FakeFileSystem(), new RecordingTrash());
         await vm.InitializeAsync();
 
-        // Close every pane the way the dock UI's close button does.
-        vm.DockFactory.CloseDockable(vm.LeftPane);
-        vm.DockFactory.CloseDockable(vm.RightPane);
-        Assert.That(vm.IsDualPane, Is.False);
+        // Close every tab the way the dock UI's close button does.
+        foreach (var tab in vm.Tabs.ToList())
+            vm.DockFactory.CloseDockable(tab);
+        Assert.That(vm.Tabs, Is.Empty);
 
         await vm.AddPaneCommand.ExecuteAsync(null);
 
-        Assert.That(vm.ActivePane, Is.Not.Null);
-        Assert.That(vm.ActivePane.ActiveTab, Is.Not.Null, "the new pane has a working tab");
+        Assert.That(vm.Tabs, Has.Count.EqualTo(1));
+        Assert.That(vm.ActiveTab, Is.Not.Null, "the new pane has a working tab");
     }
 
     [Test]
-    public void ToggleDualPane_Flips_State_And_Forces_Left_Active()
+    public async Task AddTab_And_AddPane_Grow_The_Tab_Set()
     {
         var vm = CreateShell(new FakeFileSystem(), new RecordingTrash());
-        Assert.That(vm.IsDualPane, Is.True);
+        await vm.InitializeAsync();
+        var initial = vm.Tabs.Count;
 
-        vm.ToggleDualPaneCommand.Execute(null);
+        await vm.AddTabCommand.ExecuteAsync(null);
+        await vm.AddPaneCommand.ExecuteAsync(null);
 
-        Assert.That(vm.IsDualPane, Is.False);
-        Assert.That(vm.ActivePane, Is.SameAs(vm.LeftPane));
+        Assert.That(vm.Tabs, Has.Count.EqualTo(initial + 2));
+        Assert.That(vm.ActiveTab, Is.Not.Null);
     }
 
     [Test]
@@ -124,11 +127,15 @@ public class ShellViewModelTests
     }
 
     [Test]
-    public void CopyToOther_Is_Disabled_In_Single_Pane()
+    public async Task CopyToOther_Is_Disabled_With_A_Single_Pane()
     {
         var vm = CreateShell(new FakeFileSystem(), new RecordingTrash());
-        vm.ToggleDualPaneCommand.Execute(null); // now single pane
+        await vm.InitializeAsync();
 
+        // Close the second pane's tab, leaving a single pane (no "other" to copy to).
+        vm.DockFactory.CloseDockable(vm.Tabs.Last());
+
+        Assert.That(vm.IsDualPane, Is.False);
         Assert.That(vm.CopyToOtherCommand.CanExecute(null), Is.False);
     }
 
@@ -204,13 +211,13 @@ public class ShellViewModelTests
         var fs = new FakeFileSystem();
         var vm1 = CreateShell(fs, new RecordingTrash());
         await vm1.InitializeAsync();
-        await vm1.LeftPane.ActiveTab!.NavigateToAsync("/x/projects");
+        await vm1.Tabs[0].NavigateToAsync("/x/projects");
         await vm1.SaveSessionAsync();
 
         var vm2 = CreateShell(fs, new RecordingTrash());
         await vm2.InitializeAsync();
 
-        Assert.That(vm2.LeftPane.ActiveTab!.CurrentPath, Is.EqualTo("/x/projects"));
+        Assert.That(vm2.Tabs[0].CurrentPath, Is.EqualTo("/x/projects"));
     }
 
     [Test]
@@ -222,8 +229,8 @@ public class ShellViewModelTests
         string? captured = null;
         vm.ClipboardCopyRequested += (_, text) => captured = text;
 
-        // Populate a selection synchronously via a direct tab load.
-        var tab = vm.LeftPane.AddTab();
+        // Populate a selection synchronously via a direct tab load on the active tab.
+        var tab = vm.ActiveTab!;
         tab.NavigateToAsync("/x").GetAwaiter().GetResult();
         tab.SelectedEntry = tab.Entries.First();
         vm.CopyNameCommand.Execute(null);

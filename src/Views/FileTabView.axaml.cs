@@ -21,6 +21,18 @@ public partial class FileTabView : UserControl
                 PathEntry.SelectAll();
             }
         }));
+
+        // Any interaction inside this tab makes it the active tab, so operations (copy/move, inspector)
+        // target it — Dock updates the active document on tab clicks, this covers content clicks too.
+        AddHandler(PointerPressedEvent, (_, _) => Activate(), RoutingStrategies.Tunnel);
+        AddHandler(GotFocusEvent, (_, _) => Activate(), RoutingStrategies.Bubble);
+    }
+
+    private void Activate()
+    {
+        if (DataContext is FileTabViewModel tab
+            && (TopLevel.GetTopLevel(this) as MainWindow)?.DataContext is MainWindowViewModel shell)
+            shell.ActivateTab(tab);
     }
 
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)

@@ -14,9 +14,9 @@
   </Application.Resources>
 
   <Application.DataTemplates>
-    <!-- A pane is a Dock document, not a ViewModelBase, so it needs an explicit view mapping. -->
-    <DataTemplate DataType="vm:PaneViewModel">
-      <views:PaneView />
+    <!-- A tab is a Dock document, not a ViewModelBase, so it needs an explicit view mapping. -->
+    <DataTemplate DataType="vm:FileTabViewModel">
+      <views:FileTabView />
     </DataTemplate>
     <local:ViewLocator />
   </Application.DataTemplates>

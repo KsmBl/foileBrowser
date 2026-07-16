@@ -23,6 +23,8 @@
     <!-- F2 (rename) and Delete (trash) are handled inside the file list only, so they don't
          hijack those keys while typing in a text box (path bar, filter, rename dialog). -->
     <KeyBinding Gesture="Ctrl+Shift+N" Command="{Binding NewFolderCommand}" />
+    <KeyBinding Gesture="Ctrl+T" Command="{Binding AddTabCommand}" />
+    <KeyBinding Gesture="Ctrl+W" Command="{Binding CloseTabCommand}" />
     <KeyBinding Gesture="F6" Command="{Binding CopyToOtherCommand}" />
     <KeyBinding Gesture="F7" Command="{Binding MoveToOtherCommand}" />
     <KeyBinding Gesture="Ctrl+I" Command="{Binding ToggleInspectorCommand}" />
@@ -54,10 +56,12 @@
         <MenuItem Header="Identify File" Command="{Binding IdentifyFileCommand}" />
       </MenuItem>
       <MenuItem Header="_View">
-        <MenuItem Header="_New Pane" Command="{Binding AddPaneCommand}" />
+        <MenuItem Header="New _Tab" InputGesture="Ctrl+T" Command="{Binding AddTabCommand}" />
+        <MenuItem Header="New _Pane (split)" Command="{Binding AddPaneCommand}" />
+        <MenuItem Header="_Close Tab" InputGesture="Ctrl+W" Command="{Binding CloseTabCommand}" />
+        <Separator />
         <MenuItem Header="_Toolbar" Command="{Binding ToggleToolbarCommand}" />
         <MenuItem Header="_Inspector" InputGesture="Ctrl+I" Command="{Binding ToggleInspectorCommand}" />
-        <MenuItem Header="_Dual Pane" Command="{Binding ToggleDualPaneCommand}" />
         <MenuItem Header="_Hidden Files" Command="{Binding ToggleHiddenCommand}" />
         <Separator />
         <MenuItem Header="Size _Units" Command="{Binding CycleSizeUnitCommand}" />
@@ -110,9 +114,8 @@
         <Border Width="1" Background="{DynamicResource SystemControlForegroundBaseLowBrush}" Margin="4,2" />
         <Button Content="💻" Command="{Binding OpenTerminalHereCommand}" ToolTip.Tip="Open terminal here" />
         <Button Content="⭐" Command="{Binding PinFavoriteCommand}" ToolTip.Tip="Pin current folder to favorites" />
-        <Button Content="➕" Command="{Binding AddPaneCommand}" ToolTip.Tip="New pane (drag to split/tab/float)" />
-        <ToggleButton Content="🪟" IsChecked="{Binding IsDualPane, Mode=OneWay}"
-                      Command="{Binding ToggleDualPaneCommand}" ToolTip.Tip="Toggle single/dual pane" />
+        <Button Content="🗂️" Command="{Binding AddTabCommand}" ToolTip.Tip="New tab (Ctrl+T) — drag a tab out to make a new pane" />
+        <Button Content="🪟" Command="{Binding AddPaneCommand}" ToolTip.Tip="New pane (split, side by side)" />
         <ToggleButton Content="🔍" IsChecked="{Binding IsInspectorOpen, Mode=OneWay}"
                       Command="{Binding ToggleInspectorCommand}" ToolTip.Tip="Toggle inspector (Ctrl+I)" />
         <Border Width="1" Background="{DynamicResource SystemControlForegroundBaseLowBrush}" Margin="4,2" />

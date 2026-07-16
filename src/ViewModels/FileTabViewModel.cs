@@ -1,16 +1,18 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Dock.Model.Mvvm.Controls;
 using FoileBrowser.Models;
 using FoileBrowser.Services;
 
 namespace FoileBrowser.ViewModels;
 
 /// <summary>
-/// One browsing context: a single directory view with its own navigation history, sort
-/// state and hidden-file toggle. A pane owns one or more of these as tabs (PRD §6.2).
+/// One browsing context: a single directory view with its own navigation history, sort state and
+/// hidden-file toggle. Each tab is a dockable <see cref="Document"/>, so tabs can be dragged into a
+/// new pane, tabbed together, or floated into their own window (PRD §6.2).
 /// </summary>
-public partial class FileTabViewModel : ViewModelBase, IDisposable
+public partial class FileTabViewModel : Document, IDisposable
 {
     private readonly IFileSystemService _fileSystem;
     private readonly ISearchService _search;
@@ -58,10 +60,6 @@ public partial class FileTabViewModel : ViewModelBase, IDisposable
     [ObservableProperty]
     private bool _showHidden;
 
-    /// <summary>True when this is the pane's active tab, used to highlight it in the tab strip.</summary>
-    [ObservableProperty]
-    private bool _isSelectedTab;
-
     // As-you-type filter over the current folder (PRD §6.4). Empty shows everything.
     [ObservableProperty]
     private string _filterText = string.Empty;
@@ -108,6 +106,7 @@ public partial class FileTabViewModel : ViewModelBase, IDisposable
         _archives = archives ?? new ArchiveService();
         _sizes = sizes ?? new DirectorySizeService();
         _display = display ?? new DisplayOptions();
+        UpdateTitle();
     }
 
     /// <summary>Re-renders every visible entry's size/date after a display-mode toggle (PRD §6.1/§6.2).</summary>
@@ -117,16 +116,22 @@ public partial class FileTabViewModel : ViewModelBase, IDisposable
             entry.RefreshDisplay();
     }
 
-    /// <summary>Short label for the tab header — the current folder name, or the path for roots.</summary>
-    public string Title
+    /// <summary>Updates the dockable tab header (Document.Title) — folder name, or archive location.</summary>
+    private void UpdateTitle()
     {
-        get
+        if (_archivePath is not null)
         {
-            if (string.IsNullOrEmpty(CurrentPath))
-                return "New Tab";
-            var name = Path.GetFileName(CurrentPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
-            return string.IsNullOrEmpty(name) ? CurrentPath : name;
+            var name = Path.GetFileName(_archivePath);
+            Title = _archiveInternal.Length > 0 ? $"{name}/{_archiveInternal}" : name;
+            return;
         }
+        if (string.IsNullOrEmpty(CurrentPath))
+        {
+            Title = "New Tab";
+            return;
+        }
+        var folder = Path.GetFileName(CurrentPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+        Title = string.IsNullOrEmpty(folder) ? CurrentPath : folder;
     }
 
     public bool CanGoBack => _history.CanGoBack;
@@ -666,7 +671,6 @@ public partial class FileTabViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(CanGoBack));
         OnPropertyChanged(nameof(CanGoForward));
         OnPropertyChanged(nameof(CanGoUp));
-        OnPropertyChanged(nameof(Title));
         GoBackCommand.NotifyCanExecuteChanged();
         GoForwardCommand.NotifyCanExecuteChanged();
         GoUpCommand.NotifyCanExecuteChanged();
@@ -679,6 +683,7 @@ public partial class FileTabViewModel : ViewModelBase, IDisposable
     {
         PathBarText = value;
         RebuildBreadcrumbs();
+        UpdateTitle();
     }
 
     // Clear any active filter when navigating so a new folder shows in full.
