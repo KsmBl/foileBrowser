@@ -34,6 +34,20 @@ public class DirectorySizeServiceTests
     }
 
     [Test]
+    public async Task Computing_A_Folder_Also_Caches_Its_Subfolders()
+    {
+        var sub = Directory.CreateDirectory(Path.Combine(_root, "sub")).FullName;
+        await File.WriteAllBytesAsync(Path.Combine(sub, "b.bin"), new byte[250]);
+        var service = new DirectorySizeService();
+
+        await service.GetSizeAsync(_root);
+
+        // Drilling into "sub" should be instant — its size was cached during the parent walk.
+        Assert.That(service.TryGetCached(sub, out var size), Is.True);
+        Assert.That(size, Is.EqualTo(250));
+    }
+
+    [Test]
     public async Task Result_Is_Cached_For_Instant_Reuse()
     {
         await File.WriteAllBytesAsync(Path.Combine(_root, "a.bin"), new byte[64]);

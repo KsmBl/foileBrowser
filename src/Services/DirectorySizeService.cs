@@ -13,12 +13,13 @@ public sealed class DirectorySizeService : IDirectorySizeService
         _throttle = new SemaphoreSlim(workers, workers);
     }
 
-    public bool TryGetCached(string path, out long size) => _cache.TryGet(path, out size);
+    public bool TryGetCached(string path, out long size) => _cache.TryGet(Key(path), out size);
 
     public async Task<long> GetSizeAsync(
         string path, IProgress<long>? progress = null, CancellationToken cancellationToken = default)
     {
-        if (_cache.TryGet(path, out var cached))
+        var key = Key(path);
+        if (_cache.TryGet(key, out var cached))
         {
             progress?.Report(cached);
             return cached;
@@ -28,16 +29,14 @@ public sealed class DirectorySizeService : IDirectorySizeService
         try
         {
             // Re-check: another scheduler may have computed this while we waited for a slot.
-            if (_cache.TryGet(path, out cached))
+            if (_cache.TryGet(key, out cached))
             {
                 progress?.Report(cached);
                 return cached;
             }
 
-            var size = await Task.Run(() => Measure(path, progress, cancellationToken), cancellationToken)
+            return await Task.Run(() => MeasureTree(key, progress, cancellationToken), cancellationToken)
                 .ConfigureAwait(false);
-            _cache.Set(path, size);
-            return size;
         }
         finally
         {
@@ -45,19 +44,28 @@ public sealed class DirectorySizeService : IDirectorySizeService
         }
     }
 
-    // Iterative depth-first walk so deep trees can't blow the stack; reports the running total
-    // periodically so the UI can show live per-folder progress without flooding it.
-    private static long Measure(string root, IProgress<long>? progress, CancellationToken cancellationToken)
+    /// <summary>
+    /// Walks the whole subtree once and caches the total for <paramref name="root"/> <em>and every
+    /// descendant directory</em>. That way, after a folder's size is known, drilling into any folder
+    /// inside it is instant instead of restarting the calculation (PRD §6.2).
+    /// </summary>
+    private long MeasureTree(string root, IProgress<long>? progress, CancellationToken cancellationToken)
     {
-        long total = 0;
-        long sinceReport = 0;
+        // Files summed per directory; parents fold in their children's totals in a post-order pass.
+        var acc = new Dictionary<string, long>(StringComparer.Ordinal);
+        var discovered = new List<string>();
         var stack = new Stack<string>();
         stack.Push(root);
+
+        long running = 0;
+        long lastReport = 0;
 
         while (stack.Count > 0)
         {
             cancellationToken.ThrowIfCancellationRequested();
             var dir = stack.Pop();
+            discovered.Add(dir);
+            acc[dir] = 0;
 
             IEnumerable<string> entries;
             try
@@ -77,22 +85,39 @@ public sealed class DirectorySizeService : IDirectorySizeService
                 }
                 else
                 {
-                    try { total += new FileInfo(entry).Length; }
-                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+                    long length;
+                    try { length = new FileInfo(entry).Length; }
+                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { length = 0; }
 
-                    // Report roughly every 4 MiB of progress to keep UI churn bounded.
-                    sinceReport = total - sinceReport > (4 << 20) ? Report(progress, total) : sinceReport;
+                    acc[dir] += length;
+                    running += length;
+                    if (running - lastReport > (4 << 20)) // report the running total every ~4 MiB
+                    {
+                        progress?.Report(running);
+                        lastReport = running;
+                    }
                 }
             }
         }
 
-        progress?.Report(total);
-        return total;
+        // Post-order: parents are discovered before children, so folding totals back in reverse
+        // discovery order guarantees a directory's own files + all descendants are summed before it.
+        for (var i = discovered.Count - 1; i >= 0; i--)
+        {
+            var dir = discovered[i];
+            var total = acc[dir];
+            _cache.Set(dir, total);
+
+            if (Path.GetDirectoryName(dir) is { } parent && acc.ContainsKey(parent))
+                acc[parent] += total;
+        }
+
+        var rootTotal = acc[root];
+        progress?.Report(rootTotal);
+        return rootTotal;
     }
 
-    private static long Report(IProgress<long>? progress, long total)
-    {
-        progress?.Report(total);
-        return total;
-    }
+    // Normalise so cache keys are stable regardless of a trailing separator.
+    private static string Key(string path) =>
+        string.IsNullOrEmpty(path) ? path : Path.TrimEndingDirectorySeparator(path);
 }
