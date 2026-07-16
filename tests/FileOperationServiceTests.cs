@@ -160,4 +160,65 @@ public class FileOperationServiceTests
 
         Assert.CatchAsync<IOException>(() => _ops.RenameAsync(a, "b.txt"));
     }
+
+    // Both byte-moving strategies must be byte-exact, including partial final blocks and empty files.
+    [TestCase(CopyStrategy.Overlapped)]
+    [TestCase(CopyStrategy.Sequential)]
+    public async Task Copy_Is_Byte_Exact_Across_Many_Blocks(CopyStrategy strategy)
+    {
+        // A tiny buffer forces many read/write cycles so the double-buffer swap and partial tail run.
+        var ops = new FileOperationService(() => new CopyOptions
+        {
+            Strategy = strategy,
+            BufferSize = 64,
+            SequentialBufferSize = 64,
+        });
+        var dstDir = Directory.CreateDirectory(Src("dst")).FullName;
+
+        var payload = new byte[64 * 10 + 7]; // not a whole multiple of the buffer
+        Random.Shared.NextBytes(payload);
+        var file = Src("blob.bin");
+        await File.WriteAllBytesAsync(file, payload);
+
+        await ops.TransferAsync([file], dstDir, FileOperationKind.Copy, null, Rename);
+
+        Assert.That(await File.ReadAllBytesAsync(Path.Combine(dstDir, "blob.bin")), Is.EqualTo(payload));
+    }
+
+    [Test]
+    public async Task Copy_Handles_Empty_File()
+    {
+        var dstDir = Directory.CreateDirectory(Src("dst")).FullName;
+        var file = Src("empty.bin");
+        await File.WriteAllBytesAsync(file, []);
+
+        await _ops.TransferAsync([file], dstDir, FileOperationKind.Copy, null, Rename);
+
+        Assert.That(new FileInfo(Path.Combine(dstDir, "empty.bin")).Length, Is.EqualTo(0));
+    }
+
+    [Test]
+    public void DriveProfiler_Honours_Forced_Strategy()
+    {
+        var overlapped = DriveProfiler.Recommend("/a", "/b", new CopyOptions { Strategy = CopyStrategy.Overlapped });
+        var sequential = DriveProfiler.Recommend("/a", "/b", new CopyOptions { Strategy = CopyStrategy.Sequential });
+
+        Assert.That(overlapped, Is.EqualTo(CopyStrategy.Overlapped));
+        Assert.That(sequential, Is.EqualTo(CopyStrategy.Sequential));
+    }
+
+    [Test]
+    public void Settings_Map_To_Copy_Options()
+    {
+        var options = new Models.AppSettings
+        {
+            CopyBufferKiB = 512,
+            SequentialBufferKiB = 4096,
+            CopyStrategy = "Sequential",
+        }.ToCopyOptions();
+
+        Assert.That(options.BufferSize, Is.EqualTo(512 * 1024));
+        Assert.That(options.SequentialBufferSize, Is.EqualTo(4096 * 1024));
+        Assert.That(options.Strategy, Is.EqualTo(CopyStrategy.Sequential));
+    }
 }

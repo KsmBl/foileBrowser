@@ -20,6 +20,26 @@ public sealed class AppSettings
 
     public bool IsInspectorOpen { get; set; } = true;
 
+    // ---- copy engine tunables (PRD §6.3) ----
+
+    /// <summary>Overlapped copy chunk size in KiB.</summary>
+    public int CopyBufferKiB { get; set; } = 1024;
+
+    /// <summary>Sequential-slurp block size in KiB, used on mechanical/optical media.</summary>
+    public int SequentialBufferKiB { get; set; } = 8192;
+
+    /// <summary>"Auto", "Overlapped", or "Sequential".</summary>
+    public string CopyStrategy { get; set; } = "Auto";
+
+    /// <summary>Projects the persisted copy settings onto the engine's option record.</summary>
+    public CopyOptions ToCopyOptions() => new()
+    {
+        BufferSize = Math.Max(64, CopyBufferKiB) * 1024,
+        SequentialBufferSize = Math.Max(64, SequentialBufferKiB) * 1024,
+        Strategy = Enum.TryParse<global::FoileBrowser.Models.CopyStrategy>(
+            CopyStrategy, ignoreCase: true, out var s) ? s : global::FoileBrowser.Models.CopyStrategy.Auto,
+    };
+
     /// <summary>Pinned sidebar favorite paths (PRD §6.2).</summary>
     public List<string> Favorites { get; set; } = [];
 

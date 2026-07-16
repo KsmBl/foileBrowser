@@ -69,6 +69,9 @@ Check off items as they're completed; delete lines you decide not to build.
 ### 6.3 File Operations
 
 - [x] Copy / move with progress dialog and background operation queue
+- [x] Blazing-fast transfers: overlapped async read/write with configurable buffers, and an adaptive
+  strategy that profiles the drives — overlapped read+write for SSD/cross-device, large sequential
+  slurp for a single mechanical/optical spindle (avoids head-seek thrashing)
 - [x] Delete to OS trash (platform-specific: Recycle Bin / gio trash / NSFileManager)
 - [ ] Permanent delete with confirmation (optional overwriting disk space with zeros / random to fully erase file)
 - [ ] Conflict resolution dialog (overwrite / skip / rename / apply-to-all) — resolver supports overwrite/skip/rename/cancel; interactive dialog + apply-to-all pending (defaults to auto-rename)

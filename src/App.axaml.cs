@@ -21,11 +21,12 @@ public partial class App : Application
             DisableAvaloniaDataAnnotationValidation();
 
             var fileSystem = new FileSystemService();
-            var operations = new FileOperationService();
+            var settings = new SettingsService();
+            // The copy engine reads its buffer/strategy tunables live from settings each transfer.
+            var operations = new FileOperationService(() => settings.Current.ToCopyOptions());
             var trash = new TrashService();
             var search = new SearchService();
             var preview = new PreviewService();
-            var settings = new SettingsService();
             var tags = new TagService(settings);
             var shell = new ShellService();
             var archives = new ArchiveService();

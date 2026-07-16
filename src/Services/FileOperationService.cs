@@ -5,7 +5,10 @@ namespace FoileBrowser.Services;
 /// <inheritdoc />
 public sealed class FileOperationService : IFileOperationService
 {
-    private const int BufferSize = 1 << 20; // 1 MiB copy buffer
+    private readonly Func<CopyOptions> _options;
+
+    public FileOperationService(Func<CopyOptions>? options = null)
+        => _options = options ?? (static () => CopyOptions.Default);
 
     public Task<string> CreateFolderAsync(string parentDir, string name, CancellationToken cancellationToken = default)
         => Task.Run(() =>
@@ -49,47 +52,51 @@ public sealed class FileOperationService : IFileOperationService
         IProgress<OperationProgress>? progress,
         Func<ConflictRequest, ConflictResolution> conflictResolver,
         CancellationToken cancellationToken = default)
-        => Task.Run(() =>
+        => Task.Run(() => TransferCoreAsync(
+            sources, destinationDir, kind, progress, conflictResolver, cancellationToken), cancellationToken);
+
+    private async Task TransferCoreAsync(
+        IReadOnlyList<string> sources, string destinationDir, FileOperationKind kind,
+        IProgress<OperationProgress>? progress, Func<ConflictRequest, ConflictResolution> conflictResolver,
+        CancellationToken cancellationToken)
+    {
+        Directory.CreateDirectory(destinationDir);
+
+        var total = sources.Sum(MeasureSize);
+        var ctx = new Copier(_options(), progress, total, cancellationToken);
+
+        foreach (var source in sources)
         {
-            Directory.CreateDirectory(destinationDir);
+            cancellationToken.ThrowIfCancellationRequested();
 
-            var total = sources.Sum(MeasureSize);
-            long done = 0;
+            var destPath = Path.Combine(destinationDir, Path.GetFileName(source.TrimEnd(
+                Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)));
 
-            foreach (var source in sources)
+            // Guard against moving/copying a directory into itself or a descendant.
+            if (Directory.Exists(source) && IsSameOrSubPath(source, destPath))
+                throw new IOException($"Cannot transfer “{source}” into itself.");
+
+            var resolved = ResolveDestination(source, destPath, conflictResolver, out var skip);
+            if (skip)
             {
-                cancellationToken.ThrowIfCancellationRequested();
-
-                var destPath = Path.Combine(destinationDir, Path.GetFileName(source.TrimEnd(
-                    Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)));
-
-                // Guard against moving/copying a directory into itself or a descendant.
-                if (Directory.Exists(source) && IsSameOrSubPath(source, destPath))
-                    throw new IOException($"Cannot transfer “{source}” into itself.");
-
-                var resolved = ResolveDestination(source, destPath, conflictResolver, out var skip);
-                if (skip)
-                {
-                    done += MeasureSize(source);
-                    Report(progress, total, done, Path.GetFileName(source));
-                    continue;
-                }
-
-                if (kind == FileOperationKind.Move && TryFastMove(source, resolved))
-                {
-                    done += MeasureSize(source);
-                    Report(progress, total, done, Path.GetFileName(source));
-                    continue;
-                }
-
-                CopyRecursive(source, resolved, progress, total, ref done, cancellationToken);
-
-                if (kind == FileOperationKind.Move)
-                    DeleteRecursive(source);
+                ctx.Skip(MeasureSize(source), Path.GetFileName(source));
+                continue;
             }
 
-            Report(progress, total, total, string.Empty);
-        }, cancellationToken);
+            if (kind == FileOperationKind.Move && TryFastMove(source, resolved))
+            {
+                ctx.Skip(MeasureSize(source), Path.GetFileName(source));
+                continue;
+            }
+
+            await ctx.CopyRecursiveAsync(source, resolved).ConfigureAwait(false);
+
+            if (kind == FileOperationKind.Move)
+                DeleteRecursive(source);
+        }
+
+        ctx.ReportDone();
+    }
 
     // ---- conflict handling ----
 
@@ -135,41 +142,94 @@ public sealed class FileOperationService : IFileOperationService
         }
     }
 
-    private static void CopyRecursive(
-        string source, string dest, IProgress<OperationProgress>? progress,
-        long total, ref long done, CancellationToken cancellationToken)
+    /// <summary>
+    /// Walks the source tree and copies files, tracking progress and choosing the byte-moving
+    /// strategy (overlapped vs. sequential slurp) per file from the drive profile (PRD §6.3).
+    /// </summary>
+    private sealed class Copier(
+        CopyOptions options, IProgress<OperationProgress>? progress, long total, CancellationToken cancellationToken)
     {
-        if (Directory.Exists(source))
+        private long _done;
+
+        public void Skip(long bytes, string item) => Report(bytes, item);
+
+        public void ReportDone() => progress?.Report(new OperationProgress(total, total, string.Empty));
+
+        public async Task CopyRecursiveAsync(string source, string dest)
         {
-            Directory.CreateDirectory(dest);
-            foreach (var child in Directory.EnumerateFileSystemEntries(source))
+            if (Directory.Exists(source))
             {
-                cancellationToken.ThrowIfCancellationRequested();
-                var childDest = Path.Combine(dest, Path.GetFileName(child));
-                CopyRecursive(child, childDest, progress, total, ref done, cancellationToken);
+                Directory.CreateDirectory(dest);
+                foreach (var child in Directory.EnumerateFileSystemEntries(source))
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    await CopyRecursiveAsync(child, Path.Combine(dest, Path.GetFileName(child))).ConfigureAwait(false);
+                }
+            }
+            else
+            {
+                await CopyFileAsync(source, dest).ConfigureAwait(false);
             }
         }
-        else
+
+        private async Task CopyFileAsync(string source, string dest)
         {
-            CopyFile(source, dest, progress, total, ref done, cancellationToken);
+            var strategy = DriveProfiler.Recommend(source, dest, options);
+            var sequential = strategy == CopyStrategy.Sequential;
+            var bufferSize = sequential ? options.SequentialBufferSize : options.BufferSize;
+
+            var readHint = FileOptions.Asynchronous | (sequential ? FileOptions.SequentialScan : FileOptions.None);
+            await using var input = new FileStream(
+                source, FileMode.Open, FileAccess.Read, FileShare.Read, bufferSize, readHint);
+            await using var output = new FileStream(
+                dest, FileMode.Create, FileAccess.Write, FileShare.None, bufferSize, FileOptions.Asynchronous);
+
+            var name = Path.GetFileName(source);
+            if (sequential)
+                await CopySequentialAsync(input, output, bufferSize, name).ConfigureAwait(false);
+            else
+                await CopyOverlappedAsync(input, output, bufferSize, name).ConfigureAwait(false);
         }
-    }
 
-    private static void CopyFile(
-        string source, string dest, IProgress<OperationProgress>? progress,
-        long total, ref long done, CancellationToken cancellationToken)
-    {
-        using var input = new FileStream(source, FileMode.Open, FileAccess.Read, FileShare.Read, BufferSize);
-        using var output = new FileStream(dest, FileMode.Create, FileAccess.Write, FileShare.None, BufferSize);
-
-        var buffer = new byte[BufferSize];
-        int read;
-        while ((read = input.Read(buffer, 0, buffer.Length)) > 0)
+        // Read a full block, then write it. No concurrent read+write, so a single mechanical/optical
+        // head never seeks back and forth between the source and destination regions.
+        private async Task CopySequentialAsync(FileStream input, FileStream output, int bufferSize, string name)
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            output.Write(buffer, 0, read);
-            done += read;
-            Report(progress, total, done, Path.GetFileName(source));
+            var buffer = new byte[bufferSize];
+            int read;
+            while ((read = await input.ReadAsync(buffer.AsMemory(0, bufferSize), cancellationToken).ConfigureAwait(false)) > 0)
+            {
+                await output.WriteAsync(buffer.AsMemory(0, read), cancellationToken).ConfigureAwait(false);
+                Report(read, name);
+            }
+        }
+
+        // Double-buffered: while the current block is being written, the next block is already being
+        // read into the other buffer, so read and write overlap (best on SSD / cross-device).
+        private async Task CopyOverlappedAsync(FileStream input, FileStream output, int bufferSize, string name)
+        {
+            var readBuf = new byte[bufferSize];
+            var writeBuf = new byte[bufferSize];
+
+            var read = await input.ReadAsync(readBuf.AsMemory(0, bufferSize), cancellationToken).ConfigureAwait(false);
+            while (read > 0)
+            {
+                // Swap: writeBuf now holds the freshly-read data; readBuf is free for the next block.
+                (readBuf, writeBuf) = (writeBuf, readBuf);
+
+                var writeTask = output.WriteAsync(writeBuf.AsMemory(0, read), cancellationToken);
+                var nextRead = input.ReadAsync(readBuf.AsMemory(0, bufferSize), cancellationToken);
+
+                await writeTask.ConfigureAwait(false);
+                Report(read, name);
+                read = await nextRead.ConfigureAwait(false);
+            }
+        }
+
+        private void Report(long bytes, string item)
+        {
+            _done += bytes;
+            progress?.Report(new OperationProgress(total, _done, item));
         }
     }
 
@@ -204,9 +264,6 @@ public sealed class FileOperationService : IFileOperationService
         try { return file.Length; }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return 0; }
     }
-
-    private static void Report(IProgress<OperationProgress>? progress, long total, long done, string item)
-        => progress?.Report(new OperationProgress(total, done, item));
 
     /// <summary>Appends " (n)" before the extension until the path is free.</summary>
     internal static string UniquePath(string path)
