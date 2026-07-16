@@ -36,6 +36,10 @@ public partial class FileTabViewModel : ViewModelBase, IDisposable
     [ObservableProperty]
     private string _pathBarText = string.Empty;
 
+    /// <summary>When true the combined path bar shows an editable text entry instead of breadcrumbs (Thunar-style).</summary>
+    [ObservableProperty]
+    private bool _isEditingPath;
+
     [ObservableProperty]
     private FileEntryViewModel? _selectedEntry;
 
@@ -199,8 +203,27 @@ public partial class FileTabViewModel : ViewModelBase, IDisposable
     }
 
     [RelayCommand]
-    private Task NavigatePathBarAsync() =>
-        string.IsNullOrWhiteSpace(PathBarText) ? Task.CompletedTask : NavigateToAsync(PathBarText.Trim());
+    private Task NavigatePathBarAsync()
+    {
+        IsEditingPath = false;
+        return string.IsNullOrWhiteSpace(PathBarText) ? Task.CompletedTask : NavigateToAsync(PathBarText.Trim());
+    }
+
+    /// <summary>Switches the combined path bar into editable mode, pre-filled with the current path.</summary>
+    [RelayCommand]
+    private void BeginEditPath()
+    {
+        PathBarText = CurrentPath;
+        IsEditingPath = true;
+    }
+
+    /// <summary>Leaves editable mode without navigating, restoring the breadcrumb view.</summary>
+    [RelayCommand]
+    private void CancelEditPath()
+    {
+        IsEditingPath = false;
+        PathBarText = CurrentPath;
+    }
 
     [RelayCommand]
     private Task NavigateBreadcrumbAsync(BreadcrumbSegment? segment) =>

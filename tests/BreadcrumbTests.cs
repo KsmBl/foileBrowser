@@ -42,4 +42,38 @@ public class BreadcrumbTests
 
         Assert.That(tab.CurrentPath, Is.EqualTo("/x"));
     }
+
+    [Test]
+    public async Task PathBar_Enters_And_Cancels_Edit_Mode()
+    {
+        var fs = new FakeFileSystem { ParentOverride = null };
+        var tab = new FileTabViewModel(fs);
+        await tab.NavigateToAsync("/x/projects");
+
+        tab.BeginEditPathCommand.Execute(null);
+        Assert.That(tab.IsEditingPath, Is.True);
+        Assert.That(tab.PathBarText, Is.EqualTo("/x/projects"), "the entry is pre-filled with the current path");
+
+        tab.PathBarText = "/scratch"; // user typed but then bailed out
+        tab.CancelEditPathCommand.Execute(null);
+
+        Assert.That(tab.IsEditingPath, Is.False);
+        Assert.That(tab.CurrentPath, Is.EqualTo("/x/projects"), "cancel does not navigate");
+        Assert.That(tab.PathBarText, Is.EqualTo("/x/projects"), "cancel restores the path text");
+    }
+
+    [Test]
+    public async Task PathBar_Navigating_Exits_Edit_Mode()
+    {
+        var fs = new FakeFileSystem { ParentOverride = null };
+        var tab = new FileTabViewModel(fs);
+        await tab.NavigateToAsync("/x/projects");
+        tab.BeginEditPathCommand.Execute(null);
+
+        tab.PathBarText = "/y";
+        await tab.NavigatePathBarCommand.ExecuteAsync(null);
+
+        Assert.That(tab.IsEditingPath, Is.False);
+        Assert.That(tab.CurrentPath, Is.EqualTo("/y"));
+    }
 }

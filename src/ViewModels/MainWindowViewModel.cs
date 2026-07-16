@@ -455,6 +455,10 @@ public partial class MainWindowViewModel : ViewModelBase
             t.ShowHidden = !t.ShowHidden;
     }
 
+    /// <summary>Ctrl+L: put the active tab's combined path bar into editable mode (Thunar/browser-style).</summary>
+    [RelayCommand]
+    private void FocusPathBar() => ActiveTab?.BeginEditPathCommand.Execute(null);
+
     [RelayCommand]
     private void ShowAbout()
     {

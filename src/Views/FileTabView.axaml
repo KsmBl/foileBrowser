@@ -18,39 +18,46 @@
         <Button Grid.Column="1" Content="→" ToolTip.Tip="Forward (Alt+Right)" Command="{Binding GoForwardCommand}" Margin="3,0,0,0" />
         <Button Grid.Column="2" Content="↑" ToolTip.Tip="Up (Alt+Up)" Command="{Binding GoUpCommand}" Margin="3,0,0,0" />
         <Button Grid.Column="3" Content="⟳" ToolTip.Tip="Refresh (F5)" Command="{Binding RefreshCommand}" Margin="3,0,0,0" />
-        <TextBox Grid.Column="5" Text="{Binding PathBarText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                 Watermark="Type a path and press Enter" VerticalContentAlignment="Center">
-          <TextBox.KeyBindings>
-            <KeyBinding Gesture="Enter" Command="{Binding NavigatePathBarCommand}" />
-          </TextBox.KeyBindings>
-        </TextBox>
+        <!-- Combined path bar: clickable breadcrumbs, click the empty area (or Ctrl+L) to edit the path -->
+        <Panel Grid.Column="5">
+          <Border IsVisible="{Binding !IsEditingPath}" Background="Transparent" Cursor="Ibeam"
+                  PointerPressed="OnPathBarPressed" ToolTip.Tip="Click a segment to jump, or click here to type a path (Ctrl+L)"
+                  BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}" BorderThickness="1"
+                  CornerRadius="3" Padding="2,1">
+            <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+              <ItemsControl ItemsSource="{Binding Breadcrumbs}" VerticalAlignment="Center">
+                <ItemsControl.ItemsPanel>
+                  <ItemsPanelTemplate>
+                    <StackPanel Orientation="Horizontal" Spacing="1" />
+                  </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="vm:BreadcrumbSegment">
+                    <StackPanel Orientation="Horizontal" Spacing="1" VerticalAlignment="Center">
+                      <TextBlock Text="›" Opacity="0.5" VerticalAlignment="Center" Margin="2,0"
+                                 IsVisible="{Binding ShowSeparator}" />
+                      <Button Content="{Binding Name}" Padding="6,2" FontSize="12" Background="Transparent"
+                              Command="{Binding $parent[ItemsControl].((vm:FileTabViewModel)DataContext).NavigateBreadcrumbCommand}"
+                              CommandParameter="{Binding}" />
+                    </StackPanel>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </ScrollViewer>
+          </Border>
+          <TextBox x:Name="PathEntry" IsVisible="{Binding IsEditingPath}"
+                   Text="{Binding PathBarText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                   Watermark="Type a path and press Enter" VerticalContentAlignment="Center"
+                   LostFocus="OnPathEntryLostFocus">
+            <TextBox.KeyBindings>
+              <KeyBinding Gesture="Enter" Command="{Binding NavigatePathBarCommand}" />
+              <KeyBinding Gesture="Escape" Command="{Binding CancelEditPathCommand}" />
+            </TextBox.KeyBindings>
+          </TextBox>
+        </Panel>
         <ToggleButton Grid.Column="6" Content="Hidden" ToolTip.Tip="Show hidden files"
                       IsChecked="{Binding ShowHidden, Mode=TwoWay}" Margin="3,0,0,0" />
       </Grid>
-    </Border>
-
-    <!-- Button-style breadcrumb bar: click any segment to jump there (PRD §6.1) -->
-    <Border DockPanel.Dock="Top" Padding="4,2" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" BorderThickness="0,0,0,1">
-      <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
-        <ItemsControl ItemsSource="{Binding Breadcrumbs}">
-          <ItemsControl.ItemsPanel>
-            <ItemsPanelTemplate>
-              <StackPanel Orientation="Horizontal" Spacing="1" />
-            </ItemsPanelTemplate>
-          </ItemsControl.ItemsPanel>
-          <ItemsControl.ItemTemplate>
-            <DataTemplate x:DataType="vm:BreadcrumbSegment">
-              <StackPanel Orientation="Horizontal" Spacing="1" VerticalAlignment="Center">
-                <TextBlock Text="›" Opacity="0.5" VerticalAlignment="Center" Margin="2,0"
-                           IsVisible="{Binding ShowSeparator}" />
-                <Button Content="{Binding Name}" Padding="6,2" FontSize="12" Background="Transparent"
-                        Command="{Binding $parent[ItemsControl].((vm:FileTabViewModel)DataContext).NavigateBreadcrumbCommand}"
-                        CommandParameter="{Binding}" />
-              </StackPanel>
-            </DataTemplate>
-          </ItemsControl.ItemTemplate>
-        </ItemsControl>
-      </ScrollViewer>
     </Border>
 
     <!-- Status bar -->

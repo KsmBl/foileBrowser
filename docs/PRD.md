@@ -55,10 +55,11 @@ Check off items as they're completed; delete lines you decide not to build.
 - [x] Sorting by any column, ascending/descending
 - [x] Hidden/system file visibility toggle
 - [x] Navigation history: back / forward / up
-- [x] Breadcrumb path bar, click any segment to jump
+- [x] Combined path bar (Thunar-style): clickable breadcrumb segments by default; clicking the empty
+  area to the right (or Ctrl+L) turns it into an editable path entry, and it reverts on Esc / focus loss
 - [x] Switch modified dates between absolute timestamps and relative ("5 min ago", "yesterday"),
   quick-toggle in the toolbar / View menu / command palette (persisted)
-- [ ] Editable path bar with autocompletion and recent-folder suggestions (File Pilot "GoTo") — basic type-and-Enter path bar done; autocompletion/suggestions pending
+- [ ] Editable path bar with autocompletion and recent-folder suggestions (File Pilot "GoTo") — combined breadcrumb/entry path bar with Ctrl+L done; autocompletion/suggestions pending
 - [ ] Drive/volume list with free-space indicators
 - [ ] Long-path (>260 chars), emoji and full Unicode path support (Windows caveat: `\\?\` prefix handling)
 

@@ -18,6 +18,7 @@
 
   <Window.KeyBindings>
     <KeyBinding Gesture="Ctrl+P" Command="{Binding OpenCommandPaletteCommand}" />
+    <KeyBinding Gesture="Ctrl+L" Command="{Binding FocusPathBarCommand}" />
     <KeyBinding Gesture="Ctrl+Shift+P" Command="{Binding OpenCommandPaletteCommand}" />
     <KeyBinding Gesture="F2" Command="{Binding RenameSelectedCommand}" />
     <KeyBinding Gesture="Delete" Command="{Binding DeleteSelectedCommand}" />
