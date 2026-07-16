@@ -22,4 +22,11 @@ public interface IArchiveService
     Task ExtractAllAsync(
         string path, string destinationDir,
         IProgress<OperationProgress>? progress = null, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Extracts a single entry from an archive to <paramref name="destPath"/> (streamed, no full
+    /// extraction), used to open/preview one file while browsing an archive virtually (PRD §6.11).
+    /// </summary>
+    Task ExtractEntryAsync(
+        string archivePath, string entryName, string destPath, CancellationToken cancellationToken = default);
 }

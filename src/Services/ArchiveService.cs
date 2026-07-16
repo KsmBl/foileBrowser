@@ -127,6 +127,21 @@ public sealed class ArchiveService : IArchiveService
             progress?.Report(new OperationProgress(total, total, string.Empty));
         }, cancellationToken);
 
+    public Task ExtractEntryAsync(
+        string archivePath, string entryName, string destPath, CancellationToken cancellationToken = default)
+        => Task.Run(() =>
+        {
+            var descriptor = DescriptorFor(archivePath) ?? throw new NotSupportedException($"Unrecognised archive: {archivePath}");
+            var ops = FormatRegistry.GetArchiveOps(descriptor.Id)
+                ?? throw new NotSupportedException($"No archive operations for {descriptor.Id}.");
+
+            Directory.CreateDirectory(Path.GetDirectoryName(destPath)!);
+            using var archiveStream = File.OpenRead(archivePath);
+            using var entryStream = ops.OpenEntry(archiveStream, entryName, string.Empty);
+            using var output = File.Create(destPath);
+            entryStream.CopyTo(output);
+        }, cancellationToken);
+
     private static string NormalizeEntryName(string name) =>
         name.Replace('\\', Path.DirectorySeparatorChar).Replace('/', Path.DirectorySeparatorChar).TrimStart(Path.DirectorySeparatorChar);
 

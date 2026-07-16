@@ -26,6 +26,12 @@ public partial class FileTabViewModel : ViewModelBase, IDisposable
     private CancellationTokenSource? _searchCts;
     private CancellationTokenSource? _sizeCts;
 
+    // Virtual archive browsing (PRD §6.11): while inside an archive, listings come from the archive
+    // index instead of the filesystem, so nothing is extracted to temp except a single opened file.
+    private string? _archivePath;
+    private string _archiveInternal = "";
+    private IReadOnlyList<ArchiveEntry> _archiveEntries = [];
+
     // Auto-refresh: watch the current folder for external changes (PRD §6.12).
     private FileSystemWatcher? _watcher;
     private Timer? _debounce;
@@ -125,7 +131,8 @@ public partial class FileTabViewModel : ViewModelBase, IDisposable
 
     public bool CanGoBack => _history.CanGoBack;
     public bool CanGoForward => _history.CanGoForward;
-    public bool CanGoUp => !string.IsNullOrEmpty(CurrentPath) && _fileSystem.GetParent(CurrentPath) is not null;
+    public bool CanGoUp => _archivePath is not null
+        || (!string.IsNullOrEmpty(CurrentPath) && _fileSystem.GetParent(CurrentPath) is not null);
 
     public Task InitializeAsync()
     {
@@ -144,6 +151,20 @@ public partial class FileTabViewModel : ViewModelBase, IDisposable
     [RelayCommand(CanExecute = nameof(CanGoUp))]
     private Task GoUpAsync()
     {
+        if (_archivePath is not null)
+        {
+            if (_archiveInternal.Length > 0)
+            {
+                var slash = _archiveInternal.LastIndexOf('/');
+                _archiveInternal = slash > 0 ? _archiveInternal[..slash] : string.Empty;
+                ShowArchiveDir();
+                return Task.CompletedTask;
+            }
+            // At the archive root: leave the archive back to the folder that contains the file.
+            var containing = Path.GetDirectoryName(_archivePath);
+            return string.IsNullOrEmpty(containing) ? Task.CompletedTask : NavigateToAsync(containing);
+        }
+
         var parent = _fileSystem.GetParent(CurrentPath);
         return parent is null ? Task.CompletedTask : NavigateToAsync(parent);
     }
@@ -158,6 +179,9 @@ public partial class FileTabViewModel : ViewModelBase, IDisposable
         item ??= SelectedEntry;
         if (item is null)
             return Task.CompletedTask;
+        // Inside an archive, entries are virtual — route folders/files through the archive index.
+        if (_archivePath is not null)
+            return OpenArchiveEntryAsync(item);
         if (item.IsDirectory)
             return NavigateToAsync(item.FullPath);
         // Archives are entered as virtual folders (PRD §6.11); other files open with the OS default.
@@ -166,27 +190,109 @@ public partial class FileTabViewModel : ViewModelBase, IDisposable
         return _shell.OpenAsync(item.FullPath);
     }
 
-    /// <summary>
-    /// Enters an archive by extracting it to a temp folder and browsing that (PRD §6.11).
-    /// Nested archives are entered the same way, giving descent without manual extraction.
-    /// </summary>
+    // ---- virtual archive browsing (PRD §6.11): list from the index, extract only on open ----
+
+    /// <summary>Opens an archive and browses its contents virtually, without extracting to temp.</summary>
     private async Task EnterArchiveAsync(string archivePath)
     {
         IsLoading = true;
         StatusText = $"Opening {Path.GetFileName(archivePath)}…";
         try
         {
-            var temp = Path.Combine(Path.GetTempPath(), "foileBrowser", "archives",
-                Path.GetFileNameWithoutExtension(archivePath) + "-" + Guid.NewGuid().ToString("N")[..8]);
-            await _archives.ExtractAllAsync(archivePath, temp);
-            await NavigateToAsync(temp);
+            _archiveEntries = await _archives.ListAsync(archivePath);
+            _archivePath = archivePath;
+            _archiveInternal = string.Empty;
+            _history.Visit(archivePath);
+            DisposeWatcher(); // virtual paths aren't watchable
+            ShowArchiveDir();
         }
         catch (Exception ex)
         {
             // Third-party format readers can throw anything; never let a bad archive crash the app.
+            _archivePath = null;
             StatusText = $"Cannot open archive: {ex.Message}";
+        }
+        finally
+        {
             IsLoading = false;
         }
+    }
+
+    private async Task OpenArchiveEntryAsync(FileEntryViewModel item)
+    {
+        if (item.IsDirectory)
+        {
+            _archiveInternal = item.FullPath; // stored as the internal directory path
+            ShowArchiveDir();
+            return;
+        }
+
+        try
+        {
+            IsLoading = true;
+            var dest = Path.Combine(
+                Path.GetTempPath(), "foileBrowser", "entry-" + Guid.NewGuid().ToString("N")[..8], item.Name);
+            await _archives.ExtractEntryAsync(_archivePath!, item.FullPath, dest);
+
+            if (_archives.IsArchive(dest))
+                await EnterArchiveAsync(dest); // nested archive: browse the single extracted file virtually
+            else
+                await _shell.OpenAsync(dest);
+        }
+        catch (Exception ex)
+        {
+            StatusText = $"Cannot open entry: {ex.Message}";
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    /// <summary>Rebuilds the file list from the archive index for the current internal directory.</summary>
+    private void ShowArchiveDir()
+    {
+        var prefix = _archiveInternal.Length == 0 ? string.Empty : _archiveInternal + "/";
+        var dirs = new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
+        var files = new List<(string Name, ArchiveEntry Entry)>();
+
+        foreach (var entry in _archiveEntries)
+        {
+            var norm = entry.Name.Replace('\\', '/').TrimStart('/');
+            if (!norm.StartsWith(prefix, StringComparison.Ordinal))
+                continue;
+            var rest = norm[prefix.Length..].TrimEnd('/');
+            if (rest.Length == 0)
+                continue;
+
+            var slash = rest.IndexOf('/');
+            if (slash >= 0)
+                dirs.Add(rest[..slash]);
+            else if (entry.IsDirectory)
+                dirs.Add(rest);
+            else
+                files.Add((rest, entry));
+        }
+
+        Entries.Clear();
+        foreach (var dir in dirs)
+            Entries.Add(new FileEntryViewModel(
+                new FileSystemEntry { Name = dir, FullPath = prefix + dir, Kind = FileSystemEntryKind.Directory },
+                display: _display));
+        foreach (var (name, entry) in files.OrderBy(f => f.Name, StringComparer.OrdinalIgnoreCase))
+            Entries.Add(new FileEntryViewModel(
+                new FileSystemEntry
+                {
+                    Name = name, FullPath = entry.Name, Kind = FileSystemEntryKind.File,
+                    Size = entry.Size >= 0 ? entry.Size : null, Modified = entry.Modified,
+                },
+                display: _display));
+
+        CurrentPath = _archiveInternal.Length == 0 ? _archivePath! : $"{_archivePath}/{_archiveInternal}";
+        StatusText = $"{dirs.Count + files.Count} items in {Path.GetFileName(_archivePath!)}"
+            + (_archiveInternal.Length > 0 ? $"/{_archiveInternal}" : string.Empty);
+        NotifyNavigationState();
+        Navigated?.Invoke(this, EventArgs.Empty);
     }
 
     [RelayCommand]
@@ -226,13 +332,28 @@ public partial class FileTabViewModel : ViewModelBase, IDisposable
     }
 
     [RelayCommand]
-    private Task NavigateBreadcrumbAsync(BreadcrumbSegment? segment) =>
-        segment is null ? Task.CompletedTask : NavigateToAsync(segment.Path);
+    private Task NavigateBreadcrumbAsync(BreadcrumbSegment? segment)
+    {
+        if (segment is null)
+            return Task.CompletedTask;
+        if (_archivePath is not null)
+        {
+            _archiveInternal = segment.Path; // "" = archive root
+            ShowArchiveDir();
+            return Task.CompletedTask;
+        }
+        return NavigateToAsync(segment.Path);
+    }
 
     /// <summary>Rebuilds the breadcrumb trail by walking parents from the current folder to the root.</summary>
     private void RebuildBreadcrumbs()
     {
         Breadcrumbs.Clear();
+        if (_archivePath is not null)
+        {
+            BuildArchiveBreadcrumbs();
+            return;
+        }
         if (string.IsNullOrEmpty(CurrentPath))
             return;
 
@@ -252,6 +373,22 @@ public partial class FileTabViewModel : ViewModelBase, IDisposable
 
         for (var i = 0; i < trail.Count; i++)
             Breadcrumbs.Add(trail[i] with { ShowSeparator = i > 0 });
+    }
+
+    /// <summary>Breadcrumbs for an open archive: the archive file, then the internal directories.</summary>
+    private void BuildArchiveBreadcrumbs()
+    {
+        Breadcrumbs.Add(new BreadcrumbSegment(Path.GetFileName(_archivePath!), string.Empty));
+        if (_archiveInternal.Length == 0)
+            return;
+
+        var parts = _archiveInternal.Split('/');
+        var acc = string.Empty;
+        foreach (var part in parts)
+        {
+            acc = acc.Length == 0 ? part : $"{acc}/{part}";
+            Breadcrumbs.Add(new BreadcrumbSegment(part, acc, ShowSeparator: true));
+        }
     }
 
     [RelayCommand]
@@ -316,9 +453,10 @@ public partial class FileTabViewModel : ViewModelBase, IDisposable
 
     private async Task LoadAsync(string path, bool record)
     {
-        // A fresh directory load ends any in-progress search.
+        // A fresh directory load ends any in-progress search and leaves archive-browsing mode.
         _searchCts?.Cancel();
         IsSearching = false;
+        _archivePath = null;
 
         _loadCts?.Cancel();
         _loadCts?.Dispose();
@@ -365,6 +503,12 @@ public partial class FileTabViewModel : ViewModelBase, IDisposable
         // While searching, Entries holds streamed hits; don't overwrite them with the folder view.
         if (IsSearching)
             return;
+        // Inside an archive the listing comes from the archive index, not _rawEntries.
+        if (_archivePath is not null)
+        {
+            ShowArchiveDir();
+            return;
+        }
 
         IEnumerable<FileSystemEntry> visible = ShowHidden ? _rawEntries : _rawEntries.Where(e => !e.IsHidden);
         if (!string.IsNullOrWhiteSpace(FilterText))
@@ -394,6 +538,8 @@ public partial class FileTabViewModel : ViewModelBase, IDisposable
     {
         _sizeCts?.Cancel();
         _sizeCts?.Dispose();
+        if (_archivePath is not null)
+            return; // virtual archive folders have no on-disk size to compute
         var cts = _sizeCts = new CancellationTokenSource();
         var token = cts.Token;
 

@@ -59,6 +59,18 @@ public class ArchiveServiceTests
     }
 
     [Test]
+    public async Task ExtractEntry_Writes_A_Single_File_Streamed()
+    {
+        var zip = MakeZip();
+        var dest = Path.Combine(_root, "out", "deep.txt");
+
+        await _archives.ExtractEntryAsync(zip, "sub/deep.txt", dest);
+
+        Assert.That(File.Exists(dest), Is.True);
+        Assert.That(await File.ReadAllTextAsync(dest), Is.EqualTo("deep content"));
+    }
+
+    [Test]
     public async Task ExtractAll_Writes_Files_To_Disk()
     {
         var zip = MakeZip();

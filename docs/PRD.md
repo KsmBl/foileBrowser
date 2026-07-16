@@ -168,7 +168,8 @@ Check off items as they're completed; delete lines you decide not to build.
 
 ### 6.11 Archives & Virtual Filesystems (CompressionWorkbench)
 
-- [x] Enter archives (ZIP, TAR, 7z, RAR, CAB, CPIO, …) as virtual folders — navigate, preview, and copy out like normal directories — implemented as extract-to-temp + browse
+- [x] Enter archives (ZIP, TAR, 7z, RAR, CAB, CPIO, …) as virtual folders — navigate the archive
+  index in place (no extraction to temp); opening a single file streams just that entry out to temp
 - [x] Extract from archives (single items, selections, or whole archive) through the standard copy queue — "Extract Here" extracts the whole archive; per-selection extract pending
 - [ ] Create and modify archives where the format supports write (add/remove entries)
 - [x] Nested archive descent (archive inside archive) without manual extraction — entering an extracted inner archive re-enters it
@@ -176,7 +177,8 @@ Check off items as they're completed; delete lines you decide not to build.
 - [ ] Read foreign filesystem images (FAT, exFAT, NTFS, ext, HFS+, APFS, SquashFS, …) via `Hawkynt.FileFormats.FileSystems` — package referenced; wiring pending
 - [ ] Pseudo-archive browsing (e.g. resources in EXE/DLL, frames in GIF/TIFF, cover art in MP3/FLAC) — optional, low priority
 - [x] Unknown-format identification via CompressionWorkbench signature scanning ("what is this file?" action) — "Identify File" action (extension→format via the registry); byte-signature scan pending
-- [ ] Streamed access for large archives/images (no full extraction to temp unless required)
+- [x] Streamed access for large archives (browse the index without extracting; extract a single
+  entry on demand when a file is opened) — disk-image streaming still pending
 
 ### 6.12 Performance Targets
 
