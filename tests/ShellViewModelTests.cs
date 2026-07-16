@@ -64,6 +64,23 @@ public class ShellViewModelTests
     }
 
     [Test]
+    public async Task AddPane_Works_After_All_Panes_Are_Closed()
+    {
+        var vm = CreateShell(new FakeFileSystem(), new RecordingTrash());
+        await vm.InitializeAsync();
+
+        // Close every pane the way the dock UI's close button does.
+        vm.DockFactory.CloseDockable(vm.LeftPane);
+        vm.DockFactory.CloseDockable(vm.RightPane);
+        Assert.That(vm.IsDualPane, Is.False);
+
+        await vm.AddPaneCommand.ExecuteAsync(null);
+
+        Assert.That(vm.ActivePane, Is.Not.Null);
+        Assert.That(vm.ActivePane.ActiveTab, Is.Not.Null, "the new pane has a working tab");
+    }
+
+    [Test]
     public void ToggleDualPane_Flips_State_And_Forces_Left_Active()
     {
         var vm = CreateShell(new FakeFileSystem(), new RecordingTrash());

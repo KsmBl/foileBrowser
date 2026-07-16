@@ -55,6 +55,7 @@
       </MenuItem>
       <MenuItem Header="_View">
         <MenuItem Header="_New Pane" Command="{Binding AddPaneCommand}" />
+        <MenuItem Header="_Toolbar" Command="{Binding ToggleToolbarCommand}" />
         <MenuItem Header="_Inspector" InputGesture="Ctrl+I" Command="{Binding ToggleInspectorCommand}" />
         <MenuItem Header="_Dual Pane" Command="{Binding ToggleDualPaneCommand}" />
         <MenuItem Header="_Hidden Files" Command="{Binding ToggleHiddenCommand}" />
@@ -81,8 +82,9 @@
       </MenuItem>
     </Menu>
 
-    <!-- Global operations toolbar (PRD §6.3) — emoji icons with text tooltips -->
-    <Border DockPanel.Dock="Top" Padding="6" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" BorderThickness="0,0,0,1">
+    <!-- Global operations toolbar (PRD §6.3) — emoji icons with text tooltips; hideable via View menu -->
+    <Border DockPanel.Dock="Top" Padding="6" IsVisible="{Binding IsToolbarVisible}"
+            BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" BorderThickness="0,0,0,1">
       <StackPanel Orientation="Horizontal" Spacing="4">
         <StackPanel.Styles>
           <Style Selector="Button, ToggleButton">

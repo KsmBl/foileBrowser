@@ -68,6 +68,10 @@ public partial class MainWindowViewModel : ViewModelBase
     [ObservableProperty]
     private bool _isInspectorOpen = true;
 
+    /// <summary>Whether the emoji operations toolbar is shown (View ▸ Toolbar, persisted).</summary>
+    [ObservableProperty]
+    private bool _isToolbarVisible = true;
+
     /// <summary>Set by the view to prompt the user for a name (rename). Returns null if cancelled.</summary>
     public Func<string, Task<string?>>? NameRequester { get; set; }
 
@@ -211,9 +215,19 @@ public partial class MainWindowViewModel : ViewModelBase
         var target = (ActivePane.Owner as IDock)
             ?? _paneArea.VisibleDockables?.OfType<IDock>().LastOrDefault();
         if (target is not null)
+        {
             _dockFactory.SplitToDock(target, pane, DockOperation.Right);
-        else
-            _dockFactory.AddDockable(_paneArea, pane); // empty layout fallback
+            return;
+        }
+
+        // No panes/docks remain (the user closed them all): create a fresh document dock in the
+        // pane area rather than adding a bare document to the proportional dock (which won't render).
+        var dock = MakeDock(pane);
+        var items = _paneArea.VisibleDockables ??= _dockFactory.CreateList<IDockable>();
+        if (items.Count > 0)
+            items.Add(new ProportionalDockSplitter());
+        items.Add(dock);
+        _dockFactory.InitDockable(dock, _paneArea);
     }
 
     private void NotifyPaneCountChanged()
@@ -254,6 +268,7 @@ public partial class MainWindowViewModel : ViewModelBase
             new("view.newPane", "New Pane", "View", null, () => AddPaneCommand.ExecuteAsync(null)),
             new("view.toggleDual", "Toggle Dual Pane", "View", null, () => { ToggleDualPaneCommand.Execute(null); return Task.CompletedTask; }),
             new("view.toggleInspector", "Toggle Inspector", "View", "Ctrl+I", () => { ToggleInspectorCommand.Execute(null); return Task.CompletedTask; }),
+            new("view.toggleToolbar", "Toggle Toolbar", "View", null, () => { ToggleToolbarCommand.Execute(null); return Task.CompletedTask; }),
             new("view.toggleHidden", "Toggle Hidden Files", "View", null, () => Tab(t => { t.ShowHidden = !t.ShowHidden; return Task.CompletedTask; })),
             new("view.sizeUnit", "Cycle Size Units (KiB/KB/Bytes)", "View", null, () => CycleSizeUnitCommand.ExecuteAsync(null)),
             new("view.dateFormat", "Cycle Date Format (absolute/relative)", "View", null, () => CycleDateFormatCommand.ExecuteAsync(null)),
@@ -288,6 +303,7 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         await _settings.LoadAsync();
         IsInspectorOpen = _settings.Current.IsInspectorOpen;
+        IsToolbarVisible = _settings.Current.IsToolbarVisible;
 
         if (Enum.TryParse<SizeUnit>(_settings.Current.SizeUnit, out var unit))
             _display.SizeUnit = unit;
@@ -355,6 +371,7 @@ public partial class MainWindowViewModel : ViewModelBase
         _settings.Current.Session = session;
         _settings.Current.IsDualPane = IsDualPane;
         _settings.Current.IsInspectorOpen = IsInspectorOpen;
+        _settings.Current.IsToolbarVisible = IsToolbarVisible;
         return _settings.SaveAsync();
     }
 
@@ -377,6 +394,9 @@ public partial class MainWindowViewModel : ViewModelBase
 
     [RelayCommand]
     private void ToggleInspector() => IsInspectorOpen = !IsInspectorOpen;
+
+    [RelayCommand]
+    private void ToggleToolbar() => IsToolbarVisible = !IsToolbarVisible;
 
     // ---- size / date display modes (PRD §6.1, §6.2) ----
 

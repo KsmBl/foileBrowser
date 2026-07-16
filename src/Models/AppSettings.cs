@@ -20,6 +20,8 @@ public sealed class AppSettings
 
     public bool IsInspectorOpen { get; set; } = true;
 
+    public bool IsToolbarVisible { get; set; } = true;
+
     /// <summary>Size display mode: "Binary", "Decimal", or "Bytes" (PRD §6.2).</summary>
     public string SizeUnit { get; set; } = "Binary";
 

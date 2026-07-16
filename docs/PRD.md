@@ -66,7 +66,11 @@ Check off items as they're completed; delete lines you decide not to build.
 ### 6.2 Layout & Views
 
 - [x] Application menu bar (File / Edit / View / Go / Tools / Help) with accelerators and gesture hints
-- [x] Toolbar with emoji icons and descriptive tooltips
+- [x] Toolbar with emoji icons and descriptive tooltips; can be hidden via View ▸ Toolbar (persisted)
+- [ ] Fully dockable/floatable chrome: make folder tabs the dockable documents (drag a tab out to a
+  new pane/window), retire the dual-pane toggle, and turn the toolbar and the copy/move queue into
+  dockable, floatable tool panels — the copy/move queue already auto-hides when idle; New Pane now
+  works again even after every pane is closed. Remaining: tabs-as-documents rework + tool docking
 - [x] Dockable multi-pane layout: open any number of panes and arrange them by splitting, tabbing,
   or floating them into their own windows, with draggable splitters (via Dock.Avalonia); panes tile
   side by side by default and the layout (pane count + tabs) is restored across restart
