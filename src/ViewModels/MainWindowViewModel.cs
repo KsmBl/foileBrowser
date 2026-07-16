@@ -28,6 +28,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly IArchiveService _archives;
     private readonly IDeviceService _device;
     private readonly IDirectorySizeService _sizes;
+    private readonly DisplayOptions _display = new();
 
     private FileTabViewModel? _observedTab;
     private CancellationTokenSource? _previewCts;
@@ -115,7 +116,7 @@ public partial class MainWindowViewModel : ViewModelBase
     /// <summary>Creates a pane, wires its activation/observation, and registers it in the pane set.</summary>
     private PaneViewModel CreatePane()
     {
-        var pane = new PaneViewModel(_fileSystem, _search, _archives, _sizes) { ConfigureTab = ConfigureTab };
+        var pane = new PaneViewModel(_fileSystem, _search, _archives, _sizes, _display) { ConfigureTab = ConfigureTab };
         pane.Activated += OnPaneActivated;
         pane.PropertyChanged += OnPanePropertyChanged;
         _panes.Add(pane);
@@ -254,6 +255,8 @@ public partial class MainWindowViewModel : ViewModelBase
             new("view.toggleDual", "Toggle Dual Pane", "View", null, () => { ToggleDualPaneCommand.Execute(null); return Task.CompletedTask; }),
             new("view.toggleInspector", "Toggle Inspector", "View", "Ctrl+I", () => { ToggleInspectorCommand.Execute(null); return Task.CompletedTask; }),
             new("view.toggleHidden", "Toggle Hidden Files", "View", null, () => Tab(t => { t.ShowHidden = !t.ShowHidden; return Task.CompletedTask; })),
+            new("view.sizeUnit", "Cycle Size Units (KiB/KB/Bytes)", "View", null, () => CycleSizeUnitCommand.ExecuteAsync(null)),
+            new("view.dateFormat", "Cycle Date Format (absolute/relative)", "View", null, () => CycleDateFormatCommand.ExecuteAsync(null)),
             new("tab.new", "New Tab", "Tab", "Ctrl+T", () => ActivePane.NewTabCommand.ExecuteAsync(null)),
             new("tab.close", "Close Tab", "Tab", "Ctrl+W", () => { ActivePane.CloseTabCommand.Execute(ActivePane.ActiveTab); return Task.CompletedTask; }),
             new("search.stop", "Stop Search", "Search", null, () => Tab(t => t.StopSearchCommand.ExecuteAsync(null))),
@@ -285,6 +288,12 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         await _settings.LoadAsync();
         IsInspectorOpen = _settings.Current.IsInspectorOpen;
+
+        if (Enum.TryParse<SizeUnit>(_settings.Current.SizeUnit, out var unit))
+            _display.SizeUnit = unit;
+        if (Enum.TryParse<DateDisplay>(_settings.Current.DateFormat, out var date))
+            _display.DateDisplay = date;
+        UpdateDisplayLabels();
 
         await RestorePanesAsync(_settings.Current.Session);
 
@@ -368,6 +377,62 @@ public partial class MainWindowViewModel : ViewModelBase
 
     [RelayCommand]
     private void ToggleInspector() => IsInspectorOpen = !IsInspectorOpen;
+
+    // ---- size / date display modes (PRD §6.1, §6.2) ----
+
+    /// <summary>Toolbar label showing the current size unit (also the cycle button's caption).</summary>
+    [ObservableProperty]
+    private string _sizeUnitLabel = "KiB";
+
+    /// <summary>Toolbar label showing the current date format.</summary>
+    [ObservableProperty]
+    private string _dateFormatLabel = "Date";
+
+    [RelayCommand]
+    private Task CycleSizeUnit()
+    {
+        _display.SizeUnit = _display.SizeUnit switch
+        {
+            SizeUnit.Binary => SizeUnit.Decimal,
+            SizeUnit.Decimal => SizeUnit.Bytes,
+            _ => SizeUnit.Binary,
+        };
+        return ApplyDisplayChangeAsync();
+    }
+
+    [RelayCommand]
+    private Task CycleDateFormat()
+    {
+        _display.DateDisplay = _display.DateDisplay == DateDisplay.Absolute ? DateDisplay.Relative : DateDisplay.Absolute;
+        return ApplyDisplayChangeAsync();
+    }
+
+    private async Task ApplyDisplayChangeAsync()
+    {
+        UpdateDisplayLabels();
+        RefreshAllDisplays();
+        _settings.Current.SizeUnit = _display.SizeUnit.ToString();
+        _settings.Current.DateFormat = _display.DateDisplay.ToString();
+        await _settings.SaveAsync();
+    }
+
+    private void UpdateDisplayLabels()
+    {
+        SizeUnitLabel = _display.SizeUnit switch
+        {
+            SizeUnit.Binary => "KiB",
+            SizeUnit.Decimal => "KB",
+            _ => "Bytes",
+        };
+        DateFormatLabel = _display.DateDisplay == DateDisplay.Relative ? "Ago" : "Date";
+    }
+
+    private void RefreshAllDisplays()
+    {
+        foreach (var pane in _panes)
+            foreach (var tab in pane.Tabs)
+                tab.RefreshDisplays();
+    }
 
     // ---- menubar navigation wrappers (delegate to the active tab) ----
 

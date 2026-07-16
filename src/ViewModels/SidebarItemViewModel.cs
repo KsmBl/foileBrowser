@@ -52,6 +52,6 @@ public sealed class SidebarItemViewModel
 
     public string FreeSpaceDisplay =>
         FreeBytes is { } free && TotalBytes is { } total
-            ? $"{FileEntryViewModel.FormatSize(free)} free of {FileEntryViewModel.FormatSize(total)}"
+            ? $"{ValueFormat.Size(free, SizeUnit.Binary)} free of {ValueFormat.Size(total, SizeUnit.Binary)}"
             : string.Empty;
 }

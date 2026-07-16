@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Dock.Model.Mvvm.Controls;
+using FoileBrowser.Models;
 using FoileBrowser.Services;
 
 namespace FoileBrowser.ViewModels;
@@ -17,6 +18,7 @@ public partial class PaneViewModel : Document
     private readonly ISearchService _search;
     private readonly IArchiveService? _archives;
     private readonly IDirectorySizeService? _sizes;
+    private readonly DisplayOptions? _display;
 
     [ObservableProperty]
     private FileTabViewModel? _activeTab;
@@ -38,12 +40,13 @@ public partial class PaneViewModel : Document
 
     public PaneViewModel(
         IFileSystemService fileSystem, ISearchService? search = null,
-        IArchiveService? archives = null, IDirectorySizeService? sizes = null)
+        IArchiveService? archives = null, IDirectorySizeService? sizes = null, DisplayOptions? display = null)
     {
         _fileSystem = fileSystem;
         _search = search ?? new SearchService();
         _archives = archives;
         _sizes = sizes;
+        _display = display;
         Tabs.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasMultipleTabs));
     }
 
@@ -56,7 +59,7 @@ public partial class PaneViewModel : Document
 
     public FileTabViewModel AddTab(bool activate = true)
     {
-        var tab = new FileTabViewModel(_fileSystem, _search, null, _archives, _sizes);
+        var tab = new FileTabViewModel(_fileSystem, _search, null, _archives, _sizes, _display);
         ConfigureTab?.Invoke(tab);
         Tabs.Add(tab);
         if (activate || ActiveTab is null)

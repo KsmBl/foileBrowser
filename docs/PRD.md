@@ -1,6 +1,11 @@
 # foileBrowser — Product Requirements Document
 
-**Status:** Draft · **Last updated:** 2026-07-15
+**Status:** Draft · **Last updated:** 2026-07-16
+
+> **Documentation policy (hard requirement).** Every change to the code must update the docs in the
+> same commit: check off / add the relevant item in §6 of this PRD, and revise the README when
+> user-facing behaviour changes. Docs and code stay in sync — a feature isn't done until its
+> requirement is recorded here.
 
 ## 1. Overview
 
@@ -51,6 +56,8 @@ Check off items as they're completed; delete lines you decide not to build.
 - [x] Hidden/system file visibility toggle
 - [x] Navigation history: back / forward / up
 - [x] Breadcrumb path bar, click any segment to jump
+- [x] Switch modified dates between absolute timestamps and relative ("5 min ago", "yesterday"),
+  quick-toggle in the toolbar / View menu / command palette (persisted)
 - [ ] Editable path bar with autocompletion and recent-folder suggestions (File Pilot "GoTo") — basic type-and-Enter path bar done; autocompletion/suggestions pending
 - [ ] Drive/volume list with free-space indicators
 - [ ] Long-path (>260 chars), emoji and full Unicode path support (Windows caveat: `\\?\` prefix handling)
@@ -67,8 +74,11 @@ Check off items as they're completed; delete lines you decide not to build.
 - [x] Details (list) view mode
 - [ ] Grid view mode with thumbnails (generated with https://github.com/Hawkynt/PNGCrushCS)
 - [x] Computed folder sizes: calculated recursively in the background as folders come into view,
-  with a per-folder progress indicator and results kept in an in-memory LRU cache (shared
-  process-wide, so re-visited folders are instant) — configurable column set still pending
+  showing a live "…/300 MiB+" counting hint, with results kept in an in-memory LRU cache shared
+  process-wide. A single walk caches every descendant folder's size too, so drilling into an
+  already-counted folder is instant rather than restarting — configurable column set still pending
+- [x] Switch file sizes between binary (KiB/MiB), decimal (KB/MB) and exact bytes, quick-toggle in
+  the toolbar / View menu / command palette (persisted)
 - [x] Collapsible sidebar with favorites/pinned folders and drives — sidebar with favorites + drives (free-space bars); collapse toggle pending
 - [ ] Drag-and-drop reordering of sidebar favorites
 

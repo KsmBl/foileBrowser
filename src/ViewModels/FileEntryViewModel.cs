@@ -8,9 +8,12 @@ namespace FoileBrowser.ViewModels;
 /// A new instance is created per enumeration snapshot; only the background-computed folder
 /// size is mutable/observable (PRD §6.2).
 /// </summary>
-public sealed partial class FileEntryViewModel(FileSystemEntry entry, string? location = null, string? tagColor = null)
+public sealed partial class FileEntryViewModel(
+    FileSystemEntry entry, string? location = null, string? tagColor = null, DisplayOptions? display = null)
     : ObservableObject
 {
+    private readonly DisplayOptions _display = display ?? new DisplayOptions();
+
     public FileSystemEntry Entry { get; } = entry;
 
     /// <summary>Recursively computed folder size, filled in on a background thread (PRD §6.2). Null until known.</summary>
@@ -18,9 +21,17 @@ public sealed partial class FileEntryViewModel(FileSystemEntry entry, string? lo
     [NotifyPropertyChangedFor(nameof(SizeDisplay))]
     private long? _computedSize;
 
-    /// <summary>True while the folder size is being calculated, driving a per-folder progress indicator.</summary>
+    /// <summary>True while the folder size is being calculated; shows a "counting" hint on the size.</summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SizeDisplay))]
     private bool _isCalculatingSize;
+
+    /// <summary>Re-renders size/date after a display-mode toggle without rebuilding the list (PRD §6.1/§6.2).</summary>
+    public void RefreshDisplay()
+    {
+        OnPropertyChanged(nameof(SizeDisplay));
+        OnPropertyChanged(nameof(ModifiedDisplay));
+    }
 
     /// <summary>Containing directory, shown under the name for flattened search hits (PRD §6.4). Null when browsing.</summary>
     public string? LocationDisplay { get; } = location;
@@ -48,9 +59,20 @@ public sealed partial class FileEntryViewModel(FileSystemEntry entry, string? lo
         _ => "\U0001F4C4",                              // 📄 page
     };
 
-    public string SizeDisplay => IsDirectory
-        ? (ComputedSize is { } folderBytes ? FormatSize(folderBytes) : string.Empty)
-        : (Entry.Size is { } bytes ? FormatSize(bytes) : string.Empty);
+    public string SizeDisplay
+    {
+        get
+        {
+            if (!IsDirectory)
+                return Entry.Size is { } bytes ? ValueFormat.Size(bytes, _display.SizeUnit) : string.Empty;
+
+            // Folders: show the (possibly partial) size with a trailing "+" while still counting,
+            // or an ellipsis if counting hasn't produced a running total yet.
+            if (ComputedSize is { } folderBytes)
+                return ValueFormat.Size(folderBytes, _display.SizeUnit) + (IsCalculatingSize ? "+" : string.Empty);
+            return IsCalculatingSize ? "…" : string.Empty;
+        }
+    }
 
     public string TypeDisplay => Entry switch
     {
@@ -60,24 +82,5 @@ public sealed partial class FileEntryViewModel(FileSystemEntry entry, string? lo
         var e => e.Extension.ToUpperInvariant() + " file",
     };
 
-    public string ModifiedDisplay =>
-        Entry.Modified?.LocalDateTime.ToString("yyyy-MM-dd HH:mm") ?? string.Empty;
-
-    private static readonly string[] Units = ["B", "KB", "MB", "GB", "TB", "PB"];
-
-    internal static string FormatSize(long bytes)
-    {
-        if (bytes < 1024)
-            return $"{bytes} B";
-
-        double value = bytes;
-        var unit = 0;
-        while (value >= 1024 && unit < Units.Length - 1)
-        {
-            value /= 1024;
-            unit++;
-        }
-
-        return $"{value:0.#} {Units[unit]}";
-    }
+    public string ModifiedDisplay => ValueFormat.Date(Entry.Modified, _display.DateDisplay);
 }

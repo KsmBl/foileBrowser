@@ -20,6 +20,12 @@ public sealed class AppSettings
 
     public bool IsInspectorOpen { get; set; } = true;
 
+    /// <summary>Size display mode: "Binary", "Decimal", or "Bytes" (PRD §6.2).</summary>
+    public string SizeUnit { get; set; } = "Binary";
+
+    /// <summary>Date display mode: "Absolute" or "Relative" (PRD §6.1).</summary>
+    public string DateFormat { get; set; } = "Absolute";
+
     // ---- copy engine tunables (PRD §6.3) ----
 
     /// <summary>Overlapped copy chunk size in KiB.</summary>

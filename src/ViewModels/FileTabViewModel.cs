@@ -17,6 +17,7 @@ public partial class FileTabViewModel : ViewModelBase, IDisposable
     private readonly IShellService _shell;
     private readonly IArchiveService _archives;
     private readonly IDirectorySizeService _sizes;
+    private readonly DisplayOptions _display;
     private readonly NavigationHistory _history = new();
     private readonly SynchronizationContext? _sync = SynchronizationContext.Current;
 
@@ -88,13 +89,22 @@ public partial class FileTabViewModel : ViewModelBase, IDisposable
 
     public FileTabViewModel(
         IFileSystemService fileSystem, ISearchService? search = null,
-        IShellService? shell = null, IArchiveService? archives = null, IDirectorySizeService? sizes = null)
+        IShellService? shell = null, IArchiveService? archives = null,
+        IDirectorySizeService? sizes = null, DisplayOptions? display = null)
     {
         _fileSystem = fileSystem;
         _search = search ?? new SearchService();
         _shell = shell ?? new ShellService();
         _archives = archives ?? new ArchiveService();
         _sizes = sizes ?? new DirectorySizeService();
+        _display = display ?? new DisplayOptions();
+    }
+
+    /// <summary>Re-renders every visible entry's size/date after a display-mode toggle (PRD §6.1/§6.2).</summary>
+    public void RefreshDisplays()
+    {
+        foreach (var entry in Entries)
+            entry.RefreshDisplay();
     }
 
     /// <summary>Short label for the tab header — the current folder name, or the path for roots.</summary>
@@ -242,7 +252,7 @@ public partial class FileTabViewModel : ViewModelBase, IDisposable
         {
             await foreach (var hit in _search.SearchAsync(CurrentPath, SearchQuery.Trim(), exts, token))
             {
-                Entries.Add(new FileEntryViewModel(hit, Path.GetDirectoryName(hit.FullPath), TagLookup?.Invoke(hit.FullPath)));
+                Entries.Add(new FileEntryViewModel(hit, Path.GetDirectoryName(hit.FullPath), TagLookup?.Invoke(hit.FullPath), _display));
                 count++;
                 if ((count & 31) == 0)
                     StatusText = $"Searching… {count} matches";
@@ -339,7 +349,7 @@ public partial class FileTabViewModel : ViewModelBase, IDisposable
 
         Entries.Clear();
         foreach (var entry in sorted)
-            Entries.Add(new FileEntryViewModel(entry, tagColor: TagLookup?.Invoke(entry.FullPath)));
+            Entries.Add(new FileEntryViewModel(entry, tagColor: TagLookup?.Invoke(entry.FullPath), display: _display));
 
         var folders = sorted.Count(e => e.IsDirectory);
         StatusText = $"{sorted.Count} items ({folders} folders, {sorted.Count - folders} files)";

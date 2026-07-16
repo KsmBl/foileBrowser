@@ -58,6 +58,9 @@
         <MenuItem Header="_Dual Pane" Command="{Binding ToggleDualPaneCommand}" />
         <MenuItem Header="_Hidden Files" Command="{Binding ToggleHiddenCommand}" />
         <Separator />
+        <MenuItem Header="Size _Units" Command="{Binding CycleSizeUnitCommand}" />
+        <MenuItem Header="Date _Format" Command="{Binding CycleDateFormatCommand}" />
+        <Separator />
         <MenuItem Header="_Command Palette…" InputGesture="Ctrl+P" Command="{Binding OpenCommandPaletteCommand}" />
         <MenuItem Header="_Settings…" Command="{Binding OpenSettingsCommand}" />
       </MenuItem>
@@ -109,6 +112,11 @@
                       Command="{Binding ToggleDualPaneCommand}" ToolTip.Tip="Toggle single/dual pane" />
         <ToggleButton Content="🔍" IsChecked="{Binding IsInspectorOpen, Mode=OneWay}"
                       Command="{Binding ToggleInspectorCommand}" ToolTip.Tip="Toggle inspector (Ctrl+I)" />
+        <Border Width="1" Background="{DynamicResource SystemControlForegroundBaseLowBrush}" Margin="4,2" />
+        <Button Content="{Binding SizeUnitLabel}" FontSize="12" Command="{Binding CycleSizeUnitCommand}"
+                ToolTip.Tip="Size units: binary (KiB) → decimal (KB) → bytes" />
+        <Button Content="{Binding DateFormatLabel}" FontSize="12" Command="{Binding CycleDateFormatCommand}"
+                ToolTip.Tip="Date format: absolute ↔ relative (e.g. 5 min ago)" />
         <Button Content="⚙️" Command="{Binding OpenSettingsCommand}" ToolTip.Tip="Settings" />
       </StackPanel>
     </Border>
