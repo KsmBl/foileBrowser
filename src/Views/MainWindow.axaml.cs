@@ -26,6 +26,10 @@ public partial class MainWindow : Window
     public static readonly IValueConverter IsNullConverter =
         new FuncValueConverter<object?, bool>(v => v is null);
 
+    /// <summary>Left-indent (in px) as a Thickness, used to nest partitions under their disk.</summary>
+    public static readonly IValueConverter IndentConverter =
+        new FuncValueConverter<double, Thickness>(left => new Thickness(left, 0, 0, 0));
+
     /// <summary>Parses a hex color string into a brush for the tag dot (PRD §6.7).</summary>
     public static readonly IValueConverter BrushConverter =
         new FuncValueConverter<string?, IBrush?>(hex =>

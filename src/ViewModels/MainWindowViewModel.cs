@@ -617,21 +617,50 @@ public partial class MainWindowViewModel : ViewModelBase
         _volumeSignature = VolumeSignature(volumes);
 
         Sidebar.Add(new SidebarItemViewModel { Name = "Drives", Kind = SidebarItemKind.Header });
-        foreach (var volume in volumes.Where(v => v.Kind == VolumeKind.Fixed))
-            Sidebar.Add(ToSidebar(volume, SidebarItemKind.Drive));
+        AddVolumeGroups(volumes.Where(v => v.Kind == VolumeKind.Fixed).ToList(), removableSection: false);
 
         var removable = volumes.Where(v => v.IsRemovable).ToList();
         if (removable.Count > 0)
         {
             Sidebar.Add(new SidebarItemViewModel { Name = "Devices", Kind = SidebarItemKind.Header });
-            foreach (var volume in removable)
-                Sidebar.Add(ToSidebar(volume, SidebarItemKind.Device));
+            AddVolumeGroups(removable, removableSection: true);
         }
+    }
+
+    /// <summary>
+    /// Renders volumes grouped by physical disk: a multi-partition disk gets a disk header with its
+    /// partitions indented beneath it; a single-partition disk (or a diskless/GVfs mount) is shown as
+    /// one row (PRD §6.10 — partitions belong to a drive, not a separate device).
+    /// </summary>
+    private void AddVolumeGroups(List<DriveVolume> volumes, bool removableSection)
+    {
+        var rowKind = removableSection ? SidebarItemKind.Device : SidebarItemKind.Drive;
+
+        // Group by physical disk; volumes without a disk (Windows letters, GVfs) each stand alone.
+        foreach (var group in volumes.Where(v => v.Disk is not null).GroupBy(v => v.Disk).OrderBy(g => g.Key))
+        {
+            var partitions = group.OrderBy(v => v.Device, StringComparer.Ordinal).ToList();
+            if (partitions.Count == 1)
+            {
+                Sidebar.Add(ToSidebar(partitions[0], rowKind));
+                continue;
+            }
+
+            Sidebar.Add(new SidebarItemViewModel { Name = group.Key!, Kind = SidebarItemKind.Disk });
+            foreach (var partition in partitions)
+                Sidebar.Add(ToSidebar(partition, SidebarItemKind.Partition));
+        }
+
+        foreach (var volume in volumes.Where(v => v.Disk is null))
+            Sidebar.Add(ToSidebar(volume, rowKind));
     }
 
     private static SidebarItemViewModel ToSidebar(DriveVolume volume, SidebarItemKind kind) => new()
     {
-        Name = volume.Label,
+        // Partitions label with the device leaf (e.g. "sda1") when the mount label is just its path.
+        Name = kind == SidebarItemKind.Partition && volume.Device is { } d
+            ? $"{System.IO.Path.GetFileName(d)} · {volume.Label}"
+            : volume.Label,
         Path = volume.RootPath,
         Kind = kind,
         FreeBytes = volume.FreeBytes,

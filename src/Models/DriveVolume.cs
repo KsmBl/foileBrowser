@@ -17,5 +17,11 @@ public sealed record DriveVolume
     public string? FileSystem { get; init; }
     public VolumeKind Kind { get; init; } = VolumeKind.Fixed;
 
+    /// <summary>Backing block device, e.g. "/dev/sda1" (Linux). Null for GVfs and where unknown.</summary>
+    public string? Device { get; init; }
+
+    /// <summary>Physical disk the volume/partition lives on, e.g. "sda", "nvme0n1". Null where unknown.</summary>
+    public string? Disk { get; init; }
+
     public bool IsRemovable => Kind is VolumeKind.Removable or VolumeKind.Gvfs;
 }

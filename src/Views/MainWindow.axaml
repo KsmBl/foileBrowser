@@ -155,8 +155,15 @@
                 <!-- Section header -->
                 <TextBlock Text="{Binding Name}" FontWeight="Bold" Margin="2,8,0,2"
                            IsVisible="{Binding IsHeader}" Opacity="0.7" FontSize="12" />
-                <!-- Navigable favorite / drive -->
-                <Grid IsVisible="{Binding IsNavigable}" ColumnDefinitions="*,Auto">
+                <!-- Physical disk group (its partitions are indented below) -->
+                <StackPanel Orientation="Horizontal" Spacing="6" Margin="2,4,0,1"
+                            IsVisible="{Binding IsDiskGroup}">
+                  <TextBlock Text="{Binding Glyph}" FontSize="12" />
+                  <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Opacity="0.8" FontSize="12" />
+                </StackPanel>
+                <!-- Navigable favorite / drive / partition (partitions indented under their disk) -->
+                <Grid IsVisible="{Binding IsNavigable}" ColumnDefinitions="*,Auto"
+                      Margin="{Binding Indent, Converter={x:Static views:MainWindow.IndentConverter}}">
                   <Button Grid.Column="0" HorizontalAlignment="Stretch"
                           HorizontalContentAlignment="Left" Background="Transparent" Padding="4,3"
                           Command="{Binding $parent[ItemsControl].((vm:MainWindowViewModel)DataContext).OpenSidebarItemCommand}"

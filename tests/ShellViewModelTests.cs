@@ -65,6 +65,34 @@ public class ShellViewModelTests
     }
 
     [Test]
+    public async Task Sidebar_Groups_Partitions_Under_Their_Disk()
+    {
+        var fs = new FakeFileSystem();
+        fs.Volumes.Add(new DriveVolume { Label = "root", RootPath = "/", Device = "/dev/sda2", Disk = "sda", FreeBytes = 1, TotalBytes = 2 });
+        fs.Volumes.Add(new DriveVolume { Label = "boot", RootPath = "/boot", Device = "/dev/sda1", Disk = "sda", FreeBytes = 1, TotalBytes = 2 });
+        var vm = CreateShell(fs, new RecordingTrash());
+
+        await vm.InitializeAsync();
+
+        Assert.That(vm.Sidebar.Any(s => s.Kind == SidebarItemKind.Disk && s.Name == "sda"), Is.True, "a disk group row");
+        Assert.That(vm.Sidebar.Count(s => s.Kind == SidebarItemKind.Partition), Is.EqualTo(2), "both partitions listed under it");
+        Assert.That(vm.Sidebar.Any(s => s.Kind == SidebarItemKind.Device), Is.False, "no partition shown as a device");
+    }
+
+    [Test]
+    public async Task Sidebar_Shows_Single_Partition_Disk_As_One_Drive()
+    {
+        var fs = new FakeFileSystem();
+        fs.Volumes.Add(new DriveVolume { Label = "root", RootPath = "/", Device = "/dev/nvme0n1p1", Disk = "nvme0n1" });
+        var vm = CreateShell(fs, new RecordingTrash());
+
+        await vm.InitializeAsync();
+
+        Assert.That(vm.Sidebar.Any(s => s.Kind == SidebarItemKind.Disk), Is.False, "no group header for a single partition");
+        Assert.That(vm.Sidebar.Count(s => s.Kind == SidebarItemKind.Drive), Is.EqualTo(1));
+    }
+
+    [Test]
     public async Task AddPane_Works_After_All_Tabs_Are_Closed()
     {
         var vm = CreateShell(new FakeFileSystem(), new RecordingTrash());

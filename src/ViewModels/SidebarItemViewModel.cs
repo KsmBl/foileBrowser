@@ -9,6 +9,12 @@ public enum SidebarItemKind
     Favorite,
     Drive,
     Device,
+
+    /// <summary>A physical disk grouping its partitions (a non-navigable label row).</summary>
+    Disk,
+
+    /// <summary>A partition shown indented under its disk.</summary>
+    Partition,
 }
 
 /// <summary>An entry in the collapsible sidebar: a section header, pinned favorite, or drive (PRD §6.2).</summary>
@@ -37,9 +43,16 @@ public sealed class SidebarItemViewModel
 
     public bool CanUnpin => UnpinCommand is not null;
 
-    public bool IsNavigable => Kind is SidebarItemKind.Favorite or SidebarItemKind.Drive or SidebarItemKind.Device;
+    public bool IsNavigable =>
+        Kind is SidebarItemKind.Favorite or SidebarItemKind.Drive or SidebarItemKind.Device or SidebarItemKind.Partition;
 
     public bool IsHeader => Kind is SidebarItemKind.Header;
+
+    /// <summary>A physical-disk grouping row (non-navigable label above its partitions).</summary>
+    public bool IsDiskGroup => Kind is SidebarItemKind.Disk;
+
+    /// <summary>Left indent (partitions sit under their disk).</summary>
+    public double Indent => Kind is SidebarItemKind.Partition ? 14 : 0;
 
     public bool HasCapacity => TotalBytes is > 0;
 
@@ -47,7 +60,9 @@ public sealed class SidebarItemViewModel
 
     public string Glyph => Kind switch
     {
+        SidebarItemKind.Disk => "\U0001F5B4",      // 🖴 physical disk
         SidebarItemKind.Drive => "\U0001F5B4",     // 🖴
+        SidebarItemKind.Partition => "\U0001F9E9", // 🧩 partition
         SidebarItemKind.Device => "\U0001F4F1",    // 📱 removable / phone
         SidebarItemKind.Favorite => "\U0001F4CC",  // 📌
         _ => string.Empty,

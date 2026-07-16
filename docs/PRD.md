@@ -138,6 +138,8 @@ Check off items as they're completed; delete lines you decide not to build.
 ### 6.6 Keyboard & Commands
 
 - [x] Command palette listing every action, fuzzy-searchable
+- [x] Searchable context menu: a search box at the top of the file right-click menu fuzzy-filters the
+  actions as you type, and Enter runs the first match
 - [ ] Fully rebindable hotkeys, including multi-key sequences — palette shows default gestures; persisted rebinding pending (M4 settings)
 - [ ] Hotkey assignment directly from the command palette
 - [x] Complete keyboard operability: navigation, selection, dialogs, panels — core flows keyboard-driven (nav, palette, search, dialogs)
@@ -175,6 +177,10 @@ Check off items as they're completed; delete lines you decide not to build.
 - [ ] Android on Windows via WPD/MTP shell namespace (read/copy at minimum)
 - [x] Auto-refresh volume list on device plug/unplug events
 - [x] Per-device free-space bar & value and filesystem-type display
+- [x] Recognise partitions of the same physical disk and group them under one drive (indented
+  partitions with their fs/free-space), instead of scattering them as separate devices — the disk's
+  real removable flag (/sys/block/&lt;disk&gt;/removable) decides Drives vs Devices, so e.g. /boot and /
+  on one NVMe show as two partitions of that disk, not a bogus removable device
 
 ### 6.11 Archives & Virtual Filesystems (CompressionWorkbench)
 

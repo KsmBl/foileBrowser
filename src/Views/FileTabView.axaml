@@ -114,7 +114,11 @@
              ScrollViewer.HorizontalScrollBarVisibility="Disabled">
       <!-- Right-click actions (DataContext is set to the shell view-model in code-behind). -->
       <ListBox.ContextMenu>
-        <ContextMenu x:Name="EntryMenu" x:DataType="vm:MainWindowViewModel">
+        <ContextMenu x:Name="EntryMenu" x:DataType="vm:MainWindowViewModel" Opening="OnEntryMenuOpening">
+          <!-- Type to filter the actions below; Enter runs the first match (PRD §6.6). -->
+          <TextBox x:Name="MenuSearchBox" Watermark="Search actions…" Margin="4,2" MinWidth="200"
+                   TextChanged="OnMenuSearchChanged" KeyDown="OnMenuSearchKeyDown" />
+          <Separator />
           <MenuItem Header="Open" Command="{Binding OpenSelectedExternallyCommand}" />
           <Separator />
           <MenuItem Header="Copy to other pane" InputGesture="F6" Command="{Binding CopyToOtherCommand}" />

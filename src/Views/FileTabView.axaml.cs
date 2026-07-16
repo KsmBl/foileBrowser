@@ -1,3 +1,4 @@
+using System.Linq;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -42,6 +43,63 @@ public partial class FileTabView : UserControl
         if ((TopLevel.GetTopLevel(this) as MainWindow)?.DataContext is MainWindowViewModel shell)
             EntryMenu.DataContext = shell;
     }
+
+    // ---- searchable context menu (PRD §6.6) ----
+
+    private void OnEntryMenuOpening(object? sender, System.ComponentModel.CancelEventArgs e)
+    {
+        MenuSearchBox.Text = string.Empty;
+        FilterMenu(string.Empty);
+        // Focus the search box once the popup is up so the user can type immediately.
+        Avalonia.Threading.Dispatcher.UIThread.Post(() => MenuSearchBox.Focus());
+    }
+
+    private void OnMenuSearchChanged(object? sender, TextChangedEventArgs e) => FilterMenu(MenuSearchBox.Text ?? "");
+
+    private void FilterMenu(string query)
+    {
+        var searching = !string.IsNullOrWhiteSpace(query);
+        foreach (var item in EntryMenu.Items)
+        {
+            switch (item)
+            {
+                case MenuItem mi:
+                    mi.IsVisible = !searching || FoileBrowser.Services.FuzzyMatcher.IsMatch(query, HeaderText(mi));
+                    break;
+                case Separator sep:
+                    sep.IsVisible = !searching; // separators only clutter a filtered list
+                    break;
+            }
+        }
+    }
+
+    private void OnMenuSearchKeyDown(object? sender, KeyEventArgs e)
+    {
+        switch (e.Key)
+        {
+            case Key.Enter:
+                // Run the first matching, enabled action.
+                var first = EntryMenu.Items.OfType<MenuItem>()
+                    .FirstOrDefault(m => m.IsVisible && m.IsEffectivelyEnabled && m.Command is not null);
+                if (first is not null)
+                {
+                    first.Command!.Execute(first.CommandParameter);
+                    EntryMenu.Close();
+                }
+                e.Handled = true;
+                break;
+            case Key.Down:
+                EntryMenu.Items.OfType<MenuItem>().FirstOrDefault(m => m.IsVisible)?.Focus();
+                e.Handled = true;
+                break;
+            case Key.Escape:
+                EntryMenu.Close();
+                e.Handled = true;
+                break;
+        }
+    }
+
+    private static string HeaderText(MenuItem item) => item.Header?.ToString() ?? string.Empty;
 
     // Right-clicking a row selects it first, so the context menu acts on the item under the cursor.
     private void OnListPointerPressed(object? sender, PointerPressedEventArgs e)

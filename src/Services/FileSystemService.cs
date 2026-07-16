@@ -65,6 +65,7 @@ public sealed class FileSystemService : IFileSystemService
         => Task.Run<IReadOnlyList<DriveVolume>>(() =>
         {
             var results = new List<DriveVolume>();
+            var mounts = OperatingSystem.IsLinux() ? ReadMountDevices() : null;
 
             foreach (var drive in DriveInfo.GetDrives())
             {
@@ -91,6 +92,10 @@ public sealed class FileSystemService : IFileSystemService
                     && (fs is null || !RealFileSystems.Contains(fs)))
                     continue;
 
+                // Resolve the backing device + physical disk so partitions group under their drive.
+                var device = mounts is not null && mounts.TryGetValue(root, out var dev) ? dev : null;
+                var disk = DiskOf(device);
+
                 results.Add(new DriveVolume
                 {
                     Label = string.IsNullOrWhiteSpace(drive.VolumeLabel) ? root : drive.VolumeLabel,
@@ -98,7 +103,10 @@ public sealed class FileSystemService : IFileSystemService
                     FreeBytes = free,
                     TotalBytes = total,
                     FileSystem = fs,
-                    Kind = ClassifyVolume(root, drive.DriveType),
+                    Device = device,
+                    Disk = disk,
+                    // Prefer the real removable flag from /sys; fall back to the DriveType heuristic.
+                    Kind = disk is not null ? ClassifyDisk(disk) : ClassifyVolume(root, drive.DriveType),
                 });
             }
 
@@ -107,6 +115,62 @@ public sealed class FileSystemService : IFileSystemService
 
             return results;
         }, cancellationToken);
+
+    /// <summary>Maps each mount point to its backing device via /proc/mounts (Linux).</summary>
+    private static Dictionary<string, string> ReadMountDevices()
+    {
+        var map = new Dictionary<string, string>(StringComparer.Ordinal);
+        try
+        {
+            foreach (var line in File.ReadLines("/proc/mounts"))
+            {
+                var parts = line.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                if (parts.Length >= 2 && parts[0].StartsWith("/dev/", StringComparison.Ordinal))
+                    map[UnescapeMount(parts[1])] = parts[0];
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // No /proc/mounts (unusual) — grouping just won't have device info.
+        }
+        return map;
+    }
+
+    /// <summary>Strips a partition suffix: /dev/sda3 → sda, /dev/nvme0n1p2 → nvme0n1, mmcblk0p1 → mmcblk0.</summary>
+    private static string? DiskOf(string? device)
+    {
+        if (device is null || !device.StartsWith("/dev/", StringComparison.Ordinal))
+            return null;
+        var name = device["/dev/".Length..];
+
+        if ((name.StartsWith("nvme", StringComparison.Ordinal) || name.StartsWith("mmcblk", StringComparison.Ordinal))
+            && name.LastIndexOf('p') is var p and > 0)
+            return name[..p];
+
+        var stripped = name.TrimEnd('0', '1', '2', '3', '4', '5', '6', '7', '8', '9');
+        return stripped.Length == 0 ? name : stripped;
+    }
+
+    /// <summary>A disk is Removable when /sys/block/&lt;disk&gt;/removable is 1 (USB sticks, SD cards).</summary>
+    private static VolumeKind ClassifyDisk(string disk)
+    {
+        try
+        {
+            var flag = $"/sys/block/{disk}/removable";
+            if (File.Exists(flag) && File.ReadAllText(flag).Trim() == "1")
+                return VolumeKind.Removable;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // Unknown — treat as fixed.
+        }
+        return VolumeKind.Fixed;
+    }
+
+    private static string UnescapeMount(string value) =>
+        !value.Contains('\\') ? value
+            : System.Text.RegularExpressions.Regex.Replace(
+                value, @"\\([0-7]{3})", m => ((char)Convert.ToInt32(m.Groups[1].Value, 8)).ToString());
 
     private static VolumeKind ClassifyVolume(string root, DriveType type)
     {
