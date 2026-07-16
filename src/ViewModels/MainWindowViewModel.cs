@@ -634,7 +634,7 @@ public partial class MainWindowViewModel : ViewModelBase
                 yield return new SidebarItemViewModel { Name = name, Path = path, Kind = SidebarItemKind.Favorite };
         }
 
-        // User-pinned favorites persisted in settings (PRD §6.2, §6.8).
+        // User-pinned favorites persisted in settings (PRD §6.2, §6.8). Only these can be unpinned.
         foreach (var path in _settings.Current.Favorites)
         {
             if (!string.IsNullOrEmpty(path) && _fileSystem.DirectoryExists(path))
@@ -643,8 +643,18 @@ public partial class MainWindowViewModel : ViewModelBase
                     Name = Path.GetFileName(path.TrimEnd(Path.DirectorySeparatorChar)) is { Length: > 0 } n ? n : path,
                     Path = path,
                     Kind = SidebarItemKind.Favorite,
+                    UnpinCommand = UnpinFavoriteCommand,
                 };
         }
+    }
+
+    [RelayCommand]
+    private async Task UnpinFavorite(SidebarItemViewModel? item)
+    {
+        if (item is null || !_settings.Current.Favorites.Remove(item.Path))
+            return;
+        await _settings.SaveAsync();
+        await LoadSidebarAsync();
     }
 
     [RelayCommand]

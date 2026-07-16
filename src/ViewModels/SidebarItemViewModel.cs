@@ -1,3 +1,4 @@
+using System.Windows.Input;
 using FoileBrowser.Models;
 
 namespace FoileBrowser.ViewModels;
@@ -30,6 +31,11 @@ public sealed class SidebarItemViewModel
 
     /// <summary>True for removable/GVfs volumes that can be ejected (PRD §6.10).</summary>
     public bool IsEjectable { get; init; }
+
+    /// <summary>Set by the shell for user-pinned favorites so they can be unpinned via the context menu.</summary>
+    public ICommand? UnpinCommand { get; init; }
+
+    public bool CanUnpin => UnpinCommand is not null;
 
     public bool IsNavigable => Kind is SidebarItemKind.Favorite or SidebarItemKind.Drive or SidebarItemKind.Device;
 

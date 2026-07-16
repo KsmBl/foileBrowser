@@ -157,6 +157,13 @@
                           HorizontalContentAlignment="Left" Background="Transparent" Padding="4,3"
                           Command="{Binding $parent[ItemsControl].((vm:MainWindowViewModel)DataContext).OpenSidebarItemCommand}"
                           CommandParameter="{Binding}">
+                    <!-- Right-click a pinned favorite to unpin it (PRD §6.2) -->
+                    <Button.ContextMenu>
+                      <ContextMenu>
+                        <MenuItem Header="Unpin from favorites" IsVisible="{Binding CanUnpin}"
+                                  Command="{Binding UnpinCommand}" CommandParameter="{Binding}" />
+                      </ContextMenu>
+                    </Button.ContextMenu>
                     <StackPanel>
                       <StackPanel Orientation="Horizontal" Spacing="6">
                         <TextBlock Text="{Binding Glyph}" FontSize="12" />

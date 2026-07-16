@@ -23,6 +23,23 @@ public partial class FileTabView : UserControl
         }));
     }
 
+    protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        base.OnAttachedToVisualTree(e);
+        // The entry context menu's commands live on the shell view-model (they act on the active tab).
+        if ((TopLevel.GetTopLevel(this) as MainWindow)?.DataContext is MainWindowViewModel shell)
+            EntryMenu.DataContext = shell;
+    }
+
+    // Right-clicking a row selects it first, so the context menu acts on the item under the cursor.
+    private void OnListPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (!e.GetCurrentPoint(sender as Control).Properties.IsRightButtonPressed)
+            return;
+        if ((e.Source as Control)?.DataContext is FileEntryViewModel entry && DataContext is FileTabViewModel tab)
+            tab.SelectedEntry = entry;
+    }
+
     // Clicking the empty area of the breadcrumb bar switches it to an editable path entry (Thunar-style).
     private void OnPathBarPressed(object? sender, PointerPressedEventArgs e)
     {

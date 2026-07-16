@@ -81,7 +81,7 @@ Check off items as they're completed; delete lines you decide not to build.
   instant rather than restarting — configurable column set still pending
 - [x] Switch file sizes between binary (KiB/MiB), decimal (KB/MB) and exact bytes, quick-toggle in
   the toolbar / View menu / command palette (persisted)
-- [x] Collapsible sidebar with favorites/pinned folders and drives — sidebar with favorites + drives (free-space bars); collapse toggle pending
+- [x] Collapsible sidebar with favorites/pinned folders and drives — sidebar with favorites + drives (free-space bars); collapse toggle pending. Pinned favorites can be unpinned via a right-click context menu
 - [ ] Drag-and-drop reordering of sidebar favorites
 
 ### 6.3 File Operations
@@ -104,6 +104,8 @@ Check off items as they're completed; delete lines you decide not to build.
 - [ ] Drag & drop within the app (pane ↔ pane, into sidebar)
 - [ ] Drag & drop to/from other OS applications
 - [x] Copy path / copy name to clipboard
+- [x] Right-click context menu on files/folders: open, copy/move to other pane, rename, delete to
+  trash, copy path/name, extract archive here, identify file, and assign/clear color tags
 
 ### 6.4 Search & Filter
 

@@ -4,6 +4,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="using:FoileBrowser.ViewModels"
              xmlns:models="using:FoileBrowser.Models"
+             xmlns:svc="using:FoileBrowser.Services"
              xmlns:views="using:FoileBrowser.Views"
              mc:Ignorable="d" d:DesignWidth="500" d:DesignHeight="400"
              x:Class="FoileBrowser.Views.FileTabView"
@@ -105,7 +106,37 @@
              SelectedItem="{Binding SelectedEntry, Mode=TwoWay}"
              DoubleTapped="OnEntryActivated"
              KeyDown="OnListKeyDown"
+             PointerPressed="OnListPointerPressed"
              ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+      <!-- Right-click actions (DataContext is set to the shell view-model in code-behind). -->
+      <ListBox.ContextMenu>
+        <ContextMenu x:Name="EntryMenu" x:DataType="vm:MainWindowViewModel">
+          <MenuItem Header="Open" Command="{Binding OpenSelectedExternallyCommand}" />
+          <Separator />
+          <MenuItem Header="Copy to other pane" InputGesture="F6" Command="{Binding CopyToOtherCommand}" />
+          <MenuItem Header="Move to other pane" InputGesture="F7" Command="{Binding MoveToOtherCommand}" />
+          <MenuItem Header="Rename…" InputGesture="F2" Command="{Binding RenameSelectedCommand}" />
+          <MenuItem Header="Delete to trash" InputGesture="Delete" Command="{Binding DeleteSelectedCommand}" />
+          <Separator />
+          <MenuItem Header="Copy path" Command="{Binding CopyPathCommand}" />
+          <MenuItem Header="Copy name" Command="{Binding CopyNameCommand}" />
+          <Separator />
+          <MenuItem Header="Extract archive here" Command="{Binding ExtractHereCommand}" />
+          <MenuItem Header="Identify file" Command="{Binding IdentifyFileCommand}" />
+          <Separator />
+          <MenuItem Header="Tag" ItemsSource="{Binding TagPalette}">
+            <MenuItem.ItemContainerTheme>
+              <ControlTheme TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}" x:DataType="svc:TagColor">
+                <Setter Property="Header" Value="{Binding Name}" />
+                <Setter Property="Command"
+                        Value="{Binding #EntryMenu.((vm:MainWindowViewModel)DataContext).AssignTagCommand}" />
+                <Setter Property="CommandParameter" Value="{Binding Hex}" />
+              </ControlTheme>
+            </MenuItem.ItemContainerTheme>
+          </MenuItem>
+          <MenuItem Header="Clear tag" Command="{Binding ClearTagCommand}" />
+        </ContextMenu>
+      </ListBox.ContextMenu>
       <ListBox.Styles>
         <Style Selector="Button.header">
           <Setter Property="Background" Value="Transparent" />
