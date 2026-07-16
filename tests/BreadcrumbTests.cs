@@ -44,6 +44,28 @@ public class BreadcrumbTests
     }
 
     [Test]
+    public async Task Sidebar_Item_Navigates_This_Pane()
+    {
+        var tab = new FileTabViewModel(new FakeFileSystem());
+
+        await tab.OpenSidebarItemCommand.ExecuteAsync(
+            new SidebarItemViewModel { Name = "X", Path = "/somewhere", Kind = SidebarItemKind.Partition });
+
+        Assert.That(tab.CurrentPath, Is.EqualTo("/somewhere"));
+    }
+
+    [Test]
+    public void ToggleSidebar_Flips_This_Panes_Sidebar()
+    {
+        var tab = new FileTabViewModel(new FakeFileSystem());
+        Assert.That(tab.IsSidebarVisible, Is.True);
+
+        tab.ToggleSidebarCommand.Execute(null);
+
+        Assert.That(tab.IsSidebarVisible, Is.False);
+    }
+
+    [Test]
     public async Task PathBar_Enters_And_Cancels_Edit_Mode()
     {
         var fs = new FakeFileSystem { ParentOverride = null };

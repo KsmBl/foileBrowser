@@ -58,10 +58,9 @@
         </Panel>
         <ToggleButton Grid.Column="6" Content="Hidden" ToolTip.Tip="Show hidden files"
                       IsChecked="{Binding ShowHidden, Mode=TwoWay}" Margin="3,0,0,0" />
-        <!-- Show/hide the global operations toolbar from within the tab (like the Hidden toggle) -->
-        <ToggleButton Grid.Column="7" Content="🧰" ToolTip.Tip="Show/hide the operations toolbar" Margin="3,0,0,0"
-                      IsChecked="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).IsToolbarVisible, Mode=OneWay}"
-                      Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ToggleToolbarCommand}" />
+        <!-- Show/hide THIS pane's navigation sidebar (favorites/drives/partitions/devices) -->
+        <ToggleButton Grid.Column="7" Content="☰" ToolTip.Tip="Show/hide this pane's navigation sidebar"
+                      Margin="3,0,0,0" IsChecked="{Binding IsSidebarVisible, Mode=TwoWay}" />
       </Grid>
     </Border>
 
@@ -104,6 +103,57 @@
       <Button Grid.Column="3" Classes="header" Command="{Binding SortByCommand}" CommandParameter="{x:Static models:SortColumn.Type}" Content="Type" />
       <Button Grid.Column="4" Classes="header" Command="{Binding SortByCommand}" CommandParameter="{x:Static models:SortColumn.Modified}" Content="Modified" />
     </Grid>
+
+    <!-- This pane's own navigation sidebar (favorites/drives/partitions/devices), toggled per pane -->
+    <Border DockPanel.Dock="Left" Width="185" Padding="6" IsVisible="{Binding IsSidebarVisible}"
+            BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" BorderThickness="0,0,1,0">
+      <ScrollViewer>
+        <ItemsControl ItemsSource="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Sidebar}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="vm:SidebarItemViewModel">
+              <StackPanel Margin="0,1">
+                <TextBlock Text="{Binding Name}" FontWeight="Bold" Margin="2,8,0,2"
+                           IsVisible="{Binding IsHeader}" Opacity="0.7" FontSize="12" />
+                <!-- Physical disk group; its partitions are indented below -->
+                <StackPanel Orientation="Horizontal" Spacing="6" Margin="2,4,0,1" IsVisible="{Binding IsDiskGroup}">
+                  <TextBlock Text="{Binding Glyph}" FontSize="12" />
+                  <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Opacity="0.8" FontSize="12" />
+                </StackPanel>
+                <!-- Navigable favorite / drive / partition / device (navigates THIS pane) -->
+                <Grid IsVisible="{Binding IsNavigable}" ColumnDefinitions="*,Auto"
+                      Margin="{Binding Indent, Converter={x:Static views:MainWindow.IndentConverter}}">
+                  <Button Grid.Column="0" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
+                          Background="Transparent" Padding="4,3"
+                          Command="{Binding $parent[ItemsControl].((vm:FileTabViewModel)DataContext).OpenSidebarItemCommand}"
+                          CommandParameter="{Binding}">
+                    <Button.ContextMenu>
+                      <ContextMenu>
+                        <MenuItem Header="Unpin from favorites" IsVisible="{Binding CanUnpin}"
+                                  Command="{Binding UnpinCommand}" CommandParameter="{Binding}" />
+                      </ContextMenu>
+                    </Button.ContextMenu>
+                    <StackPanel>
+                      <StackPanel Orientation="Horizontal" Spacing="6">
+                        <TextBlock Text="{Binding Glyph}" FontSize="12" />
+                        <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+                      </StackPanel>
+                      <ProgressBar Minimum="0" Maximum="1" Value="{Binding UsedFraction}" Height="4"
+                                   Margin="0,3,0,0" IsVisible="{Binding HasCapacity}" />
+                      <TextBlock Text="{Binding FreeSpaceDisplay}" FontSize="10" Opacity="0.6" IsVisible="{Binding HasCapacity}" />
+                      <TextBlock Text="{Binding FileSystem}" FontSize="10" Opacity="0.5" IsVisible="{Binding HasFileSystem}" />
+                    </StackPanel>
+                  </Button>
+                  <Button Grid.Column="1" Content="⏏" FontSize="12" Padding="5,0" Background="Transparent"
+                          VerticalAlignment="Center" ToolTip.Tip="Eject / unmount" IsVisible="{Binding IsEjectable}"
+                          Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).EjectCommand}"
+                          CommandParameter="{Binding}" />
+                </Grid>
+              </StackPanel>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </ScrollViewer>
+    </Border>
 
     <!-- Virtualized file list -->
     <ListBox ItemsSource="{Binding Entries}"

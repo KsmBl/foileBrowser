@@ -91,7 +91,9 @@ Check off items as they're completed; delete lines you decide not to build.
   drilling one level in is instant — configurable column set still pending
 - [x] Switch file sizes between binary (KiB/MiB), decimal (KB/MB) and exact bytes, quick-toggle in
   the toolbar / View menu / command palette (persisted)
-- [x] Collapsible sidebar with favorites/pinned folders and drives — sidebar with favorites + drives (free-space bars); collapse toggle pending. Pinned favorites can be unpinned via a right-click context menu
+- [x] Per-pane navigation sidebar (favorites, drives, grouped partitions, devices): each pane has its
+  own tree, toggled independently via a button in that pane's nav bar, so you can browse from any
+  pane's tree; clicking an item navigates that pane. Pinned favorites can be unpinned via right-click
 - [ ] Drag-and-drop reordering of sidebar favorites
 
 ### 6.3 File Operations

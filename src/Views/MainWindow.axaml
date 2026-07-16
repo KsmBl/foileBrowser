@@ -144,63 +144,6 @@
       </ItemsControl>
     </Border>
 
-    <!-- Collapsible sidebar (PRD §6.2) -->
-    <Border DockPanel.Dock="Left" Width="210" Padding="6"
-            BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" BorderThickness="0,0,1,0">
-      <ScrollViewer>
-        <ItemsControl ItemsSource="{Binding Sidebar}">
-          <ItemsControl.ItemTemplate>
-            <DataTemplate x:DataType="vm:SidebarItemViewModel">
-              <StackPanel Margin="0,1">
-                <!-- Section header -->
-                <TextBlock Text="{Binding Name}" FontWeight="Bold" Margin="2,8,0,2"
-                           IsVisible="{Binding IsHeader}" Opacity="0.7" FontSize="12" />
-                <!-- Physical disk group (its partitions are indented below) -->
-                <StackPanel Orientation="Horizontal" Spacing="6" Margin="2,4,0,1"
-                            IsVisible="{Binding IsDiskGroup}">
-                  <TextBlock Text="{Binding Glyph}" FontSize="12" />
-                  <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Opacity="0.8" FontSize="12" />
-                </StackPanel>
-                <!-- Navigable favorite / drive / partition (partitions indented under their disk) -->
-                <Grid IsVisible="{Binding IsNavigable}" ColumnDefinitions="*,Auto"
-                      Margin="{Binding Indent, Converter={x:Static views:MainWindow.IndentConverter}}">
-                  <Button Grid.Column="0" HorizontalAlignment="Stretch"
-                          HorizontalContentAlignment="Left" Background="Transparent" Padding="4,3"
-                          Command="{Binding $parent[ItemsControl].((vm:MainWindowViewModel)DataContext).OpenSidebarItemCommand}"
-                          CommandParameter="{Binding}">
-                    <!-- Right-click a pinned favorite to unpin it (PRD §6.2) -->
-                    <Button.ContextMenu>
-                      <ContextMenu>
-                        <MenuItem Header="Unpin from favorites" IsVisible="{Binding CanUnpin}"
-                                  Command="{Binding UnpinCommand}" CommandParameter="{Binding}" />
-                      </ContextMenu>
-                    </Button.ContextMenu>
-                    <StackPanel>
-                      <StackPanel Orientation="Horizontal" Spacing="6">
-                        <TextBlock Text="{Binding Glyph}" FontSize="12" />
-                        <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
-                      </StackPanel>
-                      <ProgressBar Minimum="0" Maximum="1" Value="{Binding UsedFraction}" Height="4"
-                                   Margin="0,3,0,0" IsVisible="{Binding HasCapacity}" />
-                      <TextBlock Text="{Binding FreeSpaceDisplay}" FontSize="10" Opacity="0.6"
-                                 IsVisible="{Binding HasCapacity}" />
-                      <TextBlock Text="{Binding FileSystem}" FontSize="10" Opacity="0.5"
-                                 IsVisible="{Binding HasFileSystem}" />
-                    </StackPanel>
-                  </Button>
-                  <Button Grid.Column="1" Content="⏏" FontSize="12" Padding="5,0" Background="Transparent"
-                          VerticalAlignment="Center" ToolTip.Tip="Eject / unmount"
-                          IsVisible="{Binding IsEjectable}"
-                          Command="{Binding $parent[ItemsControl].((vm:MainWindowViewModel)DataContext).EjectCommand}"
-                          CommandParameter="{Binding}" />
-                </Grid>
-              </StackPanel>
-            </DataTemplate>
-          </ItemsControl.ItemTemplate>
-        </ItemsControl>
-      </ScrollViewer>
-    </Border>
-
     <!-- Inspector panel (PRD §6.5) -->
     <Border DockPanel.Dock="Right" Width="300" IsVisible="{Binding IsInspectorOpen}"
             BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" BorderThickness="1,0,0,0">

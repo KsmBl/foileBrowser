@@ -60,6 +60,10 @@ public partial class FileTabViewModel : Document, IDisposable
     [ObservableProperty]
     private bool _showHidden;
 
+    /// <summary>Whether this pane shows its own left navigation tree (favorites/drives/partitions).</summary>
+    [ObservableProperty]
+    private bool _isSidebarVisible = true;
+
     // As-you-type filter over the current folder (PRD §6.4). Empty shows everything.
     [ObservableProperty]
     private string _filterText = string.Empty;
@@ -319,6 +323,14 @@ public partial class FileTabViewModel : Document, IDisposable
         IsEditingPath = false;
         return string.IsNullOrWhiteSpace(PathBarText) ? Task.CompletedTask : NavigateToAsync(PathBarText.Trim());
     }
+
+    [RelayCommand]
+    private void ToggleSidebar() => IsSidebarVisible = !IsSidebarVisible;
+
+    /// <summary>Navigates <em>this</em> pane to a sidebar item (favorite/drive/partition/device).</summary>
+    [RelayCommand]
+    private Task OpenSidebarItem(SidebarItemViewModel? item) =>
+        item is { IsNavigable: true } ? NavigateToAsync(item.Path) : Task.CompletedTask;
 
     /// <summary>Switches the combined path bar into editable mode, pre-filled with the current path.</summary>
     [RelayCommand]
