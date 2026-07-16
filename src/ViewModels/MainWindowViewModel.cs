@@ -198,6 +198,35 @@ public partial class MainWindowViewModel : ViewModelBase
     [RelayCommand]
     private void ToggleInspector() => IsInspectorOpen = !IsInspectorOpen;
 
+    // ---- menubar navigation wrappers (delegate to the active tab) ----
+
+    [RelayCommand]
+    private Task GoBack() => ActiveTab?.GoBackCommand.ExecuteAsync(null) ?? Task.CompletedTask;
+
+    [RelayCommand]
+    private Task GoForward() => ActiveTab?.GoForwardCommand.ExecuteAsync(null) ?? Task.CompletedTask;
+
+    [RelayCommand]
+    private Task GoUp() => ActiveTab?.GoUpCommand.ExecuteAsync(null) ?? Task.CompletedTask;
+
+    [RelayCommand]
+    private Task RefreshActive() => ActiveTab?.RefreshCommand.ExecuteAsync(null) ?? Task.CompletedTask;
+
+    [RelayCommand]
+    private void ToggleHidden()
+    {
+        if (ActiveTab is { } t)
+            t.ShowHidden = !t.ShowHidden;
+    }
+
+    [RelayCommand]
+    private void ShowAbout()
+    {
+        var version = typeof(MainWindowViewModel).Assembly.GetName().Version?.ToString(3) ?? "dev";
+        if (ActiveTab is { } t)
+            t.StatusText = $"foileBrowser {version} — a fast, keyboard-first, cross-platform file browser.";
+    }
+
     private void OnPanePropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
         if (e.PropertyName == nameof(PaneViewModel.ActiveTab) && ReferenceEquals(sender, ActivePane))

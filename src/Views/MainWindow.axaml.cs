@@ -139,6 +139,9 @@ public partial class MainWindow : Window
     private void OnPaletteItemActivated(object? sender, RoutedEventArgs e) =>
         _palette?.ExecuteSelectedCommand.Execute(null);
 
+    // File ▸ Exit — the OnClosing override persists the session before the window actually closes.
+    private void OnExitClick(object? sender, RoutedEventArgs e) => Close();
+
     protected override void OnOpened(EventArgs e)
     {
         base.OnOpened(e);

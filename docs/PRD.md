@@ -57,6 +57,8 @@ Check off items as they're completed; delete lines you decide not to build.
 
 ### 6.2 Layout & Views
 
+- [x] Application menu bar (File / Edit / View / Go / Tools / Help) with accelerators and gesture hints
+- [x] Toolbar with emoji icons and descriptive tooltips
 - [x] optional multi-pane side-by-side layout with adjustable splitter
 - [x] Single-pane mode toggle
 - [x] Tabs per pane, restored across restart
