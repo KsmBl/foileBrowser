@@ -52,7 +52,8 @@ Check off items as they're completed; delete lines you decide not to build.
 ### 6.1 Core Browsing
 
 - [x] Directory listing with name, size, type, and modified date
-- [x] Sorting by any column, ascending/descending
+- [x] Sorting by any column, ascending/descending — via a native-style header row (tinted strip,
+  column separators, and a ▲/▼ sort-direction arrow on the active column)
 - [x] Hidden/system file visibility toggle
 - [x] Navigation history: back / forward / up
 - [x] Multiple selection (click, Ctrl/Shift-click, and rubber-band: drag a rectangle over the list to

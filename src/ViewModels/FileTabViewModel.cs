@@ -116,10 +116,21 @@ public partial class FileTabViewModel : Document, IDisposable
     private string _filterText = string.Empty;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(NameSortGlyph), nameof(SizeSortGlyph), nameof(TypeSortGlyph), nameof(ModifiedSortGlyph))]
     private SortColumn _sortColumn = SortColumn.Name;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(NameSortGlyph), nameof(SizeSortGlyph), nameof(TypeSortGlyph), nameof(ModifiedSortGlyph))]
     private SortDirection _sortDirection = SortDirection.Ascending;
+
+    // Sort-direction arrow shown on the active column header (empty on the others) — PRD §6.1.
+    public string NameSortGlyph => SortGlyph(FoileBrowser.Models.SortColumn.Name);
+    public string SizeSortGlyph => SortGlyph(FoileBrowser.Models.SortColumn.Size);
+    public string TypeSortGlyph => SortGlyph(FoileBrowser.Models.SortColumn.Type);
+    public string ModifiedSortGlyph => SortGlyph(FoileBrowser.Models.SortColumn.Modified);
+
+    private string SortGlyph(SortColumn column) =>
+        SortColumn != column ? string.Empty : SortDirection == SortDirection.Ascending ? "▲" : "▼";
 
     // Recursive search state (PRD §6.4).
     [ObservableProperty]
