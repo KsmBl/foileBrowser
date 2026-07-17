@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Windows.Input;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Dock.Model.Controls;
@@ -61,6 +62,9 @@ public partial class MainWindowViewModel : ViewModelBase
     public CommandPaletteViewModel CommandPalette { get; }
     public ObservableCollection<SidebarItemViewModel> Sidebar { get; } = [];
 
+    /// <summary>The global operations-toolbar buttons, in display order (drag-reorderable — PRD §6.8).</summary>
+    public ObservableCollection<ToolbarItemViewModel> ToolbarItems { get; } = [];
+
     /// <summary>Root nodes of the sidebar folder-tree navigator (PRD §6.2), built lazily when enabled.</summary>
     public ObservableCollection<FolderNodeViewModel> TreeRoots { get; } = [];
 
@@ -78,11 +82,6 @@ public partial class MainWindowViewModel : ViewModelBase
     /// <summary>Whether the emoji operations toolbar is shown (View ▸ Toolbar, persisted).</summary>
     [ObservableProperty]
     private bool _isToolbarVisible = true;
-
-    /// <summary>Ids of toolbar buttons hidden by the user; individual buttons bind their visibility to
-    /// this set via <see cref="Views.ToolbarButtonVisibleConverter"/> (PRD §6.8).</summary>
-    [ObservableProperty]
-    private IReadOnlyList<string> _hiddenToolbarButtons = [];
 
     /// <summary>Whether every pane's filter/search bar is shown; when off it's revealed on demand by
     /// Ctrl+F for the session and collapsed again on Escape (PRD §6.4).</summary>
@@ -438,13 +437,13 @@ public partial class MainWindowViewModel : ViewModelBase
         await _settings.LoadAsync();
         IsInspectorOpen = _settings.Current.IsInspectorOpen;
         IsToolbarVisible = _settings.Current.IsToolbarVisible;
-        HiddenToolbarButtons = _settings.Current.HiddenToolbarButtons.ToList();
         IsSearchBarVisible = _settings.Current.SearchBarVisible;
 
         if (Enum.TryParse<SizeUnit>(_settings.Current.SizeUnit, out var unit))
             _display.SizeUnit = unit;
         if (Enum.TryParse<DateDisplay>(_settings.Current.DateFormat, out var date))
             _display.DateDisplay = date;
+        BuildToolbar();
         UpdateDisplayLabels();
 
         await RestoreTabsAsync(_settings.Current.Session);
@@ -598,6 +597,77 @@ public partial class MainWindowViewModel : ViewModelBase
             _ => "Bytes",
         };
         DateFormatLabel = _display.DateDisplay == DateDisplay.Relative ? "Ago" : "Date";
+
+        // The size/date toolbar buttons show these live labels.
+        foreach (var item in ToolbarItems)
+        {
+            if (item.Id == "sizeUnit") item.Content = SizeUnitLabel;
+            else if (item.Id == "dateFormat") item.Content = DateFormatLabel;
+        }
+    }
+
+    // ---- global operations toolbar (data-driven so it can be reordered — PRD §6.8) ----
+
+    /// <summary>(Re)builds the toolbar buttons in the persisted order, marking hidden ones invisible.</summary>
+    private void BuildToolbar()
+    {
+        (string Id, string Content, string Tip, ICommand Cmd, double Fs)[] defs =
+        [
+            ("newFolder", "📁", "New folder (Ctrl+Shift+N)", NewFolderCommand, 15),
+            ("newFile", "📄", "New file", NewFileCommand, 15),
+            ("rename", "✏️", "Rename (F2)", RenameSelectedCommand, 15),
+            ("delete", "🗑️", "Delete to trash (Del)", DeleteSelectedCommand, 15),
+            ("copyToOther", "📋➡️", "Copy to other pane (F6)", CopyToOtherCommand, 15),
+            ("moveToOther", "✂️➡️", "Move to other pane (F7)", MoveToOtherCommand, 15),
+            ("copyPath", "🔗", "Copy path", CopyPathCommand, 15),
+            ("copyName", "🏷️", "Copy name", CopyNameCommand, 15),
+            ("batchRename", "🔤", "Batch rename items in this folder", BatchRenameCommand, 15),
+            ("terminal", "💻", "Open terminal here", OpenTerminalHereCommand, 15),
+            ("pin", "⭐", "Pin current folder to favorites", PinFavoriteCommand, 15),
+            ("newTab", "🗂️", "New tab (Ctrl+T) — drag a tab out to make a new pane", AddTabCommand, 15),
+            ("inspector", "🔍", "Toggle inspector (Ctrl+I)", ToggleInspectorCommand, 15),
+            ("sizeUnit", SizeUnitLabel, "Size units: binary (KiB) → decimal (KB) → bytes", CycleSizeUnitCommand, 12),
+            ("dateFormat", DateFormatLabel, "Date format: absolute ↔ relative (e.g. 5 min ago)", CycleDateFormatCommand, 12),
+            ("settings", "⚙️", "Settings", OpenSettingsCommand, 15),
+        ];
+
+        var byId = defs.ToDictionary(d => d.Id);
+        var order = _settings.Current.ToolbarOrder;
+        // Saved order first (ignoring unknown/removed ids), then any new buttons appended in default order.
+        var ids = order.Where(byId.ContainsKey)
+            .Concat(defs.Select(d => d.Id).Where(id => !order.Contains(id)));
+
+        var hidden = _settings.Current.HiddenToolbarButtons;
+        ToolbarItems.Clear();
+        foreach (var id in ids)
+        {
+            var d = byId[id];
+            ToolbarItems.Add(new ToolbarItemViewModel
+            {
+                Id = d.Id,
+                Content = d.Content,
+                Tooltip = d.Tip,
+                Command = d.Cmd,
+                FontSize = d.Fs,
+                IsVisible = !hidden.Contains(d.Id),
+            });
+        }
+    }
+
+    /// <summary>Drops the dragged toolbar button just before <paramref name="toId"/> and persists the order.</summary>
+    public void MoveToolbarItem(string fromId, string toId)
+    {
+        if (fromId == toId)
+            return;
+        var from = ToolbarItems.FirstOrDefault(i => i.Id == fromId);
+        var to = ToolbarItems.FirstOrDefault(i => i.Id == toId);
+        if (from is null || to is null)
+            return;
+
+        ToolbarItems.Remove(from);
+        ToolbarItems.Insert(ToolbarItems.IndexOf(to), from);
+        _settings.Current.ToolbarOrder = ToolbarItems.Select(i => i.Id).ToList();
+        _ = _settings.SaveAsync();
     }
 
     private void RefreshAllDisplays()
@@ -1206,8 +1276,8 @@ public partial class MainWindowViewModel : ViewModelBase
             await _settings.SaveAsync();
             ThemeChanged?.Invoke(this, EventArgs.Empty);
             ApplyKeybinds();
-            HiddenToolbarButtons = _settings.Current.HiddenToolbarButtons.ToList();
             IsSearchBarVisible = _settings.Current.SearchBarVisible;
+            BuildToolbar(); // reflect any hide/show changes while preserving the saved order
             await LoadSidebarAsync();
         }
     }

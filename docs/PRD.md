@@ -183,7 +183,8 @@ Check off items as they're completed; delete lines you decide not to build.
 - [x] Custom accent color
 - [x] Font size and row-density settings
 - [x] Configurable toolbar — each button on the global operations toolbar can be individually shown or
-  hidden from Settings ▸ Toolbar (persisted)
+  hidden from Settings ▸ Toolbar, and the buttons can be reordered by dragging one onto another; both
+  the hidden set and the custom order are persisted
 - [ ] Saved layouts (pane/tab/panel presets), switchable — session (open tabs + layout) restored across restart; multiple named presets pending
 - [x] Settings stored as portable JSON
 

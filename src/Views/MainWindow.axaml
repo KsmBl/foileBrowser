@@ -81,55 +81,22 @@
     <!-- Global operations toolbar (PRD §6.3) — emoji icons with text tooltips; hideable via View menu -->
     <Border DockPanel.Dock="Top" Padding="6" IsVisible="{Binding IsToolbarVisible}"
             BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" BorderThickness="0,0,0,1">
-      <StackPanel Orientation="Horizontal" Spacing="4">
-        <StackPanel.Styles>
-          <Style Selector="Button, ToggleButton">
-            <Setter Property="FontSize" Value="15" />
-            <Setter Property="Padding" Value="7,3" />
-          </Style>
-        </StackPanel.Styles>
-        <!-- Individual buttons can be hidden from Settings ▸ Toolbar; the ConverterParameter is the
-             button id in ToolbarButtons.All. Back/forward/up/refresh live in each pane's own nav bar
-             (next to the path bar), so they're intentionally not duplicated here. -->
-        <Button Content="📁" Command="{Binding NewFolderCommand}" ToolTip.Tip="New folder (Ctrl+Shift+N)"
-                IsVisible="{Binding HiddenToolbarButtons, Converter={x:Static views:ToolbarButtonVisibleConverter.Instance}, ConverterParameter=newFolder}" />
-        <Button Content="📄" Command="{Binding NewFileCommand}" ToolTip.Tip="New file"
-                IsVisible="{Binding HiddenToolbarButtons, Converter={x:Static views:ToolbarButtonVisibleConverter.Instance}, ConverterParameter=newFile}" />
-        <Button Content="✏️" Command="{Binding RenameSelectedCommand}" ToolTip.Tip="Rename (F2)"
-                IsVisible="{Binding HiddenToolbarButtons, Converter={x:Static views:ToolbarButtonVisibleConverter.Instance}, ConverterParameter=rename}" />
-        <Button Content="🗑️" Command="{Binding DeleteSelectedCommand}" ToolTip.Tip="Delete to trash (Del)"
-                IsVisible="{Binding HiddenToolbarButtons, Converter={x:Static views:ToolbarButtonVisibleConverter.Instance}, ConverterParameter=delete}" />
-        <Border Width="1" Background="{DynamicResource SystemControlForegroundBaseLowBrush}" Margin="4,2" />
-        <Button Content="📋➡️" Command="{Binding CopyToOtherCommand}" ToolTip.Tip="Copy to other pane (F6)"
-                IsVisible="{Binding HiddenToolbarButtons, Converter={x:Static views:ToolbarButtonVisibleConverter.Instance}, ConverterParameter=copyToOther}" />
-        <Button Content="✂️➡️" Command="{Binding MoveToOtherCommand}" ToolTip.Tip="Move to other pane (F7)"
-                IsVisible="{Binding HiddenToolbarButtons, Converter={x:Static views:ToolbarButtonVisibleConverter.Instance}, ConverterParameter=moveToOther}" />
-        <Button Content="🔗" Command="{Binding CopyPathCommand}" ToolTip.Tip="Copy path"
-                IsVisible="{Binding HiddenToolbarButtons, Converter={x:Static views:ToolbarButtonVisibleConverter.Instance}, ConverterParameter=copyPath}" />
-        <Button Content="🏷️" Command="{Binding CopyNameCommand}" ToolTip.Tip="Copy name"
-                IsVisible="{Binding HiddenToolbarButtons, Converter={x:Static views:ToolbarButtonVisibleConverter.Instance}, ConverterParameter=copyName}" />
-        <Button Content="🔤" Command="{Binding BatchRenameCommand}" ToolTip.Tip="Batch rename items in this folder"
-                IsVisible="{Binding HiddenToolbarButtons, Converter={x:Static views:ToolbarButtonVisibleConverter.Instance}, ConverterParameter=batchRename}" />
-        <Border Width="1" Background="{DynamicResource SystemControlForegroundBaseLowBrush}" Margin="4,2" />
-        <Button Content="💻" Command="{Binding OpenTerminalHereCommand}" ToolTip.Tip="Open terminal here"
-                IsVisible="{Binding HiddenToolbarButtons, Converter={x:Static views:ToolbarButtonVisibleConverter.Instance}, ConverterParameter=terminal}" />
-        <Button Content="⭐" Command="{Binding PinFavoriteCommand}" ToolTip.Tip="Pin current folder to favorites"
-                IsVisible="{Binding HiddenToolbarButtons, Converter={x:Static views:ToolbarButtonVisibleConverter.Instance}, ConverterParameter=pin}" />
-        <Button Content="🗂️" Command="{Binding AddTabCommand}" ToolTip.Tip="New tab (Ctrl+T) — drag a tab out to make a new pane"
-                IsVisible="{Binding HiddenToolbarButtons, Converter={x:Static views:ToolbarButtonVisibleConverter.Instance}, ConverterParameter=newTab}" />
-        <ToggleButton Content="🔍" IsChecked="{Binding IsInspectorOpen, Mode=OneWay}"
-                      Command="{Binding ToggleInspectorCommand}" ToolTip.Tip="Toggle inspector (Ctrl+I)"
-                      IsVisible="{Binding HiddenToolbarButtons, Converter={x:Static views:ToolbarButtonVisibleConverter.Instance}, ConverterParameter=inspector}" />
-        <Border Width="1" Background="{DynamicResource SystemControlForegroundBaseLowBrush}" Margin="4,2" />
-        <Button Content="{Binding SizeUnitLabel}" FontSize="12" Command="{Binding CycleSizeUnitCommand}"
-                ToolTip.Tip="Size units: binary (KiB) → decimal (KB) → bytes"
-                IsVisible="{Binding HiddenToolbarButtons, Converter={x:Static views:ToolbarButtonVisibleConverter.Instance}, ConverterParameter=sizeUnit}" />
-        <Button Content="{Binding DateFormatLabel}" FontSize="12" Command="{Binding CycleDateFormatCommand}"
-                ToolTip.Tip="Date format: absolute ↔ relative (e.g. 5 min ago)"
-                IsVisible="{Binding HiddenToolbarButtons, Converter={x:Static views:ToolbarButtonVisibleConverter.Instance}, ConverterParameter=dateFormat}" />
-        <Button Content="⚙️" Command="{Binding OpenSettingsCommand}" ToolTip.Tip="Settings"
-                IsVisible="{Binding HiddenToolbarButtons, Converter={x:Static views:ToolbarButtonVisibleConverter.Instance}, ConverterParameter=settings}" />
-      </StackPanel>
+      <!-- Data-driven so buttons can be reordered by dragging one onto another (PRD §6.8); hidden
+           buttons collapse. Back/forward/up/refresh live in each pane's own nav bar, not here. -->
+      <ItemsControl x:Name="ToolbarItemsHost" ItemsSource="{Binding ToolbarItems}" DragDrop.AllowDrop="True">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <StackPanel Orientation="Horizontal" Spacing="4" />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="vm:ToolbarItemViewModel">
+            <Button Content="{Binding Content}" Command="{Binding Command}" ToolTip.Tip="{Binding Tooltip}"
+                    FontSize="{Binding FontSize}" Padding="7,3" IsVisible="{Binding IsVisible}"
+                    PointerPressed="OnToolbarItemPressed" PointerMoved="OnToolbarItemMoved" />
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
     </Border>
 
     <!-- Background operation queue (PRD §6.3) -->

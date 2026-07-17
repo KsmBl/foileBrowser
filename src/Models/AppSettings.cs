@@ -25,6 +25,9 @@ public sealed class AppSettings
     /// <summary>Ids of global-toolbar buttons the user has hidden (PRD §6.8). Empty = show all.</summary>
     public List<string> HiddenToolbarButtons { get; set; } = [];
 
+    /// <summary>Custom left-to-right order of toolbar button ids (PRD §6.8). Empty = default order.</summary>
+    public List<string> ToolbarOrder { get; set; } = [];
+
     /// <summary>Whether each pane's filter/search bar is shown by default; when false, Ctrl+F reveals it (PRD §6.4).</summary>
     public bool SearchBarVisible { get; set; } = true;
 

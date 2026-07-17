@@ -41,9 +41,35 @@ public partial class MainWindow : Window
 
     private CommandPaletteViewModel? _palette;
 
+    private readonly DragReorder _toolbarDrag = new();
+
     public MainWindow()
     {
         InitializeComponent();
+        ToolbarItemsHost.AddHandler(DragDrop.DragOverEvent, OnToolbarDragOver);
+        ToolbarItemsHost.AddHandler(DragDrop.DropEvent, OnToolbarDrop);
+    }
+
+    // ---- toolbar drag-reorder (PRD §6.8) ----
+
+    private void OnToolbarItemPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if ((sender as Control)?.DataContext is ToolbarItemViewModel item)
+            _toolbarDrag.Arm(item.Id, e, this);
+    }
+
+    private async void OnToolbarItemMoved(object? sender, PointerEventArgs e) =>
+        await _toolbarDrag.MaybeStartAsync(e, this);
+
+    private static void OnToolbarDragOver(object? sender, DragEventArgs e) => DragReorder.Accept(e);
+
+    private void OnToolbarDrop(object? sender, DragEventArgs e)
+    {
+        if (DataContext is MainWindowViewModel vm
+            && DragReorder.DroppedId(e) is { } fromId
+            && (e.Source as Control)?.DataContext is ToolbarItemViewModel target)
+            vm.MoveToolbarItem(fromId, target.Id);
+        e.Handled = true;
     }
 
     protected override void OnDataContextChanged(EventArgs e)
