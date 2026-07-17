@@ -251,6 +251,21 @@ Check off items as they're completed; delete lines you decide not to build.
     full archive support — the reflective format discovery was replaced by a compile-time **source
     generator** (`src/Generators`) that statically registers every CompressionWorkbench descriptor, so
     no runtime reflection/`Assembly.LoadFrom` is used and the whole app is trim/AOT-safe.
+  - No bundled UI font: `Avalonia.Fonts.Inter` was dropped in favour of system fonts, removing its
+    ~1.8 MB mapping (and one package) and reading more native.
+  - **Where the memory actually goes** (measured on a framework-dependent Release run, software
+    rendering, ~137 MB RSS / ~110 MB PSS / ~79 MB private): the .NET runtime (CoreLib, RegularExpressions,
+    coreclr, JIT) ≈ 33 MB, **libX11 ≈ 20 MB** (X11 client lib, mapped even under XWayland), the managed
+    heap/JIT-code ≈ 27 MB, SkiaSharp ≈ 4 MB, Avalonia managed assemblies a few MB. Trimming/AOT already
+    removes the JIT and unused framework code (hence the ~79 MB AOT figure).
+  - **Going lower means giving something up** — the remaining floor is the .NET runtime + Skia + X11,
+    not Avalonia sub-packages. Options and their costs: dropping **Dock.Avalonia** saves little (its
+    managed dlls are <1.5 MB each) but would remove the dockable/floating multi-pane layout (a core
+    feature); switching **Fluent → Simple theme** would break the current styling (which relies on
+    `SystemControl*` brushes); an experimental **Wayland backend** could shed libX11's ~20 MB but is not
+    production-ready. A materially smaller footprint (≪64 MB) would require leaving the Avalonia/Skia
+    stack entirely (native GTK/Qt or hand-rolled), i.e. a rewrite — recorded here as a deliberate,
+    not-yet-taken decision.
 
 ## 7. Milestones
 

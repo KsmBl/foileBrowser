@@ -53,6 +53,8 @@ standalone **trimmed** build is published that needs no runtime and has the smal
 idle RSS is ~100 MB instead of ~290 MB. Set `FOILE_GPU=1` to use GPU rendering (smoother, more RAM).
 For the smallest footprint (~80 MB RSS), build with `./install.sh --aot` (NativeAOT; needs `clang`) —
 archive support is preserved via a compile-time source generator, so no runtime reflection is used.
+The UI uses the system fonts (no bundled font) — see [docs/PRD.md](docs/PRD.md) §6.12 for the full
+memory breakdown and why the remaining floor is the .NET runtime + Skia + X11, not Avalonia packages.
 
 ## Status
 

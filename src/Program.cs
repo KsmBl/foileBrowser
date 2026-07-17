@@ -19,9 +19,10 @@ internal sealed class Program
     // Avalonia configuration, don't remove; also used by the visual designer.
     public static AppBuilder BuildAvaloniaApp()
     {
+        // No bundled font: use the platform's system fonts (fontconfig/HarfBuzz on Linux). This drops
+        // the ~1.8 MB Avalonia.Fonts.Inter mapping and reads more native (PRD §6.12).
         var builder = AppBuilder.Configure<App>()
             .UsePlatformDetect()
-            .WithInterFont()
             .LogToTrace();
 
         if (!UseGpu)
