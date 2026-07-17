@@ -63,6 +63,9 @@ public sealed class AppSettings
     /// <summary>Pinned sidebar favorite paths (PRD §6.2).</summary>
     public List<string> Favorites { get; set; } = [];
 
+    /// <summary>Names of built-in favorites (Home/Desktop/Documents/Downloads) the user has removed (PRD §6.2).</summary>
+    public List<string> HiddenDefaultFavorites { get; set; } = [];
+
     /// <summary>Path → color-tag hex (PRD §6.7 color tags).</summary>
     public Dictionary<string, string> Tags { get; set; } = new();
 

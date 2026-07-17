@@ -806,6 +806,9 @@ public partial class MainWindowViewModel : ViewModelBase
 
         foreach (var (name, folder) in wanted)
         {
+            if (_settings.Current.HiddenDefaultFavorites.Contains(name))
+                continue; // the user removed this built-in pin
+
             var path = name == "Downloads"
                 ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads")
                 : Environment.GetFolderPath(folder);
@@ -817,6 +820,7 @@ public partial class MainWindowViewModel : ViewModelBase
                     OpenCommand = OpenSidebarItemCommand,
                     OpenInNewTabCommand = OpenSidebarInNewTabCommand,
                     OpenInNewPaneCommand = OpenSidebarInNewPaneCommand,
+                    UnpinCommand = HideDefaultFavoriteCommand, // built-ins are removed by name, not path
                 };
         }
 
@@ -842,6 +846,27 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         if (item is null || !_settings.Current.Favorites.Remove(item.Path))
             return;
+        await _settings.SaveAsync();
+        await LoadSidebarAsync();
+    }
+
+    /// <summary>Removes a built-in favorite (Home/Desktop/…) by name so it stays hidden across restarts.</summary>
+    [RelayCommand]
+    private async Task HideDefaultFavorite(SidebarItemViewModel? item)
+    {
+        if (item is null || _settings.Current.HiddenDefaultFavorites.Contains(item.Name))
+            return;
+        _settings.Current.HiddenDefaultFavorites.Add(item.Name);
+        await _settings.SaveAsync();
+        await LoadSidebarAsync();
+    }
+
+    /// <summary>Restores all previously-removed built-in favorites (offered in Settings ▸ Sidebar).</summary>
+    public async Task RestoreDefaultFavoritesAsync()
+    {
+        if (_settings.Current.HiddenDefaultFavorites.Count == 0)
+            return;
+        _settings.Current.HiddenDefaultFavorites.Clear();
         await _settings.SaveAsync();
         await LoadSidebarAsync();
     }
