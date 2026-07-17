@@ -639,7 +639,7 @@ public partial class MainWindowViewModel : ViewModelBase
         var cts = _previewCts = new CancellationTokenSource();
 
         var selected = ActiveTab?.SelectedEntry;
-        if (selected is null)
+        if (selected is null || ActiveTab is null)
         {
             Preview = null;
             return;
@@ -647,7 +647,16 @@ public partial class MainWindowViewModel : ViewModelBase
 
         try
         {
-            var result = await _previewService.CreateAsync(selected.Entry, cts.Token);
+            // Inside an archive this streams the entry out to temp first, so previews work there too.
+            var entry = await ActiveTab.ResolvePreviewEntryAsync(selected, cts.Token);
+            if (entry is null)
+            {
+                if (!cts.Token.IsCancellationRequested)
+                    Preview = null;
+                return;
+            }
+
+            var result = await _previewService.CreateAsync(entry, cts.Token);
             if (!cts.Token.IsCancellationRequested)
                 Preview = result;
         }

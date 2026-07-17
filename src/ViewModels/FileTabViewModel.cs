@@ -264,6 +264,38 @@ public partial class FileTabViewModel : Document, IDisposable
         }
     }
 
+    // Entries larger than this aren't extracted just to preview them (PRD §6.5/§6.11).
+    private const long MaxPreviewExtractBytes = 16L * 1024 * 1024;
+
+    /// <summary>
+    /// Resolves the entry the inspector/quick-preview should read: real entries pass through unchanged,
+    /// while a file inside an open archive is streamed out to a temp file first so it can be previewed
+    /// without leaving archive-browsing mode (PRD §6.5/§6.11). Returns null when there's nothing to
+    /// preview (a virtual archive folder, or an entry too large to extract on a whim).
+    /// </summary>
+    public async Task<FileSystemEntry?> ResolvePreviewEntryAsync(FileEntryViewModel item, CancellationToken token)
+    {
+        if (_archivePath is null)
+            return item.Entry;
+        if (item.IsDirectory)
+            return null;
+        if (item.Entry.Size is > MaxPreviewExtractBytes)
+            return null;
+
+        try
+        {
+            var dest = Path.Combine(
+                Path.GetTempPath(), "foileBrowser", "preview-" + Guid.NewGuid().ToString("N")[..8], item.Name);
+            await _archives.ExtractEntryAsync(_archivePath, item.FullPath, dest, token);
+            return item.Entry with { FullPath = dest };
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // A bad/oversized entry simply yields no preview rather than throwing.
+            return null;
+        }
+    }
+
     /// <summary>Rebuilds the file list from the archive index for the current internal directory.</summary>
     private void ShowArchiveDir()
     {

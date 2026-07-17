@@ -139,6 +139,9 @@ Check off items as they're completed; delete lines you decide not to build.
 
 - [x] Spacebar quick-preview popup (images, plain text)
 - [x] Inspector side panel: persistent preview of the selected item (File Pilot style)
+- [x] Preview of files inside an opened archive — selecting an entry while browsing an archive streams
+  just that entry out to a temp file so the inspector and spacebar quick-preview work there too (entries
+  above 16 MB are skipped rather than extracted on a whim)
 - [x] Folder preview in inspector (item count, size, top-level contents) — count + top-level listing; aggregate byte size pending
 - [ ] Thumbnail generation with cache (async, off UI thread) — images decode to bounded width (thumbnail-like); persistent cache pending
 - [ ] Syntax-highlighted text/code preview — plain-text preview done; highlighting pending
