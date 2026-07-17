@@ -93,14 +93,17 @@ public sealed class AppSettings
 
 public sealed class SessionLayout
 {
-    // Legacy two-pane fields, kept so old settings files still restore (superseded by Panes).
+    // Legacy two-pane fields, kept so old settings files still restore (superseded by Panes/Tree).
     public List<string> LeftTabs { get; set; } = [];
     public int LeftActiveIndex { get; set; }
     public List<string> RightTabs { get; set; } = [];
     public int RightActiveIndex { get; set; }
 
-    /// <summary>Open panes (any number) to restore, each with its tab paths (PRD §6.2).</summary>
+    /// <summary>Open panes (any number) to restore, each with its tab paths — flat mirror of the tree (PRD §6.2).</summary>
     public List<PaneSession> Panes { get; set; } = [];
+
+    /// <summary>The full docking layout tree (nested splits + panes) to restore (PRD §6.2).</summary>
+    public FoileBrowser.Docking.DockNodeState? Tree { get; set; }
 }
 
 public sealed class PaneSession

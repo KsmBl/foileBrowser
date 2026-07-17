@@ -4,7 +4,6 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="using:FoileBrowser.ViewModels"
         xmlns:views="using:FoileBrowser.Views"
-        xmlns:dock="using:Dock.Avalonia.Controls"
         mc:Ignorable="d" d:DesignWidth="1100" d:DesignHeight="680"
         x:Class="FoileBrowser.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
@@ -127,8 +126,8 @@
       </Panel>
     </Border>
 
-    <!-- Dockable panes: split / tab / float freely with sizable splitters (PRD §6.2) -->
-    <dock:DockControl Layout="{Binding Layout}" Factory="{Binding DockFactory}" InitializeLayout="False" InitializeFactory="False" />
+    <!-- Dockable panes: split / tab / reorder with sizable splitters, via the in-house dock (PRD §6.2) -->
+    <views:DockLayoutView Layout="{Binding Layout}" />
 
   </DockPanel>
 

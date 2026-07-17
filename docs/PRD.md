@@ -76,21 +76,23 @@ Check off items as they're completed; delete lines you decide not to build.
 - [x] Toolbar with emoji icons and descriptive tooltips; can be hidden via View ▸ Toolbar (persisted).
   It holds file/view operations only — back/forward/up/refresh live in each pane's own nav bar next to
   the path bar, so they aren't duplicated on the global toolbar
-- [x] Tabs are the dockable documents: every folder tab has a real tab bar and can be dragged into a
-  new pane, tabbed together, or floated into its own window. New Tab (Ctrl+T) adds a tab to the active
-  pane; New Pane splits one off side by side. The dual-pane toggle is retired — arrange any number of
-  tabs/panes freely; the layout (panes + tabs) is restored across restart. New Pane works even after
-  every tab is closed. The operations toolbar can also be shown/hidden from a button inside each tab's
-  nav bar (like the hidden-files toggle). A pane's tab strip is hidden while it holds a single tab and
-  appears once a second tab joins it.
+- [x] Tabs are the dockable documents: every folder tab has a tab strip and can be dragged within its
+  strip to reorder, onto another pane's strip to move, or onto a pane **edge** to split a new pane there
+  (drop-zone highlight shows where it lands). New Tab (Ctrl+T) adds a tab to the active pane; New Pane
+  splits one off side by side. The dual-pane toggle is retired — arrange any number of tabs/panes
+  freely; the layout (nested splits + tabs) is restored across restart. New Pane works even after every
+  tab is closed. The operations toolbar can also be shown/hidden from a button inside each tab's nav bar
+  (like the hidden-files toggle). A pane's tab strip is hidden only for a lone tab in a single-pane
+  layout; once docking is in play the strips appear so tabs can be grabbed/closed. (Backed by the
+  in-house docking model — no Dock.Avalonia dependency; tear-off floating windows are not provided.)
 - [ ] Toolbar and copy/move queue as dockable/floatable tool panels — the queue already auto-hides
   when idle and the toolbar can be hidden; turning them into draggable Dock tools is still pending
-- [x] Dockable multi-pane layout: open any number of panes and arrange them by splitting, tabbing,
-  or floating them into their own windows, with draggable splitters; panes tile side by side by default
-  and the layout (pane count + tabs) is restored across restart. Backed by an **in-house, toolkit-agnostic
-  docking model** (`src/Docking`) — a pure-C# tree of panes/splits with the split/move/close/reorder
-  operations, no UI dependency — so the same model could later drive a non-Avalonia front-end. (Tear-off
-  floating windows are not carried over from the old Dock.Avalonia dependency.)
+- [x] Dockable multi-pane layout: open any number of panes and arrange them by splitting and tabbing,
+  with draggable splitters; panes tile side by side by default and the layout (nested splits + tabs) is
+  restored across restart. Backed by an **in-house, toolkit-agnostic docking model** (`src/Docking`) —
+  a pure-C# tree of panes/splits with the split/move/close/reorder operations, no UI dependency — plus a
+  thin Avalonia renderer (`Views/DockLayoutView`), so the same model could later drive a non-Avalonia
+  front-end. Replaces the Dock.Avalonia dependency. (Tear-off floating windows are not provided.)
 - [x] Single-pane mode toggle
 - [x] Tabs per pane, restored across restart
 - [x] Details (list) view mode

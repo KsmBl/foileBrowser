@@ -103,7 +103,7 @@ public class ShellViewModelTests
 
         // Close every tab the way the dock UI's close button does.
         foreach (var tab in vm.Tabs.ToList())
-            vm.DockFactory.CloseDockable(tab);
+            vm.Layout.CloseTab(tab);
         Assert.That(vm.Tabs, Is.Empty);
 
         await vm.AddPaneCommand.ExecuteAsync(null);
@@ -164,7 +164,7 @@ public class ShellViewModelTests
         await vm.InitializeAsync();
 
         // Close the second pane's tab, leaving a single pane (no "other" to copy to).
-        vm.DockFactory.CloseDockable(vm.Tabs.Last());
+        vm.Layout.CloseTab(vm.Tabs.Last());
 
         Assert.That(vm.IsDualPane, Is.False);
         Assert.That(vm.CopyToOtherCommand.CanExecute(null), Is.False);

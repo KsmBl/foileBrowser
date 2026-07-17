@@ -30,9 +30,6 @@ public partial class MainWindow : Window
     public static readonly IValueConverter IndentConverter =
         new FuncValueConverter<double, Thickness>(left => new Thickness(left, 0, 0, 0));
 
-    /// <summary>True when a count exceeds one — used to hide a pane's tab strip while it holds one tab.</summary>
-    public static readonly IValueConverter MoreThanOne =
-        new FuncValueConverter<int, bool>(n => n > 1);
 
     /// <summary>Parses a hex color string into a brush for the tag dot (PRD §6.7).</summary>
     public static readonly IValueConverter BrushConverter =

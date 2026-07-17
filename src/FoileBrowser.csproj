@@ -72,10 +72,7 @@
     <!-- Diagnostics only in Debug -->
     <PackageReference Include="Avalonia.Diagnostics" Version="$(AvaloniaVersion)" Condition="'$(Configuration)' == 'Debug'" />
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
-    <!-- Dockable multi-pane layout (drag/split/tab/float), PRD §6.2 -->
-    <PackageReference Include="Dock.Avalonia" Version="11.3.12.1" />
-    <PackageReference Include="Dock.Model.Mvvm" Version="11.3.12.1" />
-    <PackageReference Include="Dock.Avalonia.Themes.Fluent" Version="11.3.12.1" />
+    <!-- Dockable multi-pane layout is now in-house (src/Docking + Views/DockLayoutView), no Dock.* deps -->
     <!-- Archive & filesystem-image formats (LGPL-3.0), PRD §5/§6.11 -->
     <PackageReference Include="Hawkynt.FileFormats.Archives" Version="1.0.0.696" />
     <PackageReference Include="Hawkynt.FileFormats.FileSystems" Version="1.0.0.696" />

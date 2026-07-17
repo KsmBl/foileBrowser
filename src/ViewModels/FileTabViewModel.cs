@@ -1,7 +1,7 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using Dock.Model.Mvvm.Controls;
+using FoileBrowser.Docking;
 using FoileBrowser.Models;
 using FoileBrowser.Services;
 
@@ -9,11 +9,15 @@ namespace FoileBrowser.ViewModels;
 
 /// <summary>
 /// One browsing context: a single directory view with its own navigation history, sort state and
-/// hidden-file toggle. Each tab is a dockable <see cref="Document"/>, so tabs can be dragged into a
-/// new pane, tabbed together, or floated into their own window (PRD §6.2).
+/// hidden-file toggle. Each tab is an <see cref="IDockable"/> in the docking layout, so tabs can be
+/// dragged into a new pane, tabbed together or reordered (PRD §6.2).
 /// </summary>
-public partial class FileTabViewModel : Document, IDisposable
+public partial class FileTabViewModel : ViewModelBase, IDockable, IDisposable
 {
+    /// <summary>The dockable tab header (folder name, or archive location).</summary>
+    [ObservableProperty]
+    private string _title = "New Tab";
+
     private readonly IFileSystemService _fileSystem;
     private readonly ISearchService _search;
     private readonly IShellService _shell;
