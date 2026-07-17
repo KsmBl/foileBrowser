@@ -10,10 +10,7 @@ public static class ToolbarButtons
 {
     public static readonly IReadOnlyList<(string Id, string Label)> All =
     [
-        ("back", "◀  Back"),
-        ("forward", "▶  Forward"),
-        ("up", "▲  Up"),
-        ("refresh", "🔄  Refresh"),
+        // Back/forward/up/refresh are not here — they live in each pane's own nav bar, not this toolbar.
         ("newFolder", "📁  New folder"),
         ("newFile", "📄  New file"),
         ("rename", "✏️  Rename"),

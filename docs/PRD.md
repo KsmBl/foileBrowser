@@ -69,7 +69,9 @@ Check off items as they're completed; delete lines you decide not to build.
 ### 6.2 Layout & Views
 
 - [x] Application menu bar (File / Edit / View / Go / Tools / Help) with accelerators and gesture hints
-- [x] Toolbar with emoji icons and descriptive tooltips; can be hidden via View ▸ Toolbar (persisted)
+- [x] Toolbar with emoji icons and descriptive tooltips; can be hidden via View ▸ Toolbar (persisted).
+  It holds file/view operations only — back/forward/up/refresh live in each pane's own nav bar next to
+  the path bar, so they aren't duplicated on the global toolbar
 - [x] Tabs are the dockable documents: every folder tab has a real tab bar and can be dragged into a
   new pane, tabbed together, or floated into its own window. New Tab (Ctrl+T) adds a tab to the active
   pane; New Pane splits one off side by side. The dual-pane toggle is retired — arrange any number of

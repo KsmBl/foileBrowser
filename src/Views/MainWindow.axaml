@@ -89,16 +89,8 @@
           </Style>
         </StackPanel.Styles>
         <!-- Individual buttons can be hidden from Settings ▸ Toolbar; the ConverterParameter is the
-             button id in ToolbarButtons.All. -->
-        <Button Content="←" Command="{Binding GoBackCommand}" ToolTip.Tip="Back (Alt+Left)"
-                IsVisible="{Binding HiddenToolbarButtons, Converter={x:Static views:ToolbarButtonVisibleConverter.Instance}, ConverterParameter=back}" />
-        <Button Content="→" Command="{Binding GoForwardCommand}" ToolTip.Tip="Forward (Alt+Right)"
-                IsVisible="{Binding HiddenToolbarButtons, Converter={x:Static views:ToolbarButtonVisibleConverter.Instance}, ConverterParameter=forward}" />
-        <Button Content="↑" Command="{Binding GoUpCommand}" ToolTip.Tip="Up (Alt+Up)"
-                IsVisible="{Binding HiddenToolbarButtons, Converter={x:Static views:ToolbarButtonVisibleConverter.Instance}, ConverterParameter=up}" />
-        <Button Content="🔄" Command="{Binding RefreshActiveCommand}" ToolTip.Tip="Refresh (F5)"
-                IsVisible="{Binding HiddenToolbarButtons, Converter={x:Static views:ToolbarButtonVisibleConverter.Instance}, ConverterParameter=refresh}" />
-        <Border Width="1" Background="{DynamicResource SystemControlForegroundBaseLowBrush}" Margin="4,2" />
+             button id in ToolbarButtons.All. Back/forward/up/refresh live in each pane's own nav bar
+             (next to the path bar), so they're intentionally not duplicated here. -->
         <Button Content="📁" Command="{Binding NewFolderCommand}" ToolTip.Tip="New folder (Ctrl+Shift+N)"
                 IsVisible="{Binding HiddenToolbarButtons, Converter={x:Static views:ToolbarButtonVisibleConverter.Instance}, ConverterParameter=newFolder}" />
         <Button Content="📄" Command="{Binding NewFileCommand}" ToolTip.Tip="New file"
