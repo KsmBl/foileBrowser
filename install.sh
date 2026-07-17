@@ -41,8 +41,17 @@ echo "==> Publishing (Release) to $APP_DIR"
 PUBLISH_ARGS=(-c Release -o "$APP_DIR" --nologo)
 if [ "$SELF_CONTAINED" -eq 1 ]; then
   # Self-contained/AOT builds are trimmed for a much smaller memory/disk footprint (see docs/PRD §6.12).
-  RID="$(dotnet --info 2>/dev/null | awk -F: '/RID:/{gsub(/ /,"",$2);print $2;exit}')"
-  [ -n "$RID" ] && PUBLISH_ARGS+=(-r "$RID")
+  # Use a *portable* RID (linux-x64, osx-arm64, …): distro-specific RIDs like "arch-x64" (what
+  # `dotnet --info` reports on Arch) have no runtime/ILCompiler packages on nuget.org.
+  case "$(uname -s)" in Darwin) rid_os=osx ;; *) rid_os=linux ;; esac
+  case "$(uname -m)" in
+    x86_64|amd64) rid_arch=x64 ;;
+    aarch64|arm64) rid_arch=arm64 ;;
+    armv7l|armv7|armhf) rid_arch=arm ;;
+    *) rid_arch=x64 ;;
+  esac
+  RID="${rid_os}-${rid_arch}"
+  PUBLISH_ARGS+=(-r "$RID")
   if [ "$AOT" -eq 1 ]; then
     command -v clang >/dev/null 2>&1 || { echo "error: --aot needs 'clang' (and zlib) to compile natively." >&2; exit 1; }
     PUBLISH_ARGS+=(--self-contained true -p:FoileAot=true)  # NativeAOT (smallest footprint)
