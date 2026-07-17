@@ -71,6 +71,11 @@ public partial class MainWindowViewModel : ViewModelBase
     [ObservableProperty]
     private bool _isToolbarVisible = true;
 
+    /// <summary>Ids of toolbar buttons hidden by the user; individual buttons bind their visibility to
+    /// this set via <see cref="Views.ToolbarButtonVisibleConverter"/> (PRD §6.8).</summary>
+    [ObservableProperty]
+    private IReadOnlyList<string> _hiddenToolbarButtons = [];
+
     /// <summary>Set by the view to prompt the user for a name (rename). Returns null if cancelled.</summary>
     public Func<string, Task<string?>>? NameRequester { get; set; }
 
@@ -404,6 +409,7 @@ public partial class MainWindowViewModel : ViewModelBase
         await _settings.LoadAsync();
         IsInspectorOpen = _settings.Current.IsInspectorOpen;
         IsToolbarVisible = _settings.Current.IsToolbarVisible;
+        HiddenToolbarButtons = _settings.Current.HiddenToolbarButtons.ToList();
 
         if (Enum.TryParse<SizeUnit>(_settings.Current.SizeUnit, out var unit))
             _display.SizeUnit = unit;
@@ -989,6 +995,7 @@ public partial class MainWindowViewModel : ViewModelBase
             await _settings.SaveAsync();
             ThemeChanged?.Invoke(this, EventArgs.Empty);
             ApplyKeybinds();
+            HiddenToolbarButtons = _settings.Current.HiddenToolbarButtons.ToList();
             await LoadSidebarAsync();
         }
     }

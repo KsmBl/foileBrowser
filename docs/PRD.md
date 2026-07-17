@@ -162,6 +162,8 @@ Check off items as they're completed; delete lines you decide not to build.
 - [x] Dark and light themes, following OS setting by default
 - [x] Custom accent color
 - [x] Font size and row-density settings
+- [x] Configurable toolbar — each button on the global operations toolbar can be individually shown or
+  hidden from Settings ▸ Toolbar (persisted)
 - [ ] Saved layouts (pane/tab/panel presets), switchable — session (open tabs + layout) restored across restart; multiple named presets pending
 - [x] Settings stored as portable JSON
 

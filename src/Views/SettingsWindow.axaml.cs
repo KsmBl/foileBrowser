@@ -17,6 +17,9 @@ public partial class SettingsWindow : Window
     /// <summary>Editable copy of the rebindable hotkeys; committed to settings on Save.</summary>
     public ObservableCollection<KeybindRow> Keybinds { get; } = [];
 
+    /// <summary>Per-button show/hide toggles for the operations toolbar (PRD §6.8).</summary>
+    public ObservableCollection<ToolbarOption> ToolbarOptions { get; } = [];
+
     public SettingsWindow() : this(new AppSettings(), [])
     {
     }
@@ -40,6 +43,9 @@ public partial class SettingsWindow : Window
         foreach (var command in rebindable)
             Keybinds.Add(new KeybindRow(command.Id, command.Title, command.DefaultGesture, command.Gesture));
         RecomputeConflicts();
+
+        foreach (var (id, label) in ToolbarButtons.All)
+            ToolbarOptions.Add(new ToolbarOption(id, label, enabled: !settings.HiddenToolbarButtons.Contains(id)));
     }
 
     // ---- keybind capture (PRD §6.6) ----
@@ -149,6 +155,8 @@ public partial class SettingsWindow : Window
             _settings.FontSize = (double)f;
         if (RowHeightBox.Value is { } r)
             _settings.RowHeight = (double)r;
+
+        _settings.HiddenToolbarButtons = ToolbarOptions.Where(o => !o.IsEnabled).Select(o => o.Id).ToList();
 
         // Persist only overrides: a gesture equal to the default is dropped (so it tracks default
         // changes); an empty gesture is stored explicitly to mean "unbound".

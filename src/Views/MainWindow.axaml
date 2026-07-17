@@ -86,33 +86,55 @@
             <Setter Property="Padding" Value="7,3" />
           </Style>
         </StackPanel.Styles>
-        <Button Content="←" Command="{Binding GoBackCommand}" ToolTip.Tip="Back (Alt+Left)" />
-        <Button Content="→" Command="{Binding GoForwardCommand}" ToolTip.Tip="Forward (Alt+Right)" />
-        <Button Content="↑" Command="{Binding GoUpCommand}" ToolTip.Tip="Up (Alt+Up)" />
-        <Button Content="🔄" Command="{Binding RefreshActiveCommand}" ToolTip.Tip="Refresh (F5)" />
+        <!-- Individual buttons can be hidden from Settings ▸ Toolbar; the ConverterParameter is the
+             button id in ToolbarButtons.All. -->
+        <Button Content="←" Command="{Binding GoBackCommand}" ToolTip.Tip="Back (Alt+Left)"
+                IsVisible="{Binding HiddenToolbarButtons, Converter={x:Static views:ToolbarButtonVisibleConverter.Instance}, ConverterParameter=back}" />
+        <Button Content="→" Command="{Binding GoForwardCommand}" ToolTip.Tip="Forward (Alt+Right)"
+                IsVisible="{Binding HiddenToolbarButtons, Converter={x:Static views:ToolbarButtonVisibleConverter.Instance}, ConverterParameter=forward}" />
+        <Button Content="↑" Command="{Binding GoUpCommand}" ToolTip.Tip="Up (Alt+Up)"
+                IsVisible="{Binding HiddenToolbarButtons, Converter={x:Static views:ToolbarButtonVisibleConverter.Instance}, ConverterParameter=up}" />
+        <Button Content="🔄" Command="{Binding RefreshActiveCommand}" ToolTip.Tip="Refresh (F5)"
+                IsVisible="{Binding HiddenToolbarButtons, Converter={x:Static views:ToolbarButtonVisibleConverter.Instance}, ConverterParameter=refresh}" />
         <Border Width="1" Background="{DynamicResource SystemControlForegroundBaseLowBrush}" Margin="4,2" />
-        <Button Content="📁" Command="{Binding NewFolderCommand}" ToolTip.Tip="New folder (Ctrl+Shift+N)" />
-        <Button Content="📄" Command="{Binding NewFileCommand}" ToolTip.Tip="New file" />
-        <Button Content="✏️" Command="{Binding RenameSelectedCommand}" ToolTip.Tip="Rename (F2)" />
-        <Button Content="🗑️" Command="{Binding DeleteSelectedCommand}" ToolTip.Tip="Delete to trash (Del)" />
+        <Button Content="📁" Command="{Binding NewFolderCommand}" ToolTip.Tip="New folder (Ctrl+Shift+N)"
+                IsVisible="{Binding HiddenToolbarButtons, Converter={x:Static views:ToolbarButtonVisibleConverter.Instance}, ConverterParameter=newFolder}" />
+        <Button Content="📄" Command="{Binding NewFileCommand}" ToolTip.Tip="New file"
+                IsVisible="{Binding HiddenToolbarButtons, Converter={x:Static views:ToolbarButtonVisibleConverter.Instance}, ConverterParameter=newFile}" />
+        <Button Content="✏️" Command="{Binding RenameSelectedCommand}" ToolTip.Tip="Rename (F2)"
+                IsVisible="{Binding HiddenToolbarButtons, Converter={x:Static views:ToolbarButtonVisibleConverter.Instance}, ConverterParameter=rename}" />
+        <Button Content="🗑️" Command="{Binding DeleteSelectedCommand}" ToolTip.Tip="Delete to trash (Del)"
+                IsVisible="{Binding HiddenToolbarButtons, Converter={x:Static views:ToolbarButtonVisibleConverter.Instance}, ConverterParameter=delete}" />
         <Border Width="1" Background="{DynamicResource SystemControlForegroundBaseLowBrush}" Margin="4,2" />
-        <Button Content="📋➡️" Command="{Binding CopyToOtherCommand}" ToolTip.Tip="Copy to other pane (F6)" />
-        <Button Content="✂️➡️" Command="{Binding MoveToOtherCommand}" ToolTip.Tip="Move to other pane (F7)" />
-        <Button Content="🔗" Command="{Binding CopyPathCommand}" ToolTip.Tip="Copy path" />
-        <Button Content="🏷️" Command="{Binding CopyNameCommand}" ToolTip.Tip="Copy name" />
-        <Button Content="🔤" Command="{Binding BatchRenameCommand}" ToolTip.Tip="Batch rename items in this folder" />
+        <Button Content="📋➡️" Command="{Binding CopyToOtherCommand}" ToolTip.Tip="Copy to other pane (F6)"
+                IsVisible="{Binding HiddenToolbarButtons, Converter={x:Static views:ToolbarButtonVisibleConverter.Instance}, ConverterParameter=copyToOther}" />
+        <Button Content="✂️➡️" Command="{Binding MoveToOtherCommand}" ToolTip.Tip="Move to other pane (F7)"
+                IsVisible="{Binding HiddenToolbarButtons, Converter={x:Static views:ToolbarButtonVisibleConverter.Instance}, ConverterParameter=moveToOther}" />
+        <Button Content="🔗" Command="{Binding CopyPathCommand}" ToolTip.Tip="Copy path"
+                IsVisible="{Binding HiddenToolbarButtons, Converter={x:Static views:ToolbarButtonVisibleConverter.Instance}, ConverterParameter=copyPath}" />
+        <Button Content="🏷️" Command="{Binding CopyNameCommand}" ToolTip.Tip="Copy name"
+                IsVisible="{Binding HiddenToolbarButtons, Converter={x:Static views:ToolbarButtonVisibleConverter.Instance}, ConverterParameter=copyName}" />
+        <Button Content="🔤" Command="{Binding BatchRenameCommand}" ToolTip.Tip="Batch rename items in this folder"
+                IsVisible="{Binding HiddenToolbarButtons, Converter={x:Static views:ToolbarButtonVisibleConverter.Instance}, ConverterParameter=batchRename}" />
         <Border Width="1" Background="{DynamicResource SystemControlForegroundBaseLowBrush}" Margin="4,2" />
-        <Button Content="💻" Command="{Binding OpenTerminalHereCommand}" ToolTip.Tip="Open terminal here" />
-        <Button Content="⭐" Command="{Binding PinFavoriteCommand}" ToolTip.Tip="Pin current folder to favorites" />
-        <Button Content="🗂️" Command="{Binding AddTabCommand}" ToolTip.Tip="New tab (Ctrl+T) — drag a tab out to make a new pane" />
+        <Button Content="💻" Command="{Binding OpenTerminalHereCommand}" ToolTip.Tip="Open terminal here"
+                IsVisible="{Binding HiddenToolbarButtons, Converter={x:Static views:ToolbarButtonVisibleConverter.Instance}, ConverterParameter=terminal}" />
+        <Button Content="⭐" Command="{Binding PinFavoriteCommand}" ToolTip.Tip="Pin current folder to favorites"
+                IsVisible="{Binding HiddenToolbarButtons, Converter={x:Static views:ToolbarButtonVisibleConverter.Instance}, ConverterParameter=pin}" />
+        <Button Content="🗂️" Command="{Binding AddTabCommand}" ToolTip.Tip="New tab (Ctrl+T) — drag a tab out to make a new pane"
+                IsVisible="{Binding HiddenToolbarButtons, Converter={x:Static views:ToolbarButtonVisibleConverter.Instance}, ConverterParameter=newTab}" />
         <ToggleButton Content="🔍" IsChecked="{Binding IsInspectorOpen, Mode=OneWay}"
-                      Command="{Binding ToggleInspectorCommand}" ToolTip.Tip="Toggle inspector (Ctrl+I)" />
+                      Command="{Binding ToggleInspectorCommand}" ToolTip.Tip="Toggle inspector (Ctrl+I)"
+                      IsVisible="{Binding HiddenToolbarButtons, Converter={x:Static views:ToolbarButtonVisibleConverter.Instance}, ConverterParameter=inspector}" />
         <Border Width="1" Background="{DynamicResource SystemControlForegroundBaseLowBrush}" Margin="4,2" />
         <Button Content="{Binding SizeUnitLabel}" FontSize="12" Command="{Binding CycleSizeUnitCommand}"
-                ToolTip.Tip="Size units: binary (KiB) → decimal (KB) → bytes" />
+                ToolTip.Tip="Size units: binary (KiB) → decimal (KB) → bytes"
+                IsVisible="{Binding HiddenToolbarButtons, Converter={x:Static views:ToolbarButtonVisibleConverter.Instance}, ConverterParameter=sizeUnit}" />
         <Button Content="{Binding DateFormatLabel}" FontSize="12" Command="{Binding CycleDateFormatCommand}"
-                ToolTip.Tip="Date format: absolute ↔ relative (e.g. 5 min ago)" />
-        <Button Content="⚙️" Command="{Binding OpenSettingsCommand}" ToolTip.Tip="Settings" />
+                ToolTip.Tip="Date format: absolute ↔ relative (e.g. 5 min ago)"
+                IsVisible="{Binding HiddenToolbarButtons, Converter={x:Static views:ToolbarButtonVisibleConverter.Instance}, ConverterParameter=dateFormat}" />
+        <Button Content="⚙️" Command="{Binding OpenSettingsCommand}" ToolTip.Tip="Settings"
+                IsVisible="{Binding HiddenToolbarButtons, Converter={x:Static views:ToolbarButtonVisibleConverter.Instance}, ConverterParameter=settings}" />
       </StackPanel>
     </Border>
 

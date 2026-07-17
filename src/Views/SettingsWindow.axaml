@@ -40,6 +40,23 @@
         </StackPanel>
       </TabItem>
 
+      <!-- Toolbar buttons (PRD §6.8) -->
+      <TabItem Header="Toolbar">
+        <DockPanel Margin="4,10">
+          <TextBlock DockPanel.Dock="Top" Margin="0,0,0,8" FontSize="12" Opacity="0.7"
+                     Text="Show or hide individual buttons on the top operations toolbar." />
+          <ScrollViewer>
+            <ItemsControl ItemsSource="{Binding ToolbarOptions}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:ToolbarOption">
+                  <CheckBox Content="{Binding Label}" IsChecked="{Binding IsEnabled, Mode=TwoWay}" Margin="0,1" />
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </ScrollViewer>
+        </DockPanel>
+      </TabItem>
+
       <!-- Keybinds (interactive capture — PRD §6.6) -->
       <TabItem Header="Keybinds">
         <DockPanel Margin="4,10">
