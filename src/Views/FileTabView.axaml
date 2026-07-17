@@ -109,6 +109,7 @@
     <Border DockPanel.Dock="Left" Width="185" Padding="6" IsVisible="{Binding IsSidebarVisible}"
             BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" BorderThickness="0,0,1,0">
       <ScrollViewer>
+       <StackPanel>
         <ItemsControl ItemsSource="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Sidebar}">
           <ItemsControl.ItemTemplate>
             <DataTemplate x:DataType="vm:SidebarItemViewModel">
@@ -161,6 +162,29 @@
             </DataTemplate>
           </ItemsControl.ItemTemplate>
         </ItemsControl>
+
+        <!-- Folder-tree navigator (toggled in Settings ▸ Sidebar); navigates this pane on selection -->
+        <StackPanel IsVisible="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).IsTreeVisible}">
+          <TextBlock Text="Folders" FontWeight="Bold" Margin="2,10,0,2" Opacity="0.7" FontSize="12" />
+          <TreeView ItemsSource="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).TreeRoots}"
+                    SelectionChanged="OnTreeSelectionChanged">
+            <TreeView.ItemContainerTheme>
+              <ControlTheme TargetType="TreeViewItem" BasedOn="{StaticResource {x:Type TreeViewItem}}"
+                            x:DataType="vm:FolderNodeViewModel">
+                <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
+              </ControlTheme>
+            </TreeView.ItemContainerTheme>
+            <TreeView.ItemTemplate>
+              <TreeDataTemplate ItemsSource="{Binding Children}" x:DataType="vm:FolderNodeViewModel">
+                <StackPanel Orientation="Horizontal" Spacing="5">
+                  <TextBlock Text="📁" FontSize="11" VerticalAlignment="Center" />
+                  <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                </StackPanel>
+              </TreeDataTemplate>
+            </TreeView.ItemTemplate>
+          </TreeView>
+        </StackPanel>
+       </StackPanel>
       </ScrollViewer>
     </Border>
 

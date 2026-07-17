@@ -28,6 +28,12 @@ public sealed class AppSettings
     /// <summary>Whether each pane's filter/search bar is shown by default; when false, Ctrl+F reveals it (PRD §6.4).</summary>
     public bool SearchBarVisible { get; set; } = true;
 
+    // Which navigation-sidebar sections are shown (PRD §6.2). The folder tree is off by default.
+    public bool SidebarShowFavorites { get; set; } = true;
+    public bool SidebarShowDrives { get; set; } = true;
+    public bool SidebarShowDevices { get; set; } = true;
+    public bool SidebarShowTree { get; set; }
+
     /// <summary>Master switch for the destructive "Format…" action on drives/partitions — off by default (PRD §6.10).</summary>
     public bool EnableDiskFormatting { get; set; }
 

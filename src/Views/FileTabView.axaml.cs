@@ -171,6 +171,14 @@ public partial class FileTabView : UserControl
             vm.OpenCommand.Execute(selected);
     }
 
+    // Selecting a folder in the tree navigates this pane there (the tree is per-pane).
+    private void OnTreeSelectionChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (sender is TreeView { SelectedItem: FolderNodeViewModel { Path.Length: > 0 } node }
+            && DataContext is FileTabViewModel tab)
+            _ = tab.NavigateToAsync(node.Path);
+    }
+
     private void OnListKeyDown(object? sender, KeyEventArgs e)
     {
         var shell = (TopLevel.GetTopLevel(this) as MainWindow)?.DataContext as MainWindowViewModel;

@@ -61,6 +61,13 @@ public partial class MainWindowViewModel : ViewModelBase
     public CommandPaletteViewModel CommandPalette { get; }
     public ObservableCollection<SidebarItemViewModel> Sidebar { get; } = [];
 
+    /// <summary>Root nodes of the sidebar folder-tree navigator (PRD §6.2), built lazily when enabled.</summary>
+    public ObservableCollection<FolderNodeViewModel> TreeRoots { get; } = [];
+
+    /// <summary>Whether the folder-tree section is shown in each pane's sidebar (Settings ▸ Sidebar).</summary>
+    [ObservableProperty]
+    private bool _isTreeVisible;
+
     // Inspector panel state (PRD §6.5).
     [ObservableProperty]
     private PreviewResult? _preview;
@@ -677,23 +684,52 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private async Task LoadSidebarAsync()
     {
+        var s = _settings.Current;
         Sidebar.Clear();
-        Sidebar.Add(new SidebarItemViewModel { Name = "Favorites", Kind = SidebarItemKind.Header });
-        foreach (var fav in BuildFavorites())
-            Sidebar.Add(fav);
+
+        if (s.SidebarShowFavorites)
+        {
+            Sidebar.Add(new SidebarItemViewModel { Name = "Favorites", Kind = SidebarItemKind.Header });
+            foreach (var fav in BuildFavorites())
+                Sidebar.Add(fav);
+        }
 
         var volumes = await _fileSystem.ListVolumesAsync();
         _volumeSignature = VolumeSignature(volumes);
 
-        Sidebar.Add(new SidebarItemViewModel { Name = "Drives", Kind = SidebarItemKind.Header });
-        AddVolumeGroups(volumes.Where(v => v.Kind == VolumeKind.Fixed).ToList(), removableSection: false);
+        if (s.SidebarShowDrives)
+        {
+            Sidebar.Add(new SidebarItemViewModel { Name = "Drives", Kind = SidebarItemKind.Header });
+            AddVolumeGroups(volumes.Where(v => v.Kind == VolumeKind.Fixed).ToList(), removableSection: false);
+        }
 
         var removable = volumes.Where(v => v.IsRemovable).ToList();
-        if (removable.Count > 0)
+        if (s.SidebarShowDevices && removable.Count > 0)
         {
             Sidebar.Add(new SidebarItemViewModel { Name = "Devices", Kind = SidebarItemKind.Header });
             AddVolumeGroups(removable, removableSection: true);
         }
+
+        // Folder tree: build its roots once (preserving expansion across device-poll refreshes).
+        IsTreeVisible = s.SidebarShowTree;
+        if (s.SidebarShowTree)
+            BuildTreeRoots(volumes);
+        else
+            TreeRoots.Clear();
+    }
+
+    /// <summary>Builds the folder-tree roots (Home + each fixed drive) if not already present.</summary>
+    private void BuildTreeRoots(IReadOnlyList<DriveVolume> volumes)
+    {
+        if (TreeRoots.Count > 0)
+            return;
+
+        var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        if (!string.IsNullOrEmpty(home) && _fileSystem.DirectoryExists(home))
+            TreeRoots.Add(new FolderNodeViewModel("Home", home));
+
+        foreach (var volume in volumes.Where(v => v.Kind == VolumeKind.Fixed))
+            TreeRoots.Add(new FolderNodeViewModel(volume.Label, volume.RootPath));
     }
 
     /// <summary>
@@ -873,16 +909,6 @@ public partial class MainWindowViewModel : ViewModelBase
         if (item is null || _settings.Current.HiddenDefaultFavorites.Contains(item.Name))
             return;
         _settings.Current.HiddenDefaultFavorites.Add(item.Name);
-        await _settings.SaveAsync();
-        await LoadSidebarAsync();
-    }
-
-    /// <summary>Restores all previously-removed built-in favorites (offered in Settings ▸ Sidebar).</summary>
-    public async Task RestoreDefaultFavoritesAsync()
-    {
-        if (_settings.Current.HiddenDefaultFavorites.Count == 0)
-            return;
-        _settings.Current.HiddenDefaultFavorites.Clear();
         await _settings.SaveAsync();
         await LoadSidebarAsync();
     }

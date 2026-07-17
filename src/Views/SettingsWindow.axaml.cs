@@ -52,6 +52,17 @@ public partial class SettingsWindow : Window
         foreach (var (id, label) in ToolbarButtons.All)
             ToolbarOptions.Add(new ToolbarOption(id, label, enabled: !settings.HiddenToolbarButtons.Contains(id)));
 
+        SidebarFavoritesBox.IsChecked = settings.SidebarShowFavorites;
+        SidebarDrivesBox.IsChecked = settings.SidebarShowDrives;
+        SidebarDevicesBox.IsChecked = settings.SidebarShowDevices;
+        SidebarTreeBox.IsChecked = settings.SidebarShowTree;
+        if (settings.HiddenDefaultFavorites.Count > 0)
+        {
+            RestoreDefaultsBox.IsVisible = true;
+            RestoreDefaultsBox.Content =
+                $"Restore {settings.HiddenDefaultFavorites.Count} removed built-in favorite(s) on save";
+        }
+
         EnableFormatBox.IsChecked = settings.EnableDiskFormatting;
         foreach (var fs in availableFilesystems)
             FormatFilesystemOptions.Add(new ToolbarOption(fs.Id, fs.Display,
@@ -170,6 +181,13 @@ public partial class SettingsWindow : Window
 
         _settings.HiddenToolbarButtons = ToolbarOptions.Where(o => !o.IsEnabled).Select(o => o.Id).ToList();
         _settings.SearchBarVisible = SearchBarBox.IsChecked ?? true;
+
+        _settings.SidebarShowFavorites = SidebarFavoritesBox.IsChecked ?? true;
+        _settings.SidebarShowDrives = SidebarDrivesBox.IsChecked ?? true;
+        _settings.SidebarShowDevices = SidebarDevicesBox.IsChecked ?? true;
+        _settings.SidebarShowTree = SidebarTreeBox.IsChecked ?? false;
+        if (RestoreDefaultsBox.IsChecked == true)
+            _settings.HiddenDefaultFavorites.Clear();
 
         _settings.EnableDiskFormatting = EnableFormatBox.IsChecked ?? false;
         // Store the offered set only when it's a real subset; all-selected persists as "offer everything".

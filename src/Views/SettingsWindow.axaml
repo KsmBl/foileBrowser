@@ -59,6 +59,20 @@
         </DockPanel>
       </TabItem>
 
+      <!-- Sidebar sections (PRD §6.2) -->
+      <TabItem Header="Sidebar">
+        <StackPanel Margin="4,12" Spacing="8">
+          <TextBlock Text="Sections shown in each pane's navigation sidebar:" Opacity="0.7" FontSize="12" />
+          <CheckBox x:Name="SidebarFavoritesBox" Content="Favorites" />
+          <CheckBox x:Name="SidebarDrivesBox" Content="Drives" />
+          <CheckBox x:Name="SidebarDevicesBox" Content="Devices (removable)" />
+          <CheckBox x:Name="SidebarTreeBox" Content="Folder tree navigator" />
+          <Border Height="1" Background="{DynamicResource SystemControlForegroundBaseLowBrush}" Margin="0,6" />
+          <CheckBox x:Name="RestoreDefaultsBox" IsVisible="False"
+                    Content="Restore removed built-in favorites (Home/Desktop/…) on save" />
+        </StackPanel>
+      </TabItem>
+
       <!-- Disks (destructive — PRD §6.10) -->
       <TabItem Header="Disks">
         <DockPanel Margin="4,10">
