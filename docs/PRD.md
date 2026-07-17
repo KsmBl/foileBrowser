@@ -263,14 +263,16 @@ Check off items as they're completed; delete lines you decide not to build.
     coreclr, JIT) ≈ 33 MB, **libX11 ≈ 20 MB** (X11 client lib, mapped even under XWayland), the managed
     heap/JIT-code ≈ 27 MB, SkiaSharp ≈ 4 MB, Avalonia managed assemblies a few MB. Trimming/AOT already
     removes the JIT and unused framework code (hence the ~79 MB AOT figure).
+  - **Dock.Avalonia was dropped** in favour of an in-house docking model + view (`src/Docking`,
+    `Views/DockLayoutView`). Beyond removing ~10 dependency assemblies, it shaved the footprint to
+    ~131 MB RSS / ~99 MB PSS (from ~137 / ~110) — a modest win, as expected, since Dock's managed dlls
+    were small. The real value is the removed dependency and a portable, toolkit-agnostic layout core.
   - **Going lower means giving something up** — the remaining floor is the .NET runtime + Skia + X11,
-    not Avalonia sub-packages. Options and their costs: dropping **Dock.Avalonia** saves little (its
-    managed dlls are <1.5 MB each) but would remove the dockable/floating multi-pane layout (a core
-    feature); switching **Fluent → Simple theme** would break the current styling (which relies on
-    `SystemControl*` brushes); an experimental **Wayland backend** could shed libX11's ~20 MB but is not
-    production-ready. A materially smaller footprint (≪64 MB) would require leaving the Avalonia/Skia
-    stack entirely (native GTK/Qt or hand-rolled), i.e. a rewrite — recorded here as a deliberate,
-    not-yet-taken decision.
+    not Avalonia sub-packages. Switching **Fluent → Simple theme** would break the current styling (which
+    relies on `SystemControl*` brushes); an experimental **Wayland backend** could shed libX11's ~20 MB
+    but is not production-ready. A materially smaller footprint (≪64 MB) would require leaving the
+    Avalonia/Skia stack entirely (native GTK/Qt or hand-rolled), i.e. a rewrite — the in-house docking
+    model is a first step towards that portability, recorded here as a deliberate direction.
 
 ## 7. Milestones
 
