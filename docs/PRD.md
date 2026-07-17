@@ -127,6 +127,9 @@ Check off items as they're completed; delete lines you decide not to build.
 - [x] Extension/type filters on search results, including extension-only search (empty name query +
   extension filter returns every file of that type); Enter in the extension box starts the search
 - [x] Search cancellation and progressive result streaming
+- [x] The per-pane filter/search bar can be hidden by default (Settings ▸ General) and summoned on
+  demand with Ctrl+F, which reveals and focuses it; Escape dismisses a revealed bar and returns focus
+  to the file list
 
 ### 6.5 Preview
 

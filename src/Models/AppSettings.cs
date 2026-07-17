@@ -25,6 +25,9 @@ public sealed class AppSettings
     /// <summary>Ids of global-toolbar buttons the user has hidden (PRD §6.8). Empty = show all.</summary>
     public List<string> HiddenToolbarButtons { get; set; } = [];
 
+    /// <summary>Whether each pane's filter/search bar is shown by default; when false, Ctrl+F reveals it (PRD §6.4).</summary>
+    public bool SearchBarVisible { get; set; } = true;
+
     /// <summary>Size display mode: "Binary", "Decimal", or "Bytes" (PRD §6.2).</summary>
     public string SizeUnit { get; set; } = "Binary";
 

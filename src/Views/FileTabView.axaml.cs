@@ -56,6 +56,17 @@ public partial class FileTabView : UserControl
             SearchBox.SelectAll();
         });
 
+    // Escape from the search box collapses a revealed-on-demand bar and returns focus to the file list.
+    private void OnSearchBoxKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.Escape)
+            return;
+        if ((TopLevel.GetTopLevel(this) as MainWindow)?.DataContext is MainWindowViewModel shell)
+            shell.CollapseSearchBar();
+        FileList.Focus();
+        e.Handled = true;
+    }
+
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnAttachedToVisualTree(e);

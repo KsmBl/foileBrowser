@@ -76,6 +76,14 @@ public partial class MainWindowViewModel : ViewModelBase
     [ObservableProperty]
     private IReadOnlyList<string> _hiddenToolbarButtons = [];
 
+    /// <summary>Whether every pane's filter/search bar is shown; when off it's revealed on demand by
+    /// Ctrl+F for the session and collapsed again on Escape (PRD §6.4).</summary>
+    [ObservableProperty]
+    private bool _isSearchBarVisible = true;
+
+    /// <summary>Escape from a revealed-on-demand search bar returns it to its configured state.</summary>
+    public void CollapseSearchBar() => IsSearchBarVisible = _settings.Current.SearchBarVisible;
+
     /// <summary>Set by the view to prompt the user for a name (rename). Returns null if cancelled.</summary>
     public Func<string, Task<string?>>? NameRequester { get; set; }
 
@@ -410,6 +418,7 @@ public partial class MainWindowViewModel : ViewModelBase
         IsInspectorOpen = _settings.Current.IsInspectorOpen;
         IsToolbarVisible = _settings.Current.IsToolbarVisible;
         HiddenToolbarButtons = _settings.Current.HiddenToolbarButtons.ToList();
+        IsSearchBarVisible = _settings.Current.SearchBarVisible;
 
         if (Enum.TryParse<SizeUnit>(_settings.Current.SizeUnit, out var unit))
             _display.SizeUnit = unit;
@@ -601,9 +610,13 @@ public partial class MainWindowViewModel : ViewModelBase
     [RelayCommand]
     private void FocusPathBar() => ActiveTab?.BeginEditPathCommand.Execute(null);
 
-    /// <summary>Ctrl+F: focus the active tab's subtree-search box (PRD §6.4).</summary>
+    /// <summary>Ctrl+F: reveal (if hidden) and focus the active tab's subtree-search box (PRD §6.4).</summary>
     [RelayCommand]
-    private void FocusSearch() => ActiveTab?.FocusSearch();
+    private void FocusSearch()
+    {
+        IsSearchBarVisible = true; // a hidden bar is revealed for this session on demand
+        ActiveTab?.FocusSearch();
+    }
 
     [RelayCommand]
     private void ShowAbout()
@@ -996,6 +1009,7 @@ public partial class MainWindowViewModel : ViewModelBase
             ThemeChanged?.Invoke(this, EventArgs.Empty);
             ApplyKeybinds();
             HiddenToolbarButtons = _settings.Current.HiddenToolbarButtons.ToList();
+            IsSearchBarVisible = _settings.Current.SearchBarVisible;
             await LoadSidebarAsync();
         }
     }

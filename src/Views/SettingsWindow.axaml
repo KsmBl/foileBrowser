@@ -37,6 +37,8 @@
             <TextBlock Grid.Row="3" Grid.Column="0" Text="Row height" VerticalAlignment="Center" Margin="0,8,0,0" />
             <NumericUpDown Grid.Row="3" Grid.Column="1" x:Name="RowHeightBox" Minimum="18" Maximum="48" Increment="2" Margin="0,8,0,0" />
           </Grid>
+
+          <CheckBox x:Name="SearchBarBox" Content="Show the filter/search bar in each pane (else use Ctrl+F to reveal it)" />
         </StackPanel>
       </TabItem>
 

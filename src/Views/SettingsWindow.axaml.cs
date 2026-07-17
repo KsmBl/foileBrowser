@@ -39,6 +39,7 @@ public partial class SettingsWindow : Window
         AccentBox.Text = settings.AccentColor;
         FontBox.Value = (decimal)settings.FontSize;
         RowHeightBox.Value = (decimal)settings.RowHeight;
+        SearchBarBox.IsChecked = settings.SearchBarVisible;
 
         foreach (var command in rebindable)
             Keybinds.Add(new KeybindRow(command.Id, command.Title, command.DefaultGesture, command.Gesture));
@@ -157,6 +158,7 @@ public partial class SettingsWindow : Window
             _settings.RowHeight = (double)r;
 
         _settings.HiddenToolbarButtons = ToolbarOptions.Where(o => !o.IsEnabled).Select(o => o.Id).ToList();
+        _settings.SearchBarVisible = SearchBarBox.IsChecked ?? true;
 
         // Persist only overrides: a gesture equal to the default is dropped (so it tracks default
         // changes); an empty gesture is stored explicitly to mean "unbound".

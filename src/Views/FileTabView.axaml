@@ -73,13 +73,14 @@
       </Grid>
     </Border>
 
-    <!-- Filter (as-you-type) + recursive search bar (PRD §6.4) -->
-    <Border DockPanel.Dock="Top" Padding="4,3" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" BorderThickness="0,0,0,1">
+    <!-- Filter (as-you-type) + recursive search bar (PRD §6.4); hideable, revealed on demand by Ctrl+F -->
+    <Border DockPanel.Dock="Top" Padding="4,3" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" BorderThickness="0,0,0,1"
+            IsVisible="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).IsSearchBarVisible}">
       <Grid ColumnDefinitions="*,6,*,Auto,Auto">
         <TextBox Grid.Column="0" Text="{Binding FilterText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                  Watermark="Filter this folder…" FontSize="12" />
         <TextBox Grid.Column="2" x:Name="SearchBox" Text="{Binding SearchQuery, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                 Watermark="Search subtree (Enter)…" FontSize="12">
+                 Watermark="Search subtree (Enter, Esc to dismiss)…" FontSize="12" KeyDown="OnSearchBoxKeyDown">
           <TextBox.KeyBindings>
             <KeyBinding Gesture="Enter" Command="{Binding StartSearchCommand}" />
           </TextBox.KeyBindings>
@@ -156,7 +157,7 @@
     </Border>
 
     <!-- Virtualized file list -->
-    <ListBox ItemsSource="{Binding Entries}"
+    <ListBox x:Name="FileList" ItemsSource="{Binding Entries}"
              SelectedItem="{Binding SelectedEntry, Mode=TwoWay}"
              DoubleTapped="OnEntryActivated"
              KeyDown="OnListKeyDown"
