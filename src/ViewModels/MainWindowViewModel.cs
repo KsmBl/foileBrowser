@@ -706,7 +706,7 @@ public partial class MainWindowViewModel : ViewModelBase
             Sidebar.Add(ToSidebar(volume, rowKind));
     }
 
-    private static SidebarItemViewModel ToSidebar(DriveVolume volume, SidebarItemKind kind) => new()
+    private SidebarItemViewModel ToSidebar(DriveVolume volume, SidebarItemKind kind) => new()
     {
         // Partitions label with the device leaf (e.g. "sda1") when the mount label is just its path.
         Name = kind == SidebarItemKind.Partition && volume.Device is { } d
@@ -718,6 +718,10 @@ public partial class MainWindowViewModel : ViewModelBase
         TotalBytes = volume.TotalBytes,
         FileSystem = volume.FileSystem ?? (volume.Kind == VolumeKind.Gvfs ? "GVfs" : null),
         IsEjectable = volume.IsRemovable,
+        OpenCommand = OpenSidebarItemCommand,
+        OpenInNewTabCommand = OpenSidebarInNewTabCommand,
+        OpenInNewPaneCommand = OpenSidebarInNewPaneCommand,
+        EjectCommand = EjectCommand,
     };
 
     private static string VolumeSignature(IReadOnlyList<DriveVolume> volumes) =>
@@ -777,7 +781,13 @@ public partial class MainWindowViewModel : ViewModelBase
                 : Environment.GetFolderPath(folder);
 
             if (!string.IsNullOrEmpty(path) && _fileSystem.DirectoryExists(path))
-                yield return new SidebarItemViewModel { Name = name, Path = path, Kind = SidebarItemKind.Favorite };
+                yield return new SidebarItemViewModel
+                {
+                    Name = name, Path = path, Kind = SidebarItemKind.Favorite,
+                    OpenCommand = OpenSidebarItemCommand,
+                    OpenInNewTabCommand = OpenSidebarInNewTabCommand,
+                    OpenInNewPaneCommand = OpenSidebarInNewPaneCommand,
+                };
         }
 
         // User-pinned favorites persisted in settings (PRD §6.2, §6.8). Only these can be unpinned.
@@ -790,6 +800,9 @@ public partial class MainWindowViewModel : ViewModelBase
                     Path = path,
                     Kind = SidebarItemKind.Favorite,
                     UnpinCommand = UnpinFavoriteCommand,
+                    OpenCommand = OpenSidebarItemCommand,
+                    OpenInNewTabCommand = OpenSidebarInNewTabCommand,
+                    OpenInNewPaneCommand = OpenSidebarInNewPaneCommand,
                 };
         }
     }
@@ -809,6 +822,38 @@ public partial class MainWindowViewModel : ViewModelBase
         if (item is { IsNavigable: true } && ActiveTab is { } tab)
             return tab.NavigateToAsync(item.Path);
         return Task.CompletedTask;
+    }
+
+    /// <summary>Context menu: opens a sidebar target in a new tab in the active pane.</summary>
+    [RelayCommand]
+    private async Task OpenSidebarInNewTab(SidebarItemViewModel? item)
+    {
+        if (item is not { IsNavigable: true })
+            return;
+        var tab = CreateTab();
+        var dock = (ActiveTab?.Owner as IDocumentDock) ?? CollectDocks().FirstOrDefault();
+        if (dock is not null)
+            _dockFactory.AddDockable(dock, tab);
+        else
+            AddNewDock(MakeDock(tab));
+        Focus(tab);
+        await tab.NavigateToAsync(item.Path);
+    }
+
+    /// <summary>Context menu: opens a sidebar target in a new pane split to the right.</summary>
+    [RelayCommand]
+    private async Task OpenSidebarInNewPane(SidebarItemViewModel? item)
+    {
+        if (item is not { IsNavigable: true })
+            return;
+        var tab = CreateTab();
+        var target = (ActiveTab?.Owner as IDock) ?? _tabArea.VisibleDockables?.OfType<IDock>().LastOrDefault();
+        if (target is not null)
+            _dockFactory.SplitToDock(target, tab, DockOperation.Right);
+        else
+            AddNewDock(MakeDock(tab));
+        Focus(tab);
+        await tab.NavigateToAsync(item.Path);
     }
 
     // ---- file operations ----

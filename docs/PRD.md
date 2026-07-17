@@ -187,6 +187,8 @@ Check off items as they're completed; delete lines you decide not to build.
 - [x] Browse existing GVfs/GIO mounts generally (`/run/user/<uid>/gvfs`), not just phones
 - [ ] Android on Windows via WPD/MTP shell namespace (read/copy at minimum)
 - [x] Auto-refresh volume list on device plug/unplug events
+- [x] Sidebar context menu — right-click a favorite/drive/partition/device to Open, Open in New Tab,
+  Open in New Pane, Eject/Unmount (removable) or Unpin (favorites)
 - [x] Per-device free-space bar & value and filesystem-type display
 - [x] Recognise partitions of the same physical disk and group them under one drive (indented
   partitions with their fs/free-space), instead of scattering them as separate devices — the disk's

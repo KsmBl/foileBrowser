@@ -41,7 +41,16 @@ public sealed class SidebarItemViewModel
     /// <summary>Set by the shell for user-pinned favorites so they can be unpinned via the context menu.</summary>
     public ICommand? UnpinCommand { get; init; }
 
+    // Context-menu actions, injected by the shell so the popup (a separate visual tree) can reach them.
+    public ICommand? OpenCommand { get; init; }
+    public ICommand? OpenInNewTabCommand { get; init; }
+    public ICommand? OpenInNewPaneCommand { get; init; }
+    public ICommand? EjectCommand { get; init; }
+
     public bool CanUnpin => UnpinCommand is not null;
+
+    /// <summary>True when the sidebar row has any context-menu action below "open" (keeps the separator tidy).</summary>
+    public bool HasActions => IsEjectable || CanUnpin;
 
     public bool IsNavigable =>
         Kind is SidebarItemKind.Favorite or SidebarItemKind.Drive or SidebarItemKind.Device or SidebarItemKind.Partition;

@@ -129,6 +129,12 @@
                           CommandParameter="{Binding}">
                     <Button.ContextMenu>
                       <ContextMenu>
+                        <MenuItem Header="Open" Command="{Binding OpenCommand}" CommandParameter="{Binding}" />
+                        <MenuItem Header="Open in New Tab" Command="{Binding OpenInNewTabCommand}" CommandParameter="{Binding}" />
+                        <MenuItem Header="Open in New Pane" Command="{Binding OpenInNewPaneCommand}" CommandParameter="{Binding}" />
+                        <Separator IsVisible="{Binding HasActions}" />
+                        <MenuItem Header="Eject / Unmount" IsVisible="{Binding IsEjectable}"
+                                  Command="{Binding EjectCommand}" CommandParameter="{Binding}" />
                         <MenuItem Header="Unpin from favorites" IsVisible="{Binding CanUnpin}"
                                   Command="{Binding UnpinCommand}" CommandParameter="{Binding}" />
                       </ContextMenu>
