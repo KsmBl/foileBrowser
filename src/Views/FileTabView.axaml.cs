@@ -4,6 +4,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Reactive;
+using Avalonia.VisualTree;
 using FoileBrowser.ViewModels;
 
 namespace FoileBrowser.Views;
@@ -132,13 +133,22 @@ public partial class FileTabView : UserControl
 
     private static string HeaderText(MenuItem item) => item.Header?.ToString() ?? string.Empty;
 
-    // Right-clicking a row selects it first, so the context menu acts on the item under the cursor.
+    // Right-clicking a row selects it (so the context menu acts on it); left-clicking the empty area
+    // below the last item clears the selection.
     private void OnListPointerPressed(object? sender, PointerPressedEventArgs e)
     {
-        if (!e.GetCurrentPoint(sender as Control).Properties.IsRightButtonPressed)
+        var props = e.GetCurrentPoint(sender as Control).Properties;
+        var row = (e.Source as Visual)?.FindAncestorOfType<ListBoxItem>(includeSelf: true);
+
+        if (props.IsRightButtonPressed)
+        {
+            if (row?.DataContext is FileEntryViewModel entry && DataContext is FileTabViewModel tab)
+                tab.SelectedEntry = entry;
             return;
-        if ((e.Source as Control)?.DataContext is FileEntryViewModel entry && DataContext is FileTabViewModel tab)
-            tab.SelectedEntry = entry;
+        }
+
+        if (props.IsLeftButtonPressed && row is null && DataContext is FileTabViewModel t)
+            t.SelectedEntry = null;
     }
 
     // Clicking the empty area of the breadcrumb bar switches it to an editable path entry (Thunar-style).

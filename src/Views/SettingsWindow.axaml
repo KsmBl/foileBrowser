@@ -92,8 +92,9 @@
             <TextBlock Text="Click a shortcut, then press the keys to bind it." Opacity="0.7" VerticalAlignment="Center" FontSize="12" />
             <Button Content="Reset all" Click="OnResetAllKeybinds" FontSize="12" Padding="6,2" />
           </StackPanel>
-          <ScrollViewer>
-            <ItemsControl x:Name="KeybindList" ItemsSource="{Binding Keybinds}">
+          <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+            <!-- Right margin keeps the ✕/Reset buttons clear of the vertical scrollbar's wide state. -->
+            <ItemsControl x:Name="KeybindList" ItemsSource="{Binding Keybinds}" Margin="0,0,16,0">
               <ItemsControl.ItemTemplate>
                 <DataTemplate x:DataType="vm:KeybindRow">
                   <Grid ColumnDefinitions="*,150,Auto,Auto" Margin="0,2">
