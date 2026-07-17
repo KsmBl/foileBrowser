@@ -137,22 +137,33 @@ public partial class FileTabView : UserControl
 
     private static string HeaderText(MenuItem item) => item.Header?.ToString() ?? string.Empty;
 
-    // Right-clicking a row selects it (so the context menu acts on it); left-clicking the empty area
-    // below the last item clears the selection.
+    // Pushes the full multi-selection to the view model (for the status summary and batch operations).
+    private void OnListSelectionChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (sender is ListBox list && DataContext is FileTabViewModel tab)
+            tab.SetSelection(list.SelectedItems?.OfType<FileEntryViewModel>().ToList() ?? []);
+    }
+
+    // Right-clicking keeps an existing multi-selection (so the menu acts on all of it); otherwise it
+    // selects just the row under the cursor. Left-clicking the empty area below the list deselects.
     private void OnListPointerPressed(object? sender, PointerPressedEventArgs e)
     {
-        var props = e.GetCurrentPoint(sender as Control).Properties;
+        var list = sender as ListBox;
+        var props = e.GetCurrentPoint(list).Properties;
         var row = (e.Source as Visual)?.FindAncestorOfType<ListBoxItem>(includeSelf: true);
 
         if (props.IsRightButtonPressed)
         {
-            if (row?.DataContext is FileEntryViewModel entry && DataContext is FileTabViewModel tab)
-                tab.SelectedEntry = entry;
+            if (row?.DataContext is FileEntryViewModel entry && list?.SelectedItems is { } sel && !sel.Contains(entry))
+            {
+                sel.Clear();
+                sel.Add(entry);
+            }
             return;
         }
 
-        if (props.IsLeftButtonPressed && row is null && DataContext is FileTabViewModel t)
-            t.SelectedEntry = null;
+        if (props.IsLeftButtonPressed && row is null)
+            list?.SelectedItems?.Clear();
     }
 
     // Clicking the empty area of the breadcrumb bar switches it to an editable path entry (Thunar-style).

@@ -55,6 +55,8 @@ Check off items as they're completed; delete lines you decide not to build.
 - [x] Sorting by any column, ascending/descending
 - [x] Hidden/system file visibility toggle
 - [x] Navigation history: back / forward / up
+- [x] Multiple selection (click, Ctrl/Shift-click): when a selection is present the status bar shows
+  the count and total size of the selected items, and copy/move/delete act on the whole selection
 - [x] Clicking the empty area below the file list clears the current selection
 - [x] Properties window (Alt+Enter): shows the selected item's type, location, full path, size (folders
   are measured in the background), created/modified times and Unix permissions

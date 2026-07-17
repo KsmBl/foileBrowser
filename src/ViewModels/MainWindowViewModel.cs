@@ -1332,7 +1332,9 @@ public partial class MainWindowViewModel : ViewModelBase
     // ---- helpers ----
 
     private static IReadOnlyList<string> SelectedPaths(FileTabViewModel? tab)
-        => tab?.SelectedEntry is { } e ? [e.FullPath] : [];
+        => tab?.SelectedEntries is { Count: > 0 } items
+            ? items.Select(e => e.FullPath).ToList()
+            : tab?.SelectedEntry is { } e ? [e.FullPath] : [];
 
     private void RefreshActiveTab() => _ = ActiveTab?.RefreshCommand.ExecuteAsync(null);
 

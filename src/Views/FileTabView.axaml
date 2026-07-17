@@ -67,7 +67,7 @@
     <!-- Status bar -->
     <Border DockPanel.Dock="Bottom" Padding="6,3" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" BorderThickness="0,1,0,0">
       <Grid ColumnDefinitions="*,Auto">
-        <TextBlock Grid.Column="0" Text="{Binding StatusText}" VerticalAlignment="Center" FontSize="12" />
+        <TextBlock Grid.Column="0" Text="{Binding StatusLine}" VerticalAlignment="Center" FontSize="12" />
         <ProgressBar Grid.Column="1" IsIndeterminate="True" Width="90" Height="3"
                      IsVisible="{Binding IsLoading}" VerticalAlignment="Center" />
       </Grid>
@@ -205,6 +205,8 @@
     <!-- Virtualized file list -->
     <ListBox x:Name="FileList" ItemsSource="{Binding Entries}"
              SelectedItem="{Binding SelectedEntry, Mode=TwoWay}"
+             SelectionMode="Multiple"
+             SelectionChanged="OnListSelectionChanged"
              DoubleTapped="OnEntryActivated"
              KeyDown="OnListKeyDown"
              PointerPressed="OnListPointerPressed"

@@ -55,7 +55,54 @@ public partial class FileTabViewModel : Document, IDisposable
     private bool _isLoading;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(StatusLine))]
     private string _statusText = string.Empty;
+
+    /// <summary>Summary of the current multi-selection (count + total size); empty when nothing is selected.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(StatusLine))]
+    private string _selectionStatus = string.Empty;
+
+    /// <summary>The status-bar line: the selection summary when items are selected, else the folder totals.</summary>
+    public string StatusLine => string.IsNullOrEmpty(SelectionStatus) ? StatusText : SelectionStatus;
+
+    /// <summary>Every selected row (multi-select). <see cref="SelectedEntry"/> stays the primary/preview item.</summary>
+    public IReadOnlyList<FileEntryViewModel> SelectedEntries { get; private set; } = [];
+
+    /// <summary>Pushed from the view when the list selection changes; updates the selection summary.</summary>
+    public void SetSelection(IReadOnlyList<FileEntryViewModel> items)
+    {
+        SelectedEntries = items;
+        UpdateSelectionStatus();
+    }
+
+    private void UpdateSelectionStatus()
+    {
+        var items = SelectedEntries;
+        if (items.Count == 0)
+        {
+            SelectionStatus = string.Empty;
+            return;
+        }
+
+        long total = 0;
+        var partial = false;
+        foreach (var item in items)
+        {
+            if (item.IsDirectory)
+            {
+                if (item.ComputedSize is { } computed) total += computed;
+                else partial = true; // a folder whose size hasn't been counted yet
+            }
+            else
+            {
+                total += item.Entry.Size ?? 0;
+            }
+        }
+
+        var size = ValueFormat.Size(total, _display.SizeUnit) + (partial ? "+" : string.Empty);
+        SelectionStatus = $"{items.Count} selected · {size}";
+    }
 
     [ObservableProperty]
     private bool _showHidden;
