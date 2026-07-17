@@ -109,82 +109,96 @@
     <Border DockPanel.Dock="Left" Width="185" Padding="6" IsVisible="{Binding IsSidebarVisible}"
             BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" BorderThickness="0,0,1,0">
       <ScrollViewer>
-       <StackPanel>
-        <ItemsControl ItemsSource="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Sidebar}">
+        <!-- Sidebar sections (Favorites/Drives/Devices/Folder tree). Drag a section header to reorder. -->
+        <ItemsControl x:Name="SidebarSectionsHost" DragDrop.AllowDrop="True"
+                      ItemsSource="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Sections}">
           <ItemsControl.ItemTemplate>
-            <DataTemplate x:DataType="vm:SidebarItemViewModel">
-              <StackPanel Margin="0,1">
-                <TextBlock Text="{Binding Name}" FontWeight="Bold" Margin="2,8,0,2"
-                           IsVisible="{Binding IsHeader}" Opacity="0.7" FontSize="12" />
-                <!-- Physical disk group; its partitions are indented below -->
-                <StackPanel Orientation="Horizontal" Spacing="6" Margin="2,4,0,1" IsVisible="{Binding IsDiskGroup}">
-                  <TextBlock Text="{Binding Glyph}" FontSize="12" />
-                  <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Opacity="0.8" FontSize="12" />
-                </StackPanel>
-                <!-- Navigable favorite / drive / partition / device (navigates THIS pane) -->
-                <Grid IsVisible="{Binding IsNavigable}" ColumnDefinitions="*,Auto"
-                      Margin="{Binding Indent, Converter={x:Static views:MainWindow.IndentConverter}}">
-                  <Button Grid.Column="0" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
-                          Background="Transparent" Padding="4,3"
-                          Command="{Binding $parent[ItemsControl].((vm:FileTabViewModel)DataContext).OpenSidebarItemCommand}"
-                          CommandParameter="{Binding}">
-                    <Button.ContextMenu>
-                      <ContextMenu>
-                        <MenuItem Header="Open" Command="{Binding OpenCommand}" CommandParameter="{Binding}" />
-                        <MenuItem Header="Open in New Tab" Command="{Binding OpenInNewTabCommand}" CommandParameter="{Binding}" />
-                        <MenuItem Header="Open in New Pane" Command="{Binding OpenInNewPaneCommand}" CommandParameter="{Binding}" />
-                        <Separator IsVisible="{Binding HasActions}" />
-                        <MenuItem Header="Eject / Unmount" IsVisible="{Binding IsEjectable}"
+            <DataTemplate x:DataType="vm:SidebarSectionViewModel">
+              <StackPanel Margin="0,0,0,4">
+                <!-- Draggable section header -->
+                <Border Background="Transparent" Cursor="SizeAll" Margin="0,6,0,2"
+                        ToolTip.Tip="Drag to reorder sections"
+                        PointerPressed="OnSectionHeaderPressed" PointerMoved="OnSectionHeaderMoved">
+                  <StackPanel Orientation="Horizontal" Spacing="5">
+                    <TextBlock Text="⠿" Opacity="0.4" FontSize="12" VerticalAlignment="Center" />
+                    <TextBlock Text="{Binding Title}" FontWeight="Bold" Opacity="0.7" FontSize="12" VerticalAlignment="Center" />
+                  </StackPanel>
+                </Border>
+
+                <!-- Items (favorites / drives / partitions / devices) -->
+                <ItemsControl ItemsSource="{Binding Items}" IsVisible="{Binding !IsTree}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:SidebarItemViewModel">
+                      <StackPanel Margin="0,1">
+                        <!-- Physical disk group; its partitions are indented below -->
+                        <StackPanel Orientation="Horizontal" Spacing="6" Margin="2,4,0,1" IsVisible="{Binding IsDiskGroup}">
+                          <TextBlock Text="{Binding Glyph}" FontSize="12" />
+                          <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Opacity="0.8" FontSize="12" />
+                        </StackPanel>
+                        <!-- Navigable favorite / drive / partition / device (navigates THIS pane) -->
+                        <Grid IsVisible="{Binding IsNavigable}" ColumnDefinitions="*,Auto"
+                              Margin="{Binding Indent, Converter={x:Static views:MainWindow.IndentConverter}}">
+                          <Button Grid.Column="0" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
+                                  Background="Transparent" Padding="4,3"
+                                  Command="{Binding $parent[UserControl].((vm:FileTabViewModel)DataContext).OpenSidebarItemCommand}"
+                                  CommandParameter="{Binding}">
+                            <Button.ContextMenu>
+                              <ContextMenu>
+                                <MenuItem Header="Open" Command="{Binding OpenCommand}" CommandParameter="{Binding}" />
+                                <MenuItem Header="Open in New Tab" Command="{Binding OpenInNewTabCommand}" CommandParameter="{Binding}" />
+                                <MenuItem Header="Open in New Pane" Command="{Binding OpenInNewPaneCommand}" CommandParameter="{Binding}" />
+                                <Separator IsVisible="{Binding HasActions}" />
+                                <MenuItem Header="Eject / Unmount" IsVisible="{Binding IsEjectable}"
+                                          Command="{Binding EjectCommand}" CommandParameter="{Binding}" />
+                                <MenuItem Header="Format / create filesystem…" IsVisible="{Binding CanFormat}"
+                                          Command="{Binding FormatCommand}" CommandParameter="{Binding}" />
+                                <MenuItem Header="Unpin from favorites" IsVisible="{Binding CanUnpin}"
+                                          Command="{Binding UnpinCommand}" CommandParameter="{Binding}" />
+                              </ContextMenu>
+                            </Button.ContextMenu>
+                            <StackPanel>
+                              <StackPanel Orientation="Horizontal" Spacing="6">
+                                <TextBlock Text="{Binding Glyph}" FontSize="12" />
+                                <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+                              </StackPanel>
+                              <ProgressBar Minimum="0" Maximum="1" Value="{Binding UsedFraction}" Height="4"
+                                           Margin="0,3,0,0" IsVisible="{Binding HasCapacity}" />
+                              <TextBlock Text="{Binding FreeSpaceDisplay}" FontSize="10" Opacity="0.6" IsVisible="{Binding HasCapacity}" />
+                              <TextBlock Text="{Binding FileSystem}" FontSize="10" Opacity="0.5" IsVisible="{Binding HasFileSystem}" />
+                            </StackPanel>
+                          </Button>
+                          <Button Grid.Column="1" Content="⏏" FontSize="12" Padding="5,0" Background="Transparent"
+                                  VerticalAlignment="Center" ToolTip.Tip="Eject / unmount" IsVisible="{Binding IsEjectable}"
                                   Command="{Binding EjectCommand}" CommandParameter="{Binding}" />
-                        <MenuItem Header="Format / create filesystem…" IsVisible="{Binding CanFormat}"
-                                  Command="{Binding FormatCommand}" CommandParameter="{Binding}" />
-                        <MenuItem Header="Unpin from favorites" IsVisible="{Binding CanUnpin}"
-                                  Command="{Binding UnpinCommand}" CommandParameter="{Binding}" />
-                      </ContextMenu>
-                    </Button.ContextMenu>
-                    <StackPanel>
-                      <StackPanel Orientation="Horizontal" Spacing="6">
-                        <TextBlock Text="{Binding Glyph}" FontSize="12" />
-                        <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+                        </Grid>
                       </StackPanel>
-                      <ProgressBar Minimum="0" Maximum="1" Value="{Binding UsedFraction}" Height="4"
-                                   Margin="0,3,0,0" IsVisible="{Binding HasCapacity}" />
-                      <TextBlock Text="{Binding FreeSpaceDisplay}" FontSize="10" Opacity="0.6" IsVisible="{Binding HasCapacity}" />
-                      <TextBlock Text="{Binding FileSystem}" FontSize="10" Opacity="0.5" IsVisible="{Binding HasFileSystem}" />
-                    </StackPanel>
-                  </Button>
-                  <Button Grid.Column="1" Content="⏏" FontSize="12" Padding="5,0" Background="Transparent"
-                          VerticalAlignment="Center" ToolTip.Tip="Eject / unmount" IsVisible="{Binding IsEjectable}"
-                          Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).EjectCommand}"
-                          CommandParameter="{Binding}" />
-                </Grid>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <!-- Folder-tree navigator; navigates this pane on selection -->
+                <TreeView IsVisible="{Binding IsTree}"
+                          ItemsSource="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).TreeRoots}"
+                          SelectionChanged="OnTreeSelectionChanged">
+                  <TreeView.ItemContainerTheme>
+                    <ControlTheme TargetType="TreeViewItem" BasedOn="{StaticResource {x:Type TreeViewItem}}"
+                                  x:DataType="vm:FolderNodeViewModel">
+                      <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
+                    </ControlTheme>
+                  </TreeView.ItemContainerTheme>
+                  <TreeView.ItemTemplate>
+                    <TreeDataTemplate ItemsSource="{Binding Children}" x:DataType="vm:FolderNodeViewModel">
+                      <StackPanel Orientation="Horizontal" Spacing="5">
+                        <TextBlock Text="📁" FontSize="11" VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                      </StackPanel>
+                    </TreeDataTemplate>
+                  </TreeView.ItemTemplate>
+                </TreeView>
               </StackPanel>
             </DataTemplate>
           </ItemsControl.ItemTemplate>
         </ItemsControl>
-
-        <!-- Folder-tree navigator (toggled in Settings ▸ Sidebar); navigates this pane on selection -->
-        <StackPanel IsVisible="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).IsTreeVisible}">
-          <TextBlock Text="Folders" FontWeight="Bold" Margin="2,10,0,2" Opacity="0.7" FontSize="12" />
-          <TreeView ItemsSource="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).TreeRoots}"
-                    SelectionChanged="OnTreeSelectionChanged">
-            <TreeView.ItemContainerTheme>
-              <ControlTheme TargetType="TreeViewItem" BasedOn="{StaticResource {x:Type TreeViewItem}}"
-                            x:DataType="vm:FolderNodeViewModel">
-                <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
-              </ControlTheme>
-            </TreeView.ItemContainerTheme>
-            <TreeView.ItemTemplate>
-              <TreeDataTemplate ItemsSource="{Binding Children}" x:DataType="vm:FolderNodeViewModel">
-                <StackPanel Orientation="Horizontal" Spacing="5">
-                  <TextBlock Text="📁" FontSize="11" VerticalAlignment="Center" />
-                  <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
-                </StackPanel>
-              </TreeDataTemplate>
-            </TreeView.ItemTemplate>
-          </TreeView>
-        </StackPanel>
-       </StackPanel>
       </ScrollViewer>
     </Border>
 

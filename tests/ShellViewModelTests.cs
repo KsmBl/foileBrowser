@@ -58,8 +58,9 @@ public class ShellViewModelTests
         Assert.That(vm.Tabs, Has.Count.EqualTo(2), "two panes side by side by default");
         Assert.That(vm.ActiveTab, Is.Not.Null);
         Assert.That(vm.IsDualPane, Is.True);
-        Assert.That(vm.Sidebar.Any(s => s.Kind == SidebarItemKind.Header && s.Name == "Drives"), Is.True);
-        var drive = vm.Sidebar.Single(s => s.Kind == SidebarItemKind.Drive);
+        var drives = vm.Sections.Single(s => s.Id == "drives");
+        Assert.That(drives.Title, Is.EqualTo("Drives"));
+        var drive = drives.Items.Single(s => s.Kind == SidebarItemKind.Drive);
         Assert.That(drive.Name, Is.EqualTo("System"));
         Assert.That(drive.UsedFraction, Is.EqualTo(0.5).Within(0.001));
     }
@@ -74,9 +75,10 @@ public class ShellViewModelTests
 
         await vm.InitializeAsync();
 
-        Assert.That(vm.Sidebar.Any(s => s.Kind == SidebarItemKind.Disk && s.Name == "sda"), Is.True, "a disk group row");
-        Assert.That(vm.Sidebar.Count(s => s.Kind == SidebarItemKind.Partition), Is.EqualTo(2), "both partitions listed under it");
-        Assert.That(vm.Sidebar.Any(s => s.Kind == SidebarItemKind.Device), Is.False, "no partition shown as a device");
+        var drives = vm.Sections.Single(s => s.Id == "drives").Items;
+        Assert.That(drives.Any(s => s.Kind == SidebarItemKind.Disk && s.Name == "sda"), Is.True, "a disk group row");
+        Assert.That(drives.Count(s => s.Kind == SidebarItemKind.Partition), Is.EqualTo(2), "both partitions listed under it");
+        Assert.That(vm.Sections.Any(s => s.Id == "devices"), Is.False, "no partition shown as a device");
     }
 
     [Test]
@@ -88,8 +90,9 @@ public class ShellViewModelTests
 
         await vm.InitializeAsync();
 
-        Assert.That(vm.Sidebar.Any(s => s.Kind == SidebarItemKind.Disk), Is.False, "no group header for a single partition");
-        Assert.That(vm.Sidebar.Count(s => s.Kind == SidebarItemKind.Drive), Is.EqualTo(1));
+        var drives = vm.Sections.Single(s => s.Id == "drives").Items;
+        Assert.That(drives.Any(s => s.Kind == SidebarItemKind.Disk), Is.False, "no group header for a single partition");
+        Assert.That(drives.Count(s => s.Kind == SidebarItemKind.Drive), Is.EqualTo(1));
     }
 
     [Test]

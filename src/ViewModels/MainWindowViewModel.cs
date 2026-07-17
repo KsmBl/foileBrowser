@@ -60,7 +60,9 @@ public partial class MainWindowViewModel : ViewModelBase
 
     public OperationQueueViewModel OperationQueue { get; }
     public CommandPaletteViewModel CommandPalette { get; }
-    public ObservableCollection<SidebarItemViewModel> Sidebar { get; } = [];
+
+    /// <summary>Navigation-sidebar sections in display order (drag-reorderable — PRD §6.2).</summary>
+    public ObservableCollection<SidebarSectionViewModel> Sections { get; } = [];
 
     /// <summary>The global operations-toolbar buttons, in display order (drag-reorderable — PRD §6.8).</summary>
     public ObservableCollection<ToolbarItemViewModel> ToolbarItems { get; } = [];
@@ -760,30 +762,43 @@ public partial class MainWindowViewModel : ViewModelBase
     private async Task LoadSidebarAsync()
     {
         var s = _settings.Current;
-        Sidebar.Clear();
-
-        if (s.SidebarShowFavorites)
-        {
-            Sidebar.Add(new SidebarItemViewModel { Name = "Favorites", Kind = SidebarItemKind.Header });
-            foreach (var fav in BuildFavorites())
-                Sidebar.Add(fav);
-        }
-
         var volumes = await _fileSystem.ListVolumesAsync();
         _volumeSignature = VolumeSignature(volumes);
 
+        // Build each enabled section's content, keyed by id.
+        var built = new Dictionary<string, SidebarSectionViewModel>();
+
+        if (s.SidebarShowFavorites)
+        {
+            var section = new SidebarSectionViewModel { Id = "favorites", Title = "Favorites" };
+            foreach (var fav in BuildFavorites())
+                section.Items.Add(fav);
+            built["favorites"] = section;
+        }
+
         if (s.SidebarShowDrives)
         {
-            Sidebar.Add(new SidebarItemViewModel { Name = "Drives", Kind = SidebarItemKind.Header });
-            AddVolumeGroups(volumes.Where(v => v.Kind == VolumeKind.Fixed).ToList(), removableSection: false);
+            var section = new SidebarSectionViewModel { Id = "drives", Title = "Drives" };
+            AddVolumeGroups(section.Items, volumes.Where(v => v.Kind == VolumeKind.Fixed).ToList(), removableSection: false);
+            built["drives"] = section;
         }
 
         var removable = volumes.Where(v => v.IsRemovable).ToList();
         if (s.SidebarShowDevices && removable.Count > 0)
         {
-            Sidebar.Add(new SidebarItemViewModel { Name = "Devices", Kind = SidebarItemKind.Header });
-            AddVolumeGroups(removable, removableSection: true);
+            var section = new SidebarSectionViewModel { Id = "devices", Title = "Devices" };
+            AddVolumeGroups(section.Items, removable, removableSection: true);
+            built["devices"] = section;
         }
+
+        if (s.SidebarShowTree)
+            built["tree"] = new SidebarSectionViewModel { Id = "tree", Title = "Folders", IsTree = true };
+
+        // Order: the saved order first (custom drag order), then any not covered, in default order.
+        Sections.Clear();
+        foreach (var id in s.SidebarSectionOrder.Concat(DefaultSectionOrder).Distinct())
+            if (built.TryGetValue(id, out var section))
+                Sections.Add(section);
 
         // Folder tree: build its roots per the configured mode.
         IsTreeVisible = s.SidebarShowTree;
@@ -791,6 +806,24 @@ public partial class MainWindowViewModel : ViewModelBase
             BuildTreeRoots(volumes);
         else
             TreeRoots.Clear();
+    }
+
+    private static readonly string[] DefaultSectionOrder = ["favorites", "drives", "devices", "tree"];
+
+    /// <summary>Drops the dragged sidebar section just before <paramref name="toId"/> and persists the order.</summary>
+    public void MoveSidebarSection(string fromId, string toId)
+    {
+        if (fromId == toId)
+            return;
+        var from = Sections.FirstOrDefault(x => x.Id == fromId);
+        var to = Sections.FirstOrDefault(x => x.Id == toId);
+        if (from is null || to is null)
+            return;
+
+        Sections.Remove(from);
+        Sections.Insert(Sections.IndexOf(to), from);
+        _settings.Current.SidebarSectionOrder = Sections.Select(x => x.Id).ToList();
+        _ = _settings.SaveAsync();
     }
 
     private string _builtTreeMode = string.Empty;
@@ -855,7 +888,7 @@ public partial class MainWindowViewModel : ViewModelBase
     /// partitions indented beneath it; a single-partition disk (or a diskless/GVfs mount) is shown as
     /// one row (PRD §6.10 — partitions belong to a drive, not a separate device).
     /// </summary>
-    private void AddVolumeGroups(List<DriveVolume> volumes, bool removableSection)
+    private void AddVolumeGroups(ObservableCollection<SidebarItemViewModel> target, List<DriveVolume> volumes, bool removableSection)
     {
         var rowKind = removableSection ? SidebarItemKind.Device : SidebarItemKind.Drive;
 
@@ -865,17 +898,17 @@ public partial class MainWindowViewModel : ViewModelBase
             var partitions = group.OrderBy(v => v.Device, StringComparer.Ordinal).ToList();
             if (partitions.Count == 1)
             {
-                Sidebar.Add(ToSidebar(partitions[0], rowKind));
+                target.Add(ToSidebar(partitions[0], rowKind));
                 continue;
             }
 
-            Sidebar.Add(new SidebarItemViewModel { Name = group.Key!, Kind = SidebarItemKind.Disk });
+            target.Add(new SidebarItemViewModel { Name = group.Key!, Kind = SidebarItemKind.Disk });
             foreach (var partition in partitions)
-                Sidebar.Add(ToSidebar(partition, SidebarItemKind.Partition));
+                target.Add(ToSidebar(partition, SidebarItemKind.Partition));
         }
 
         foreach (var volume in volumes.Where(v => v.Disk is null))
-            Sidebar.Add(ToSidebar(volume, rowKind));
+            target.Add(ToSidebar(volume, rowKind));
     }
 
     private SidebarItemViewModel ToSidebar(DriveVolume volume, SidebarItemKind kind) => new()

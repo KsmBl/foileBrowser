@@ -40,6 +40,9 @@ public sealed class AppSettings
     /// <summary>Folder-tree root: "HomeAndDrives", "Root" (/), or "Current" (the active pane's folder) (PRD §6.2).</summary>
     public string TreeRoot { get; set; } = "HomeAndDrives";
 
+    /// <summary>Custom top-to-bottom order of sidebar section ids (favorites/drives/devices/tree) (PRD §6.2). Empty = default.</summary>
+    public List<string> SidebarSectionOrder { get; set; } = [];
+
     /// <summary>Master switch for the destructive "Format…" action on drives/partitions — off by default (PRD §6.10).</summary>
     public bool EnableDiskFormatting { get; set; }
 

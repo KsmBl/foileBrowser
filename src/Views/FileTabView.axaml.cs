@@ -11,9 +11,13 @@ namespace FoileBrowser.Views;
 
 public partial class FileTabView : UserControl
 {
+    private readonly DragReorder _sectionDrag = new();
+
     public FileTabView()
     {
         InitializeComponent();
+        SidebarSectionsHost.AddHandler(DragDrop.DragOverEvent, OnSectionDragOver);
+        SidebarSectionsHost.AddHandler(DragDrop.DropEvent, OnSectionDrop);
         // Whenever the path entry becomes visible (via click or Ctrl+L), focus and select it.
         PathEntry.GetObservable(Visual.IsVisibleProperty).Subscribe(new AnonymousObserver<bool>(visible =>
         {
@@ -177,6 +181,36 @@ public partial class FileTabView : UserControl
         if (sender is TreeView { SelectedItem: FolderNodeViewModel { Path.Length: > 0 } node }
             && DataContext is FileTabViewModel tab)
             _ = tab.NavigateToAsync(node.Path);
+    }
+
+    // ---- sidebar section drag-reorder (PRD §6.2) ----
+
+    private void OnSectionHeaderPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if ((sender as Control)?.DataContext is SidebarSectionViewModel section)
+            _sectionDrag.Arm(section.Id, e, this);
+    }
+
+    private async void OnSectionHeaderMoved(object? sender, PointerEventArgs e) =>
+        await _sectionDrag.MaybeStartAsync(e, this);
+
+    private static void OnSectionDragOver(object? sender, DragEventArgs e) => DragReorder.Accept(e);
+
+    private void OnSectionDrop(object? sender, DragEventArgs e)
+    {
+        var shell = (TopLevel.GetTopLevel(this) as MainWindow)?.DataContext as MainWindowViewModel;
+        if (shell is not null && DragReorder.DroppedId(e) is { } fromId && SectionAt(e.Source) is { } target)
+            shell.MoveSidebarSection(fromId, target.Id);
+        e.Handled = true;
+    }
+
+    /// <summary>Walks up from the drop source to the sidebar section it landed on.</summary>
+    private static SidebarSectionViewModel? SectionAt(object? source)
+    {
+        for (var v = source as Visual; v is not null; v = v.GetVisualParent())
+            if ((v as Control)?.DataContext is SidebarSectionViewModel section)
+                return section;
+        return null;
     }
 
     private void OnListKeyDown(object? sender, KeyEventArgs e)
