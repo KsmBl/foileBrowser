@@ -53,7 +53,8 @@ Check off items as they're completed; delete lines you decide not to build.
 
 - [x] Directory listing with name, size, type, and modified date
 - [x] Sorting by any column, ascending/descending — via a native-style header row (tinted strip,
-  column separators, and a ▲/▼ sort-direction arrow on the active column)
+  column separators, and a ▲/▼ sort-direction arrow on the active column). The header sits above the
+  file list only (right of the navigation pane), so its columns line up with the rows
 - [x] Hidden/system file visibility toggle
 - [x] Navigation history: back / forward / up
 - [x] Multiple selection (click, Ctrl/Shift-click, and rubber-band: drag a rectangle over the list to

@@ -97,69 +97,6 @@
       </Grid>
     </Border>
 
-    <!-- Native-style sortable column header: tinted strip, column separators, sort arrows -->
-    <Border DockPanel.Dock="Top" Background="{DynamicResource SystemControlBackgroundBaseLowBrush}"
-            BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}" BorderThickness="0,0,0,1">
-      <Grid Margin="4,0,20,0" ColumnDefinitions="26,*,120,100,140" Height="26">
-        <Grid.Styles>
-          <Style Selector="Button.colheader">
-            <Setter Property="Background" Value="Transparent" />
-            <Setter Property="BorderThickness" Value="0" />
-            <Setter Property="CornerRadius" Value="0" />
-            <Setter Property="Padding" Value="6,0" />
-            <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="FontSize" Value="12" />
-            <Setter Property="VerticalAlignment" Value="Stretch" />
-            <Setter Property="HorizontalAlignment" Value="Stretch" />
-            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
-          </Style>
-          <Style Selector="Button.colheader /template/ ContentPresenter">
-            <Setter Property="CornerRadius" Value="0" />
-          </Style>
-          <Style Selector="Button.colheader TextBlock.arrow">
-            <Setter Property="FontSize" Value="9" />
-            <Setter Property="Opacity" Value="0.7" />
-            <Setter Property="VerticalAlignment" Value="Center" />
-            <Setter Property="Margin" Value="4,0,0,0" />
-          </Style>
-        </Grid.Styles>
-
-        <Button Grid.Column="1" Classes="colheader" Command="{Binding SortByCommand}" CommandParameter="{x:Static models:SortColumn.Name}">
-          <DockPanel>
-            <TextBlock DockPanel.Dock="Right" Classes="arrow" Text="{Binding NameSortGlyph}" />
-            <TextBlock Text="Name" VerticalAlignment="Center" />
-          </DockPanel>
-        </Button>
-        <Border Grid.Column="1" Width="1" HorizontalAlignment="Right" Margin="0,5"
-                Background="{DynamicResource SystemControlForegroundBaseMediumLowBrush}" />
-
-        <Button Grid.Column="2" Classes="colheader" Command="{Binding SortByCommand}" CommandParameter="{x:Static models:SortColumn.Size}">
-          <DockPanel>
-            <TextBlock DockPanel.Dock="Right" Classes="arrow" Text="{Binding SizeSortGlyph}" />
-            <TextBlock Text="Size" VerticalAlignment="Center" />
-          </DockPanel>
-        </Button>
-        <Border Grid.Column="2" Width="1" HorizontalAlignment="Right" Margin="0,5"
-                Background="{DynamicResource SystemControlForegroundBaseMediumLowBrush}" />
-
-        <Button Grid.Column="3" Classes="colheader" Command="{Binding SortByCommand}" CommandParameter="{x:Static models:SortColumn.Type}">
-          <DockPanel>
-            <TextBlock DockPanel.Dock="Right" Classes="arrow" Text="{Binding TypeSortGlyph}" />
-            <TextBlock Text="Type" VerticalAlignment="Center" />
-          </DockPanel>
-        </Button>
-        <Border Grid.Column="3" Width="1" HorizontalAlignment="Right" Margin="0,5"
-                Background="{DynamicResource SystemControlForegroundBaseMediumLowBrush}" />
-
-        <Button Grid.Column="4" Classes="colheader" Command="{Binding SortByCommand}" CommandParameter="{x:Static models:SortColumn.Modified}">
-          <DockPanel>
-            <TextBlock DockPanel.Dock="Right" Classes="arrow" Text="{Binding ModifiedSortGlyph}" />
-            <TextBlock Text="Modified" VerticalAlignment="Center" />
-          </DockPanel>
-        </Button>
-      </Grid>
-    </Border>
-
     <!-- This pane's own navigation sidebar (favorites/drives/partitions/devices), toggled per pane -->
     <Border DockPanel.Dock="Left" Width="185" Padding="6" IsVisible="{Binding IsSidebarVisible}"
             BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" BorderThickness="0,0,1,0">
@@ -258,6 +195,73 @@
     </Border>
 
     <!-- Virtualized file list -->
+    <!-- File area (fills the space right of the navigation pane): column header above the list, so
+         the header aligns with the rows and does not span the navigation pane. -->
+    <DockPanel>
+
+    <!-- Native-style sortable column header: tinted strip, column separators, sort arrows -->
+    <Border DockPanel.Dock="Top" Background="{DynamicResource SystemControlBackgroundBaseLowBrush}"
+            BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}" BorderThickness="0,0,0,1">
+      <Grid Margin="4,0,20,0" ColumnDefinitions="26,*,120,100,140" Height="26">
+        <Grid.Styles>
+          <Style Selector="Button.colheader">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="CornerRadius" Value="0" />
+            <Setter Property="Padding" Value="6,0" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="VerticalAlignment" Value="Stretch" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+          </Style>
+          <Style Selector="Button.colheader /template/ ContentPresenter">
+            <Setter Property="CornerRadius" Value="0" />
+          </Style>
+          <Style Selector="Button.colheader TextBlock.arrow">
+            <Setter Property="FontSize" Value="9" />
+            <Setter Property="Opacity" Value="0.7" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Margin" Value="4,0,0,0" />
+          </Style>
+        </Grid.Styles>
+
+        <Button Grid.Column="1" Classes="colheader" Command="{Binding SortByCommand}" CommandParameter="{x:Static models:SortColumn.Name}">
+          <DockPanel>
+            <TextBlock DockPanel.Dock="Right" Classes="arrow" Text="{Binding NameSortGlyph}" />
+            <TextBlock Text="Name" VerticalAlignment="Center" />
+          </DockPanel>
+        </Button>
+        <Border Grid.Column="1" Width="1" HorizontalAlignment="Right" Margin="0,5"
+                Background="{DynamicResource SystemControlForegroundBaseMediumLowBrush}" />
+
+        <Button Grid.Column="2" Classes="colheader" Command="{Binding SortByCommand}" CommandParameter="{x:Static models:SortColumn.Size}">
+          <DockPanel>
+            <TextBlock DockPanel.Dock="Right" Classes="arrow" Text="{Binding SizeSortGlyph}" />
+            <TextBlock Text="Size" VerticalAlignment="Center" />
+          </DockPanel>
+        </Button>
+        <Border Grid.Column="2" Width="1" HorizontalAlignment="Right" Margin="0,5"
+                Background="{DynamicResource SystemControlForegroundBaseMediumLowBrush}" />
+
+        <Button Grid.Column="3" Classes="colheader" Command="{Binding SortByCommand}" CommandParameter="{x:Static models:SortColumn.Type}">
+          <DockPanel>
+            <TextBlock DockPanel.Dock="Right" Classes="arrow" Text="{Binding TypeSortGlyph}" />
+            <TextBlock Text="Type" VerticalAlignment="Center" />
+          </DockPanel>
+        </Button>
+        <Border Grid.Column="3" Width="1" HorizontalAlignment="Right" Margin="0,5"
+                Background="{DynamicResource SystemControlForegroundBaseMediumLowBrush}" />
+
+        <Button Grid.Column="4" Classes="colheader" Command="{Binding SortByCommand}" CommandParameter="{x:Static models:SortColumn.Modified}">
+          <DockPanel>
+            <TextBlock DockPanel.Dock="Right" Classes="arrow" Text="{Binding ModifiedSortGlyph}" />
+            <TextBlock Text="Modified" VerticalAlignment="Center" />
+          </DockPanel>
+        </Button>
+      </Grid>
+    </Border>
+
     <!-- File list with a rubber-band (marquee) selection overlay (PRD §6.1) -->
     <Panel>
     <ListBox x:Name="FileList" ItemsSource="{Binding Entries}"
@@ -343,6 +347,8 @@
                    Fill="#332D7DF5" Stroke="#2D7DF5" StrokeThickness="1" />
       </Canvas>
     </Panel>
+
+    </DockPanel>
 
   </DockPanel>
 </UserControl>
