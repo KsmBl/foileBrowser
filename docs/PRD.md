@@ -86,8 +86,11 @@ Check off items as they're completed; delete lines you decide not to build.
 - [ ] Toolbar and copy/move queue as dockable/floatable tool panels — the queue already auto-hides
   when idle and the toolbar can be hidden; turning them into draggable Dock tools is still pending
 - [x] Dockable multi-pane layout: open any number of panes and arrange them by splitting, tabbing,
-  or floating them into their own windows, with draggable splitters (via Dock.Avalonia); panes tile
-  side by side by default and the layout (pane count + tabs) is restored across restart
+  or floating them into their own windows, with draggable splitters; panes tile side by side by default
+  and the layout (pane count + tabs) is restored across restart. Backed by an **in-house, toolkit-agnostic
+  docking model** (`src/Docking`) — a pure-C# tree of panes/splits with the split/move/close/reorder
+  operations, no UI dependency — so the same model could later drive a non-Avalonia front-end. (Tear-off
+  floating windows are not carried over from the old Dock.Avalonia dependency.)
 - [x] Single-pane mode toggle
 - [x] Tabs per pane, restored across restart
 - [x] Details (list) view mode
