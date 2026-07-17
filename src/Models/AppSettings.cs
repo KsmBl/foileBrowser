@@ -56,6 +56,9 @@ public sealed class AppSettings
 
     /// <summary>Open tabs to restore on next launch (PRD §6.2 "restored across restart").</summary>
     public SessionLayout Session { get; set; } = new();
+
+    /// <summary>Command-id → hotkey gesture overrides (e.g. "tab.new" → "Ctrl+T"). Empty = ship defaults (PRD §6.6).</summary>
+    public Dictionary<string, string> Keybinds { get; set; } = new();
 }
 
 public sealed class SessionLayout

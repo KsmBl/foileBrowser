@@ -94,6 +94,12 @@ public partial class FileTabViewModel : Document, IDisposable
     /// <summary>Raised after any navigation completes so the owning pane can react (title, active path).</summary>
     public event EventHandler? Navigated;
 
+    /// <summary>Raised by Ctrl+F so this pane's view focuses its subtree-search box (PRD §6.4).</summary>
+    public event EventHandler? SearchFocusRequested;
+
+    /// <summary>Asks the view to focus this pane's search box (invoked by the shell's Find command).</summary>
+    public void FocusSearch() => SearchFocusRequested?.Invoke(this, EventArgs.Empty);
+
     public ObservableCollection<FileEntryViewModel> Entries { get; } = [];
 
     /// <summary>Clickable path segments for the breadcrumb bar (PRD §6.1), root → current folder.</summary>

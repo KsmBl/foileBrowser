@@ -36,6 +36,26 @@ public partial class FileTabView : UserControl
             shell.ActivateTab(tab);
     }
 
+    private FileTabViewModel? _boundTab;
+
+    protected override void OnDataContextChanged(EventArgs e)
+    {
+        base.OnDataContextChanged(e);
+        // Follow the search-focus request (Ctrl+F) for whichever tab this view now renders.
+        if (_boundTab is not null)
+            _boundTab.SearchFocusRequested -= OnSearchFocusRequested;
+        _boundTab = DataContext as FileTabViewModel;
+        if (_boundTab is not null)
+            _boundTab.SearchFocusRequested += OnSearchFocusRequested;
+    }
+
+    private void OnSearchFocusRequested(object? sender, EventArgs e) =>
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        {
+            SearchBox.Focus();
+            SearchBox.SelectAll();
+        });
+
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnAttachedToVisualTree(e);

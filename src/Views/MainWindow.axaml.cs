@@ -50,11 +50,13 @@ public partial class MainWindow : Window
             // The view supplies the prompts, dialogs, clipboard and theming the VM asks for.
             vm.NameRequester = current => new NameInputWindow(current).ShowDialog<string?>(this);
             vm.BatchRenameRequester = entries => new BatchRenameWindow(entries).ShowDialog<IReadOnlyList<RenameProposal>?>(this);
-            vm.SettingsRequester = settings => new SettingsWindow(settings).ShowDialog<bool>(this);
+            vm.SettingsRequester = settings => new SettingsWindow(settings, vm.RebindableCommands).ShowDialog<bool>(this);
             vm.ClipboardCopyRequested -= OnClipboardCopyRequested;
             vm.ClipboardCopyRequested += OnClipboardCopyRequested;
             vm.ThemeChanged -= OnThemeChanged;
             vm.ThemeChanged += OnThemeChanged;
+            vm.KeybindsChanged -= OnKeybindsChanged;
+            vm.KeybindsChanged += OnKeybindsChanged;
 
             if (_palette is not null)
                 _palette.PropertyChanged -= OnPalettePropertyChanged;
@@ -67,6 +69,25 @@ public partial class MainWindow : Window
     {
         if (DataContext is MainWindowViewModel vm)
             ApplyTheme(vm.Settings);
+    }
+
+    // Rebuilds the window's hotkeys from the command registry whenever they load or are rebound
+    // in Settings, so keybinds are fully user-configurable (PRD §6.6).
+    private void OnKeybindsChanged(object? sender, EventArgs e)
+    {
+        if (DataContext is not MainWindowViewModel vm)
+            return;
+
+        KeyBindings.Clear();
+        foreach (var command in vm.Commands)
+        {
+            if (!command.Global || string.IsNullOrWhiteSpace(command.Gesture))
+                continue;
+            KeyGesture gesture;
+            try { gesture = KeyGesture.Parse(command.Gesture); }
+            catch (Exception) { continue; } // ignore an unparseable/legacy gesture rather than crash
+            KeyBindings.Add(new KeyBinding { Gesture = gesture, Command = command.Command });
+        }
     }
 
     private void ApplyTheme(AppSettings settings)

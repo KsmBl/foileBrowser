@@ -110,10 +110,34 @@ public partial class MainWindowViewModel : ViewModelBase
         OperationQueue = new OperationQueueViewModel(operations);
         OperationQueue.OperationCompleted += (_, _) => RefreshPanes();
 
-        CommandPalette = new CommandPaletteViewModel(BuildCommands());
+        _commands = BuildCommands().ToList();
+        CommandPalette = new CommandPaletteViewModel(_commands);
     }
 
     private readonly ISearchService _search;
+
+    // The command registry doubles as the source of truth for hotkeys and the palette (PRD §6.6).
+    private readonly List<CommandItem> _commands;
+
+    /// <summary>Every registered command (palette, menus, hotkeys).</summary>
+    public IReadOnlyList<CommandItem> Commands => _commands;
+
+    /// <summary>Window-wide commands the keybind editor can rebind (PRD §6.6).</summary>
+    public IReadOnlyList<CommandItem> RebindableCommands => _commands.Where(c => c.Global).ToList();
+
+    /// <summary>Raised after hotkeys are (re)loaded so the view rebuilds its window key bindings.</summary>
+    public event EventHandler? KeybindsChanged;
+
+    /// <summary>Applies persisted hotkey overrides onto the live commands, then asks the view to rebind.</summary>
+    private void ApplyKeybinds()
+    {
+        foreach (var command in _commands)
+            // An explicit override wins (empty string = deliberately unbound); no key = ship default.
+            command.Gesture = _settings.Current.Keybinds.TryGetValue(command.Id, out var g)
+                ? (string.IsNullOrWhiteSpace(g) ? null : g.Trim())
+                : command.DefaultGesture;
+        KeybindsChanged?.Invoke(this, EventArgs.Empty);
+    }
 
     /// <summary>Creates a folder tab (a dockable document) and registers it.</summary>
     private FileTabViewModel CreateTab()
@@ -327,36 +351,39 @@ public partial class MainWindowViewModel : ViewModelBase
 
         return
         [
-            new("file.newFolder", "New Folder", "File", "Ctrl+Shift+N", () => NewFolderCommand.ExecuteAsync(null)),
-            new("file.newFile", "New File", "File", null, () => NewFileCommand.ExecuteAsync(null)),
+            new("app.commandPalette", "Command Palette", "App", "Ctrl+P", () => { OpenCommandPaletteCommand.Execute(null); return Task.CompletedTask; }, global: true),
+            new("nav.editPath", "Edit Path", "Navigate", "Ctrl+L", () => { FocusPathBarCommand.Execute(null); return Task.CompletedTask; }, global: true),
+            new("search.focus", "Find in Folder", "Search", "Ctrl+F", () => { FocusSearchCommand.Execute(null); return Task.CompletedTask; }, global: true),
+            new("file.newFolder", "New Folder", "File", "Ctrl+Shift+N", () => NewFolderCommand.ExecuteAsync(null), global: true),
+            new("file.newFile", "New File", "File", null, () => NewFileCommand.ExecuteAsync(null), global: true),
             new("file.rename", "Rename…", "File", "F2", () => RenameSelectedCommand.ExecuteAsync(null)),
             new("file.delete", "Delete to Trash", "File", "Delete", () => DeleteSelectedCommand.ExecuteAsync(null)),
-            new("file.copyToOther", "Copy to Other Pane", "File", "F6", () => { CopyToOtherCommand.Execute(null); return Task.CompletedTask; }),
-            new("file.moveToOther", "Move to Other Pane", "File", "F7", () => { MoveToOtherCommand.Execute(null); return Task.CompletedTask; }),
-            new("file.copyPath", "Copy Path", "File", null, () => { CopyPathCommand.Execute(null); return Task.CompletedTask; }),
-            new("file.copyName", "Copy Name", "File", null, () => { CopyNameCommand.Execute(null); return Task.CompletedTask; }),
-            new("nav.back", "Go Back", "Navigate", "Alt+Left", () => Tab(t => t.GoBackCommand.ExecuteAsync(null))),
-            new("nav.forward", "Go Forward", "Navigate", "Alt+Right", () => Tab(t => t.GoForwardCommand.ExecuteAsync(null))),
-            new("nav.up", "Go Up", "Navigate", "Alt+Up", () => Tab(t => t.GoUpCommand.ExecuteAsync(null))),
-            new("nav.refresh", "Refresh", "Navigate", "F5", () => Tab(t => t.RefreshCommand.ExecuteAsync(null))),
-            new("view.newPane", "New Pane (split)", "View", null, () => AddPaneCommand.ExecuteAsync(null)),
-            new("view.toggleInspector", "Toggle Inspector", "View", "Ctrl+I", () => { ToggleInspectorCommand.Execute(null); return Task.CompletedTask; }),
-            new("view.toggleToolbar", "Toggle Toolbar", "View", null, () => { ToggleToolbarCommand.Execute(null); return Task.CompletedTask; }),
-            new("view.toggleHidden", "Toggle Hidden Files", "View", null, () => Tab(t => { t.ShowHidden = !t.ShowHidden; return Task.CompletedTask; })),
-            new("view.sizeUnit", "Cycle Size Units (KiB/KB/Bytes)", "View", null, () => CycleSizeUnitCommand.ExecuteAsync(null)),
-            new("view.dateFormat", "Cycle Date Format (absolute/relative)", "View", null, () => CycleDateFormatCommand.ExecuteAsync(null)),
-            new("tab.new", "New Tab", "Tab", "Ctrl+T", () => AddTabCommand.ExecuteAsync(null)),
-            new("tab.close", "Close Tab", "Tab", "Ctrl+W", () => { CloseTabCommand.Execute(null); return Task.CompletedTask; }),
-            new("search.stop", "Stop Search", "Search", null, () => Tab(t => t.StopSearchCommand.ExecuteAsync(null))),
-            new("file.batchRename", "Batch Rename…", "File", null, () => BatchRenameCommand.ExecuteAsync(null)),
-            new("os.terminal", "Open Terminal Here", "System", null, () => OpenTerminalHereCommand.ExecuteAsync(null)),
-            new("os.openWith", "Open with Default App", "System", null, () => OpenSelectedExternallyCommand.ExecuteAsync(null)),
-            new("fav.pin", "Pin Current Folder", "Favorites", null, () => PinFavoriteCommand.ExecuteAsync(null)),
-            new("tag.clear", "Clear Tag", "Tag", null, () => ClearTagCommand.ExecuteAsync(null)),
-            new("tag.filterClear", "Clear Tag Filter", "Tag", null, () => { ClearTagFilterCommand.Execute(null); return Task.CompletedTask; }),
-            new("app.settings", "Settings…", "App", null, () => OpenSettingsCommand.ExecuteAsync(null)),
-            new("archive.extract", "Extract Archive Here", "Archive", null, () => ExtractHereCommand.ExecuteAsync(null)),
-            new("archive.identify", "Identify File", "Archive", null, () => { IdentifyFileCommand.Execute(null); return Task.CompletedTask; }),
+            new("file.copyToOther", "Copy to Other Pane", "File", "F6", () => { CopyToOtherCommand.Execute(null); return Task.CompletedTask; }, global: true),
+            new("file.moveToOther", "Move to Other Pane", "File", "F7", () => { MoveToOtherCommand.Execute(null); return Task.CompletedTask; }, global: true),
+            new("file.copyPath", "Copy Path", "File", null, () => { CopyPathCommand.Execute(null); return Task.CompletedTask; }, global: true),
+            new("file.copyName", "Copy Name", "File", null, () => { CopyNameCommand.Execute(null); return Task.CompletedTask; }, global: true),
+            new("nav.back", "Go Back", "Navigate", "Alt+Left", () => Tab(t => t.GoBackCommand.ExecuteAsync(null)), global: true),
+            new("nav.forward", "Go Forward", "Navigate", "Alt+Right", () => Tab(t => t.GoForwardCommand.ExecuteAsync(null)), global: true),
+            new("nav.up", "Go Up", "Navigate", "Alt+Up", () => Tab(t => t.GoUpCommand.ExecuteAsync(null)), global: true),
+            new("nav.refresh", "Refresh", "Navigate", "F5", () => Tab(t => t.RefreshCommand.ExecuteAsync(null)), global: true),
+            new("view.newPane", "New Pane (split)", "View", null, () => AddPaneCommand.ExecuteAsync(null), global: true),
+            new("view.toggleInspector", "Toggle Inspector", "View", "Ctrl+I", () => { ToggleInspectorCommand.Execute(null); return Task.CompletedTask; }, global: true),
+            new("view.toggleToolbar", "Toggle Toolbar", "View", null, () => { ToggleToolbarCommand.Execute(null); return Task.CompletedTask; }, global: true),
+            new("view.toggleHidden", "Toggle Hidden Files", "View", null, () => Tab(t => { t.ShowHidden = !t.ShowHidden; return Task.CompletedTask; }), global: true),
+            new("view.sizeUnit", "Cycle Size Units (KiB/KB/Bytes)", "View", null, () => CycleSizeUnitCommand.ExecuteAsync(null), global: true),
+            new("view.dateFormat", "Cycle Date Format (absolute/relative)", "View", null, () => CycleDateFormatCommand.ExecuteAsync(null), global: true),
+            new("tab.new", "New Tab", "Tab", "Ctrl+T", () => AddTabCommand.ExecuteAsync(null), global: true),
+            new("tab.close", "Close Tab", "Tab", "Ctrl+W", () => { CloseTabCommand.Execute(null); return Task.CompletedTask; }, global: true),
+            new("search.stop", "Stop Search", "Search", null, () => Tab(t => t.StopSearchCommand.ExecuteAsync(null)), global: true),
+            new("file.batchRename", "Batch Rename…", "File", null, () => BatchRenameCommand.ExecuteAsync(null), global: true),
+            new("os.terminal", "Open Terminal Here", "System", null, () => OpenTerminalHereCommand.ExecuteAsync(null), global: true),
+            new("os.openWith", "Open with Default App", "System", null, () => OpenSelectedExternallyCommand.ExecuteAsync(null), global: true),
+            new("fav.pin", "Pin Current Folder", "Favorites", null, () => PinFavoriteCommand.ExecuteAsync(null), global: true),
+            new("tag.clear", "Clear Tag", "Tag", null, () => ClearTagCommand.ExecuteAsync(null), global: true),
+            new("tag.filterClear", "Clear Tag Filter", "Tag", null, () => { ClearTagFilterCommand.Execute(null); return Task.CompletedTask; }, global: true),
+            new("app.settings", "Settings…", "App", null, () => OpenSettingsCommand.ExecuteAsync(null), global: true),
+            new("archive.extract", "Extract Archive Here", "Archive", null, () => ExtractHereCommand.ExecuteAsync(null), global: true),
+            new("archive.identify", "Identify File", "Archive", null, () => { IdentifyFileCommand.Execute(null); return Task.CompletedTask; }, global: true),
             .. _tags.Palette.Select(c => new CommandItem(
                 $"tag.set.{c.Name}", $"Tag: {c.Name}", "Tag", null, () => AssignTagCommand.ExecuteAsync(c.Hex))),
             .. _tags.Palette.Select(c => new CommandItem(
@@ -389,6 +416,7 @@ public partial class MainWindowViewModel : ViewModelBase
         await LoadSidebarAsync();
         RewireInspector();
         StartDevicePolling();
+        ApplyKeybinds();
         ThemeChanged?.Invoke(this, EventArgs.Empty);
     }
 
@@ -566,6 +594,10 @@ public partial class MainWindowViewModel : ViewModelBase
     /// <summary>Ctrl+L: put the active tab's combined path bar into editable mode (Thunar/browser-style).</summary>
     [RelayCommand]
     private void FocusPathBar() => ActiveTab?.BeginEditPathCommand.Execute(null);
+
+    /// <summary>Ctrl+F: focus the active tab's subtree-search box (PRD §6.4).</summary>
+    [RelayCommand]
+    private void FocusSearch() => ActiveTab?.FocusSearch();
 
     [RelayCommand]
     private void ShowAbout()
@@ -956,6 +988,7 @@ public partial class MainWindowViewModel : ViewModelBase
         {
             await _settings.SaveAsync();
             ThemeChanged?.Invoke(this, EventArgs.Empty);
+            ApplyKeybinds();
             await LoadSidebarAsync();
         }
     }

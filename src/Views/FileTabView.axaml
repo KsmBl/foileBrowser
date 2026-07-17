@@ -78,7 +78,7 @@
       <Grid ColumnDefinitions="*,6,*,Auto,Auto">
         <TextBox Grid.Column="0" Text="{Binding FilterText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                  Watermark="Filter this folder…" FontSize="12" />
-        <TextBox Grid.Column="2" Text="{Binding SearchQuery, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+        <TextBox Grid.Column="2" x:Name="SearchBox" Text="{Binding SearchQuery, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                  Watermark="Search subtree (Enter)…" FontSize="12">
           <TextBox.KeyBindings>
             <KeyBinding Gesture="Enter" Command="{Binding StartSearchCommand}" />

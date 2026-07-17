@@ -142,8 +142,12 @@ Check off items as they're completed; delete lines you decide not to build.
 - [x] Command palette listing every action, fuzzy-searchable
 - [x] Searchable context menu: a search box at the top of the file right-click menu fuzzy-filters the
   actions as you type, and Enter runs the first match
-- [ ] Fully rebindable hotkeys, including multi-key sequences — palette shows default gestures; persisted rebinding pending (M4 settings)
-- [ ] Hotkey assignment directly from the command palette
+- [x] Fully rebindable hotkeys — every window-wide command is rebindable in Settings ▸ Keybinds by
+  clicking its shortcut and pressing the new keys (live capture with conflict detection); overrides
+  persist in the portable JSON settings and are applied on the fly. The command registry is the single
+  source of truth for the palette, menus and the generated window key bindings, so e.g. Alt+←/→/↑ and
+  F5 are now real, editable shortcuts. (Multi-key sequences still pending.)
+- [ ] Hotkey assignment directly from the command palette — done via Settings ▸ Keybinds instead
 - [x] Complete keyboard operability: navigation, selection, dialogs, panels — core flows keyboard-driven (nav, palette, search, dialogs)
 - [ ] Type-ahead selection in file lists
 
