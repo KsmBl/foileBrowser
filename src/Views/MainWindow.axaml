@@ -36,6 +36,8 @@
         <MenuItem Header="Copy _Path" Command="{Binding CopyPathCommand}" />
         <MenuItem Header="Copy _Name" Command="{Binding CopyNameCommand}" />
         <Separator />
+        <MenuItem Header="P_roperties" InputGesture="Alt+Enter" Command="{Binding ShowPropertiesCommand}" />
+        <Separator />
         <MenuItem Header="E_xit" Click="OnExitClick" />
       </MenuItem>
       <MenuItem Header="_Edit">

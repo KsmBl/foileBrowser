@@ -176,10 +176,11 @@ public partial class FileTabView : UserControl
         var shell = (TopLevel.GetTopLevel(this) as MainWindow)?.DataContext as MainWindowViewModel;
         switch (e.Key)
         {
-            case Key.Enter:
+            case Key.Enter when e.KeyModifiers == KeyModifiers.None:
                 OnEntryActivated(sender, e);
                 e.Handled = true;
                 break;
+            // Alt+Enter is left unhandled so it reaches the window's Properties shortcut.
             case Key.Space:
                 // Spacebar quick-preview popup (PRD §6.5).
                 (TopLevel.GetTopLevel(this) as MainWindow)?.ShowQuickPreview();

@@ -202,6 +202,8 @@
             </MenuItem.ItemContainerTheme>
           </MenuItem>
           <MenuItem Header="Clear tag" Command="{Binding ClearTagCommand}" />
+          <Separator />
+          <MenuItem Header="Properties" InputGesture="Alt+Enter" Command="{Binding ShowPropertiesCommand}" />
         </ContextMenu>
       </ListBox.ContextMenu>
       <ListBox.Styles>

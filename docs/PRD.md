@@ -56,6 +56,8 @@ Check off items as they're completed; delete lines you decide not to build.
 - [x] Hidden/system file visibility toggle
 - [x] Navigation history: back / forward / up
 - [x] Clicking the empty area below the file list clears the current selection
+- [x] Properties window (Alt+Enter): shows the selected item's type, location, full path, size (folders
+  are measured in the background), created/modified times and Unix permissions
 - [x] Combined path bar (Thunar-style): clickable breadcrumb segments by default; clicking the empty
   area to the right (or Ctrl+L) turns it into an editable path entry, and it reverts on Esc / focus loss
 - [x] Switch modified dates between absolute timestamps and relative ("5 min ago", "yesterday"),

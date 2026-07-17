@@ -56,6 +56,7 @@ public partial class MainWindow : Window
             vm.BatchRenameRequester = entries => new BatchRenameWindow(entries).ShowDialog<IReadOnlyList<RenameProposal>?>(this);
             vm.SettingsRequester = settings => new SettingsWindow(settings, vm.RebindableCommands, vm.Disk.AvailableFilesystems()).ShowDialog<bool>(this);
             vm.FormatRequester = item => new FormatWindow(item, vm.Disk, vm.AllowedFilesystems()).ShowDialog<bool>(this);
+            vm.PropertiesRequester = entry => new PropertiesWindow(entry, vm.Sizes).ShowDialog(this);
             vm.ClipboardCopyRequested -= OnClipboardCopyRequested;
             vm.ClipboardCopyRequested += OnClipboardCopyRequested;
             vm.ThemeChanged -= OnThemeChanged;

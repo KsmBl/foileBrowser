@@ -88,6 +88,12 @@ public partial class MainWindowViewModel : ViewModelBase
     /// <summary>Set by the view to prompt the user for a name (rename). Returns null if cancelled.</summary>
     public Func<string, Task<string?>>? NameRequester { get; set; }
 
+    /// <summary>Set by the view to show the properties window for an entry (Alt+Enter — PRD §6.1).</summary>
+    public Func<FileSystemEntry, Task>? PropertiesRequester { get; set; }
+
+    /// <summary>The background size service, exposed so the properties window can compute a folder's size.</summary>
+    public IDirectorySizeService Sizes => _sizes;
+
     /// <summary>Raised when the VM wants text placed on the clipboard (path/name copy — PRD §6.3).</summary>
     public event EventHandler<string>? ClipboardCopyRequested;
 
@@ -373,6 +379,7 @@ public partial class MainWindowViewModel : ViewModelBase
             new("file.newFile", "New File", "File", null, () => NewFileCommand.ExecuteAsync(null), global: true),
             new("file.rename", "Rename…", "File", "F2", () => RenameSelectedCommand.ExecuteAsync(null)),
             new("file.delete", "Delete to Trash", "File", "Delete", () => DeleteSelectedCommand.ExecuteAsync(null)),
+            new("file.properties", "Properties", "File", "Alt+Enter", () => ShowPropertiesCommand.ExecuteAsync(null), global: true),
             new("file.copyToOther", "Copy to Other Pane", "File", "F6", () => { CopyToOtherCommand.Execute(null); return Task.CompletedTask; }, global: true),
             new("file.moveToOther", "Move to Other Pane", "File", "F7", () => { MoveToOtherCommand.Execute(null); return Task.CompletedTask; }, global: true),
             new("file.copyPath", "Copy Path", "File", null, () => { CopyPathCommand.Execute(null); return Task.CompletedTask; }, global: true),
@@ -1105,6 +1112,14 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         if (ActiveTab?.SelectedEntry is { } e)
             ActiveTab.StatusText = $"{e.Name}: {_archives.Identify(e.FullPath) ?? "unrecognised format"}";
+    }
+
+    /// <summary>Alt+Enter: opens a window describing the selected item (PRD §6.1).</summary>
+    [RelayCommand]
+    private async Task ShowProperties()
+    {
+        if (ActiveTab?.SelectedEntry is { } e && PropertiesRequester is not null)
+            await PropertiesRequester(e.Entry);
     }
 
     [RelayCommand]
