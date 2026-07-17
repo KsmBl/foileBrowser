@@ -162,8 +162,60 @@ public partial class FileTabView : UserControl
             return;
         }
 
-        if (props.IsLeftButtonPressed && row is null)
-            list?.SelectedItems?.Clear();
+        // Left-press on empty space starts a rubber-band selection (and clears the current one).
+        if (props.IsLeftButtonPressed && row is null && list is not null)
+        {
+            list.SelectedItems?.Clear();
+            _marqueeStart = e.GetPosition(FileList);
+            _marqueeActive = true;
+            Marquee.IsVisible = false;
+            e.Pointer.Capture(FileList);
+        }
+    }
+
+    // ---- rubber-band (marquee) selection (PRD §6.1) ----
+
+    private bool _marqueeActive;
+    private Avalonia.Point _marqueeStart;
+
+    private void OnListPointerMoved(object? sender, PointerEventArgs e)
+    {
+        if (!_marqueeActive)
+            return;
+
+        var cur = e.GetPosition(FileList);
+        var x = Math.Min(_marqueeStart.X, cur.X);
+        var y = Math.Min(_marqueeStart.Y, cur.Y);
+        var w = Math.Abs(cur.X - _marqueeStart.X);
+        var h = Math.Abs(cur.Y - _marqueeStart.Y);
+        var box = new Avalonia.Rect(x, y, w, h);
+
+        Canvas.SetLeft(Marquee, x);
+        Canvas.SetTop(Marquee, y);
+        Marquee.Width = w;
+        Marquee.Height = h;
+        Marquee.IsVisible = w > 2 || h > 2;
+
+        // Select every realized row whose bounds intersect the marquee (virtualized rows off-screen
+        // aren't hit-tested, which is fine — you can only drag over what's visible).
+        foreach (var container in FileList.GetRealizedContainers())
+        {
+            if (container is not ListBoxItem item)
+                continue;
+            if (item.TranslatePoint(default, FileList) is not { } topLeft)
+                continue;
+            item.IsSelected = box.Intersects(new Avalonia.Rect(topLeft, item.Bounds.Size));
+        }
+        e.Handled = true;
+    }
+
+    private void OnListPointerReleased(object? sender, PointerReleasedEventArgs e)
+    {
+        if (!_marqueeActive)
+            return;
+        _marqueeActive = false;
+        Marquee.IsVisible = false;
+        e.Pointer.Capture(null);
     }
 
     // Clicking the empty area of the breadcrumb bar switches it to an editable path entry (Thunar-style).

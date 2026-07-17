@@ -203,6 +203,8 @@
     </Border>
 
     <!-- Virtualized file list -->
+    <!-- File list with a rubber-band (marquee) selection overlay (PRD §6.1) -->
+    <Panel>
     <ListBox x:Name="FileList" ItemsSource="{Binding Entries}"
              SelectedItem="{Binding SelectedEntry, Mode=TwoWay}"
              SelectionMode="Multiple"
@@ -210,6 +212,8 @@
              DoubleTapped="OnEntryActivated"
              KeyDown="OnListKeyDown"
              PointerPressed="OnListPointerPressed"
+             PointerMoved="OnListPointerMoved"
+             PointerReleased="OnListPointerReleased"
              ScrollViewer.HorizontalScrollBarVisibility="Disabled">
       <!-- Right-click actions (DataContext is set to the shell view-model in code-behind). -->
       <ListBox.ContextMenu>
@@ -285,6 +289,12 @@
         </DataTemplate>
       </ListBox.ItemTemplate>
     </ListBox>
+      <!-- Marquee rectangle, drawn on top while dragging over the list; doesn't intercept input -->
+      <Canvas IsHitTestVisible="False">
+        <Rectangle x:Name="Marquee" IsVisible="False"
+                   Fill="#332D7DF5" Stroke="#2D7DF5" StrokeThickness="1" />
+      </Canvas>
+    </Panel>
 
   </DockPanel>
 </UserControl>
