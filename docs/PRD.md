@@ -252,10 +252,12 @@ Check off items as they're completed; delete lines you decide not to build.
   - CPU/software rendering by default (skips the ~120 MB Mesa/GL stack; `FOILE_GPU=1` re-enables GPU),
     InvariantGlobalization (drops ICU), workstation GC + ConserveMemory.
   - **Trimmed self-contained** (`install.sh --self-contained`): ~103 MB RSS, no runtime needed.
-  - **NativeAOT** (`install.sh --aot`, needs clang): **~79 MB RSS / ~68 MB private per instance**, with
+  - **NativeAOT** (`install.sh --aot`, needs clang): **~77 MB RSS** (jit-maps = 0, i.e. true AOT), with
     full archive support — the reflective format discovery was replaced by a compile-time **source
     generator** (`src/Generators`) that statically registers every CompressionWorkbench descriptor, so
-    no runtime reflection/`Assembly.LoadFrom` is used and the whole app is trim/AOT-safe.
+    no runtime reflection/`Assembly.LoadFrom` is used and the whole app is trim/AOT-safe. The in-house
+    dock view (`Views/DockLayoutView`) updates control properties via direct subscriptions rather than
+    reflection string-path bindings, keeping it trim/AOT-clean too.
   - No bundled UI font: `Avalonia.Fonts.Inter` was dropped in favour of system fonts, removing its
     ~1.8 MB mapping (and one package) and reading more native.
   - **Where the memory actually goes** (measured on a framework-dependent Release run, software

@@ -3,7 +3,6 @@ using System.ComponentModel;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Shapes;
-using Avalonia.Data;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
@@ -161,49 +160,67 @@ public sealed class DockLayoutView : Grid
         var strip = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 2, Margin = new Thickness(2) };
         Grid.SetRow(strip, 0);
 
-        var content = new ContentControl();
-        content.Bind(ContentControl.ContentProperty, new Binding(nameof(DockPane.ActiveTab)) { Source = pane });
+        var content = new ContentControl { Content = pane.ActiveTab };
         Grid.SetRow(content, 1);
+
+        // Subscriptions scoped to the current strip contents; cleared whenever the strip is rebuilt
+        // (kept trim/AOT-safe by updating properties directly instead of using reflection bindings).
+        var stripCleanup = new List<Action>();
 
         void RebuildStrip()
         {
+            foreach (var undo in stripCleanup)
+                undo();
+            stripCleanup.Clear();
             strip.Children.Clear();
+
             // A lone tab in a single-pane layout hides the strip; docking contexts keep it (to grab/close tabs).
             var show = pane.Tabs.Count > 1 || (Layout is { } l && l.Panes().Count() > 1);
             strip.IsVisible = show;
             if (!show)
                 return;
             foreach (var tab in pane.Tabs)
-                strip.Children.Add(BuildTabHeader(pane, tab));
+                strip.Children.Add(BuildTabHeader(pane, tab, stripCleanup));
         }
 
         RebuildStrip();
         void OnTabsChanged(object? s, NotifyCollectionChangedEventArgs e) => RebuildStrip();
         void OnActiveChanged(object? s, PropertyChangedEventArgs e)
         {
-            if (e.PropertyName == nameof(DockPane.ActiveTab))
-                RebuildStrip();
+            if (e.PropertyName != nameof(DockPane.ActiveTab))
+                return;
+            content.Content = pane.ActiveTab;
+            RebuildStrip();
         }
         pane.Tabs.CollectionChanged += OnTabsChanged;
         pane.PropertyChanged += OnActiveChanged;
         _cleanup.Add(() => pane.Tabs.CollectionChanged -= OnTabsChanged);
         _cleanup.Add(() => pane.PropertyChanged -= OnActiveChanged);
+        _cleanup.Add(() => { foreach (var undo in stripCleanup) undo(); stripCleanup.Clear(); });
 
         grid.Children.Add(strip);
         grid.Children.Add(content);
         return grid;
     }
 
-    private Control BuildTabHeader(DockPane pane, IDockable tab)
+    private Control BuildTabHeader(DockPane pane, IDockable tab, List<Action> stripCleanup)
     {
         var active = ReferenceEquals(pane.ActiveTab, tab);
         var title = new TextBlock
         {
+            Text = tab.Title,
             VerticalAlignment = VerticalAlignment.Center,
             Margin = new Thickness(6, 3, 4, 3),
             FontSize = 12,
         };
-        title.Bind(TextBlock.TextProperty, new Binding(nameof(IDockable.Title)) { Source = tab });
+        // Follow renames without a reflection binding.
+        void OnTitleChanged(object? s, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(IDockable.Title))
+                title.Text = tab.Title;
+        }
+        tab.PropertyChanged += OnTitleChanged;
+        stripCleanup.Add(() => tab.PropertyChanged -= OnTitleChanged);
 
         var close = new Button
         {
