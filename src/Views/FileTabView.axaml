@@ -199,11 +199,16 @@
          the header aligns with the rows and does not span the navigation pane. -->
     <DockPanel>
 
-    <!-- Native-style sortable column header: tinted strip, column separators, sort arrows -->
-    <Border DockPanel.Dock="Top" Background="{DynamicResource SystemControlBackgroundBaseLowBrush}"
+    <!-- Data-driven column header (shared column set → aligns with rows). Drag a header to reorder,
+         drag its right grip to resize, right-click to add/remove columns (PRD §6.1). -->
+    <Border DockPanel.Dock="Top" ClipToBounds="True"
+            Background="{DynamicResource SystemControlBackgroundBaseLowBrush}"
             BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}" BorderThickness="0,0,0,1">
-      <Grid Margin="4,0,20,0" ColumnDefinitions="26,*,120,100,140" Height="26">
-        <Grid.Styles>
+      <Border.ContextMenu>
+        <ContextMenu x:Name="ColumnsMenu" Opening="OnColumnsMenuOpening" />
+      </Border.ContextMenu>
+      <StackPanel Orientation="Horizontal" Height="26">
+        <StackPanel.Styles>
           <Style Selector="Button.colheader">
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderThickness" Value="0" />
@@ -218,48 +223,55 @@
           <Style Selector="Button.colheader /template/ ContentPresenter">
             <Setter Property="CornerRadius" Value="0" />
           </Style>
-          <Style Selector="Button.colheader TextBlock.arrow">
+          <Style Selector="TextBlock.arrow">
             <Setter Property="FontSize" Value="9" />
             <Setter Property="Opacity" Value="0.7" />
             <Setter Property="VerticalAlignment" Value="Center" />
             <Setter Property="Margin" Value="4,0,0,0" />
           </Style>
-        </Grid.Styles>
+        </StackPanel.Styles>
 
-        <Button Grid.Column="1" Classes="colheader" Command="{Binding SortByCommand}" CommandParameter="{x:Static models:SortColumn.Name}">
-          <DockPanel>
-            <TextBlock DockPanel.Dock="Right" Classes="arrow" Text="{Binding NameSortGlyph}" />
-            <TextBlock Text="Name" VerticalAlignment="Center" />
-          </DockPanel>
-        </Button>
-        <Border Grid.Column="1" Width="1" HorizontalAlignment="Right" Margin="0,5"
-                Background="{DynamicResource SystemControlForegroundBaseMediumLowBrush}" />
-
-        <Button Grid.Column="2" Classes="colheader" Command="{Binding SortByCommand}" CommandParameter="{x:Static models:SortColumn.Size}">
-          <DockPanel>
-            <TextBlock DockPanel.Dock="Right" Classes="arrow" Text="{Binding SizeSortGlyph}" />
-            <TextBlock Text="Size" VerticalAlignment="Center" />
-          </DockPanel>
-        </Button>
-        <Border Grid.Column="2" Width="1" HorizontalAlignment="Right" Margin="0,5"
-                Background="{DynamicResource SystemControlForegroundBaseMediumLowBrush}" />
-
-        <Button Grid.Column="3" Classes="colheader" Command="{Binding SortByCommand}" CommandParameter="{x:Static models:SortColumn.Type}">
-          <DockPanel>
-            <TextBlock DockPanel.Dock="Right" Classes="arrow" Text="{Binding TypeSortGlyph}" />
-            <TextBlock Text="Type" VerticalAlignment="Center" />
-          </DockPanel>
-        </Button>
-        <Border Grid.Column="3" Width="1" HorizontalAlignment="Right" Margin="0,5"
-                Background="{DynamicResource SystemControlForegroundBaseMediumLowBrush}" />
-
-        <Button Grid.Column="4" Classes="colheader" Command="{Binding SortByCommand}" CommandParameter="{x:Static models:SortColumn.Modified}">
-          <DockPanel>
-            <TextBlock DockPanel.Dock="Right" Classes="arrow" Text="{Binding ModifiedSortGlyph}" />
-            <TextBlock Text="Modified" VerticalAlignment="Center" />
-          </DockPanel>
-        </Button>
-      </Grid>
+        <Border Width="26" />
+        <ItemsControl x:Name="ColumnHeaderHost" DragDrop.AllowDrop="True"
+                      ItemsSource="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Columns}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <StackPanel Orientation="Horizontal" />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="vm:ColumnSpec">
+              <Grid Width="{Binding Width}" ColumnDefinitions="*,5">
+                <Button Grid.Column="0" Classes="colheader" Tag="{Binding}"
+                        Command="{Binding $parent[UserControl].((vm:FileTabViewModel)DataContext).SortByColumnCommand}"
+                        CommandParameter="{Binding}"
+                        PointerPressed="OnColumnHeaderPressed" PointerMoved="OnColumnHeaderMoved">
+                  <DockPanel>
+                    <TextBlock DockPanel.Dock="Right" Classes="arrow">
+                      <TextBlock.Text>
+                        <MultiBinding Converter="{x:Static views:SortGlyphConverter.Instance}">
+                          <Binding Path="$parent[UserControl].((vm:FileTabViewModel)DataContext).SortColumn" />
+                          <Binding Path="$parent[UserControl].((vm:FileTabViewModel)DataContext).SortDirection" />
+                          <Binding Path="Sort" />
+                        </MultiBinding>
+                      </TextBlock.Text>
+                    </TextBlock>
+                    <TextBlock Text="{Binding Header}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                  </DockPanel>
+                </Button>
+                <Thumb Grid.Column="1" Background="Transparent" Cursor="SizeWestEast" Tag="{Binding}"
+                       DragDelta="OnColumnResize" DragCompleted="OnColumnResizeDone">
+                  <Thumb.Template>
+                    <ControlTemplate>
+                      <Border Background="{TemplateBinding Background}" />
+                    </ControlTemplate>
+                  </Thumb.Template>
+                </Thumb>
+              </Grid>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </StackPanel>
     </Border>
 
     <!-- File list with a rubber-band (marquee) selection overlay (PRD §6.1) -->
@@ -317,27 +329,40 @@
       </ListBox.Styles>
       <ListBox.ItemTemplate>
         <DataTemplate x:DataType="vm:FileEntryViewModel">
-          <Grid ColumnDefinitions="26,*,120,100,140" MinHeight="{DynamicResource RowHeight}">
-            <Panel Grid.Column="0" VerticalAlignment="Center">
-              <TextBlock Text="{Binding Glyph}" FontSize="12" />
-              <!-- Color-tag dot (PRD §6.7) -->
+          <StackPanel Orientation="Horizontal" MinHeight="{DynamicResource RowHeight}"
+                      Opacity="{Binding IsHidden, Converter={x:Static vm:BoolOpacityConverter.Instance}}">
+            <!-- Fixed leading icon cell (matches the header's 26px spacer) with the color-tag dot -->
+            <Panel Width="26" VerticalAlignment="Center">
+              <TextBlock Text="{Binding Glyph}" FontSize="12" HorizontalAlignment="Center" />
               <Ellipse Width="7" Height="7" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,1,1,0"
                        IsVisible="{Binding HasTag}"
                        Fill="{Binding TagColor, Converter={x:Static views:MainWindow.BrushConverter}}" />
             </Panel>
-            <StackPanel Grid.Column="1" VerticalAlignment="Center"
-                        Opacity="{Binding IsHidden, Converter={x:Static vm:BoolOpacityConverter.Instance}}">
-              <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
-              <TextBlock Text="{Binding LocationDisplay}" IsVisible="{Binding HasLocation}"
-                         FontSize="10" Opacity="0.6" TextTrimming="CharacterEllipsis" />
-            </StackPanel>
-            <!-- Size — folders show a running "…/300 MiB+" while counting in the background (PRD §6.2) -->
-            <TextBlock Grid.Column="2" Text="{Binding SizeDisplay}" FontSize="12"
-                       HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"
-                       TextTrimming="CharacterEllipsis" />
-            <TextBlock Grid.Column="3" Text="{Binding TypeDisplay}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" FontSize="12" />
-            <TextBlock Grid.Column="4" Text="{Binding ModifiedDisplay}" VerticalAlignment="Center" FontSize="12" />
-          </Grid>
+            <!-- One cell per visible column, widths shared with the header so they line up -->
+            <ItemsControl ItemsSource="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Columns}">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <StackPanel Orientation="Horizontal" />
+                </ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:ColumnSpec">
+                  <Border Width="{Binding Width}" Padding="6,0" VerticalAlignment="Stretch">
+                    <TextBlock VerticalAlignment="Center" FontSize="12" TextTrimming="CharacterEllipsis"
+                               HorizontalAlignment="{Binding RightAligned, Converter={x:Static views:ColumnConverters.Alignment}}">
+                      <TextBlock.Text>
+                        <MultiBinding Converter="{x:Static views:CellTextConverter.Instance}">
+                          <Binding Path="Id" />
+                          <Binding Path="$parent[ListBoxItem].DataContext" />
+                          <Binding Path="$parent[ListBoxItem].((vm:FileEntryViewModel)DataContext).CellVersion" />
+                        </MultiBinding>
+                      </TextBlock.Text>
+                    </TextBlock>
+                  </Border>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
         </DataTemplate>
       </ListBox.ItemTemplate>
     </ListBox>

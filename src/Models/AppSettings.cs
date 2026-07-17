@@ -55,6 +55,9 @@ public sealed class AppSettings
     /// <summary>Date display mode: "Absolute" or "Relative" (PRD §6.1).</summary>
     public string DateFormat { get; set; } = "Absolute";
 
+    /// <summary>Visible file-list columns, in order, with their widths (PRD §6.1). Empty = defaults.</summary>
+    public List<ColumnState> Columns { get; set; } = [];
+
     // ---- copy engine tunables (PRD §6.3) ----
 
     /// <summary>Overlapped copy chunk size in KiB.</summary>
@@ -89,6 +92,13 @@ public sealed class AppSettings
 
     /// <summary>Command-id → hotkey gesture overrides (e.g. "tab.new" → "Ctrl+T"). Empty = ship defaults (PRD §6.6).</summary>
     public Dictionary<string, string> Keybinds { get; set; } = new();
+}
+
+/// <summary>Persisted state of one visible file-list column (PRD §6.1).</summary>
+public sealed class ColumnState
+{
+    public string Id { get; set; } = string.Empty;
+    public double Width { get; set; }
 }
 
 public sealed class SessionLayout

@@ -64,6 +64,13 @@ public partial class MainWindowViewModel : ViewModelBase
     /// <summary>The global operations-toolbar buttons, in display order (drag-reorderable — PRD §6.8).</summary>
     public ObservableCollection<ToolbarItemViewModel> ToolbarItems { get; } = [];
 
+    /// <summary>Visible file-list columns, in order (shared by every pane's header + rows so they align,
+    /// and resizable/reorderable/toggleable — PRD §6.1).</summary>
+    public ObservableCollection<ColumnSpec> Columns { get; } = [];
+
+    /// <summary>Every column the user can show/hide (built-ins + registered metadata columns).</summary>
+    public IReadOnlyList<ColumnSpec> AvailableColumns => ColumnCatalog.All;
+
     /// <summary>Root nodes of the sidebar folder-tree navigator (PRD §6.2), built lazily when enabled.</summary>
     public ObservableCollection<FolderNodeViewModel> TreeRoots { get; } = [];
 
@@ -390,6 +397,7 @@ public partial class MainWindowViewModel : ViewModelBase
         if (Enum.TryParse<DateDisplay>(_settings.Current.DateFormat, out var date))
             _display.DateDisplay = date;
         BuildToolbar();
+        BuildColumns();
         UpdateDisplayLabels();
 
         await RestoreTabsAsync(_settings.Current.Session);
@@ -623,6 +631,67 @@ public partial class MainWindowViewModel : ViewModelBase
         ToolbarItems.Remove(from);
         ToolbarItems.Insert(ToolbarItems.IndexOf(to), from);
         _settings.Current.ToolbarOrder = ToolbarItems.Select(i => i.Id).ToList();
+        _ = _settings.SaveAsync();
+    }
+
+    // ---- file-list columns (data-driven, resizable/reorderable/toggleable — PRD §6.1) ----
+
+    /// <summary>(Re)builds the visible columns from settings (or defaults on a fresh profile).</summary>
+    private void BuildColumns()
+    {
+        Columns.Clear();
+        var saved = _settings.Current.Columns;
+        var ids = saved.Count > 0
+            ? saved.Select(c => (c.Id, c.Width))
+            : ColumnCatalog.DefaultVisible.Select(id => (id, 0.0));
+
+        foreach (var (id, width) in ids)
+        {
+            if (ColumnCatalog.Create(id) is not { } column)
+                continue;
+            if (width > 0)
+                column.Width = width;
+            Columns.Add(column);
+        }
+        if (Columns.Count == 0)
+            foreach (var id in ColumnCatalog.DefaultVisible)
+                if (ColumnCatalog.Create(id) is { } column)
+                    Columns.Add(column);
+    }
+
+    /// <summary>Header right-click: shows or hides a column (keeps at least one visible).</summary>
+    public void ToggleColumn(string id)
+    {
+        if (Columns.FirstOrDefault(c => c.Id == id) is { } existing)
+        {
+            if (Columns.Count > 1)
+                Columns.Remove(existing);
+        }
+        else if (ColumnCatalog.Create(id) is { } column)
+        {
+            Columns.Add(column);
+        }
+        PersistColumns();
+    }
+
+    /// <summary>Drops the dragged column just before <paramref name="toId"/> and persists the order.</summary>
+    public void MoveColumn(string fromId, string toId)
+    {
+        if (fromId == toId)
+            return;
+        var from = Columns.FirstOrDefault(c => c.Id == fromId);
+        var to = Columns.FirstOrDefault(c => c.Id == toId);
+        if (from is null || to is null)
+            return;
+        Columns.Remove(from);
+        Columns.Insert(Columns.IndexOf(to), from);
+        PersistColumns();
+    }
+
+    /// <summary>Persists the current column ids + widths (called after resize/reorder/toggle).</summary>
+    public void PersistColumns()
+    {
+        _settings.Current.Columns = Columns.Select(c => new ColumnState { Id = c.Id, Width = c.Width }).ToList();
         _ = _settings.SaveAsync();
     }
 

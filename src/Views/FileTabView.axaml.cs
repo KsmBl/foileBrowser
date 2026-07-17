@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Linq;
 using Avalonia;
 using Avalonia.Controls;
@@ -12,12 +13,15 @@ namespace FoileBrowser.Views;
 public partial class FileTabView : UserControl
 {
     private readonly DragReorder _sectionDrag = new();
+    private readonly DragReorder _columnDrag = new();
 
     public FileTabView()
     {
         InitializeComponent();
         SidebarSectionsHost.AddHandler(DragDrop.DragOverEvent, OnSectionDragOver);
         SidebarSectionsHost.AddHandler(DragDrop.DropEvent, OnSectionDrop);
+        ColumnHeaderHost.AddHandler(DragDrop.DragOverEvent, OnColumnDragOver);
+        ColumnHeaderHost.AddHandler(DragDrop.DropEvent, OnColumnDrop);
         // Whenever the path entry becomes visible (via click or Ctrl+L), focus and select it.
         PathEntry.GetObservable(Visual.IsVisibleProperty).Subscribe(new AnonymousObserver<bool>(visible =>
         {
@@ -274,6 +278,66 @@ public partial class FileTabView : UserControl
             if ((v as Control)?.DataContext is SidebarSectionViewModel section)
                 return section;
         return null;
+    }
+
+    // ---- file-list columns: resize / reorder / add-remove (PRD §6.1) ----
+
+    private MainWindowViewModel? Shell() =>
+        (TopLevel.GetTopLevel(this) as MainWindow)?.DataContext as MainWindowViewModel;
+
+    private void OnColumnResize(object? sender, VectorEventArgs e)
+    {
+        if ((sender as Control)?.Tag is ColumnSpec column)
+            column.Width = System.Math.Max(40, column.Width + e.Vector.X);
+    }
+
+    private void OnColumnResizeDone(object? sender, VectorEventArgs e) => Shell()?.PersistColumns();
+
+    private void OnColumnHeaderPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if ((sender as Control)?.Tag is ColumnSpec column)
+            _columnDrag.Arm(column.Id, e, this);
+    }
+
+    private async void OnColumnHeaderMoved(object? sender, PointerEventArgs e) =>
+        await _columnDrag.MaybeStartAsync(e, this);
+
+    private static void OnColumnDragOver(object? sender, DragEventArgs e) => DragReorder.Accept(e);
+
+    private void OnColumnDrop(object? sender, DragEventArgs e)
+    {
+        if (Shell() is { } shell && DragReorder.DroppedId(e) is { } fromId && ColumnAt(e.Source) is { } target)
+            shell.MoveColumn(fromId, target.Id);
+        e.Handled = true;
+    }
+
+    private static ColumnSpec? ColumnAt(object? source)
+    {
+        for (var v = source as Visual; v is not null; v = v.GetVisualParent())
+            if ((v as Control)?.DataContext is ColumnSpec column)
+                return column;
+        return null;
+    }
+
+    // Builds the add/remove-columns menu on open, with a ✓ next to the currently-shown columns.
+    private void OnColumnsMenuOpening(object? sender, CancelEventArgs e)
+    {
+        if (Shell() is not { } shell)
+        {
+            e.Cancel = true;
+            return;
+        }
+        ColumnsMenu.Items.Clear();
+        foreach (var column in shell.AvailableColumns)
+        {
+            var id = column.Id;
+            var visible = shell.Columns.Any(c => c.Id == id);
+            var item = new MenuItem { Header = column.Header };
+            if (visible)
+                item.Icon = new TextBlock { Text = "✓" };
+            item.Click += (_, _) => shell.ToggleColumn(id);
+            ColumnsMenu.Items.Add(item);
+        }
     }
 
     private void OnListKeyDown(object? sender, KeyEventArgs e)

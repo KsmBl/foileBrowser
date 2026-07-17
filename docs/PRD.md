@@ -52,9 +52,11 @@ Check off items as they're completed; delete lines you decide not to build.
 ### 6.1 Core Browsing
 
 - [x] Directory listing with name, size, type, and modified date
-- [x] Sorting by any column, ascending/descending — via a native-style header row (tinted strip,
-  column separators, and a ▲/▼ sort-direction arrow on the active column). The header sits above the
-  file list only (right of the navigation pane), so its columns line up with the rows
+- [x] Configurable columns: the file list is data-driven from one shared, ordered column set that
+  drives both the header and every row, so header and cells always line up. Columns are **resizable**
+  (drag a header's right grip), **reorderable** (drag a header onto another), and **add/removable** via
+  the header's right-click menu; the visible set, order and widths persist. Clicking a header sorts by
+  it (▲/▼ on the active column). The header sits above the file list only (right of the navigation pane)
 - [x] Hidden/system file visibility toggle
 - [x] Navigation history: back / forward / up
 - [x] Multiple selection (click, Ctrl/Shift-click, and rubber-band: drag a rectangle over the list to
@@ -104,7 +106,7 @@ Check off items as they're completed; delete lines you decide not to build.
   symlinks/junctions** (so cyclic links can't loop and link targets aren't double-counted), skips
   pseudo-filesystems (/proc, /sys, /dev, /run — no more bogus multi-TiB sizes), and is capped so a
   huge tree can't blow up RAM/CPU. Computing a folder also caches its immediate subfolders, so
-  drilling one level in is instant — configurable column set still pending
+  drilling one level in is instant
 - [x] Switch file sizes between binary (KiB/MiB), decimal (KB/MB) and exact bytes, quick-toggle in
   the toolbar / View menu / command palette (persisted)
 - [x] Per-pane navigation sidebar (favorites, drives, grouped partitions, devices): each pane has its

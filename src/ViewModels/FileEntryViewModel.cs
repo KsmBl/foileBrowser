@@ -26,12 +26,37 @@ public sealed partial class FileEntryViewModel(
     [NotifyPropertyChangedFor(nameof(SizeDisplay))]
     private bool _isCalculatingSize;
 
+    /// <summary>Bumped whenever any cell value changes (size computed, metadata arrived, display toggled),
+    /// so the data-driven column cells refresh through their converter binding (PRD §6.1).</summary>
+    [ObservableProperty]
+    private int _cellVersion;
+
+    partial void OnComputedSizeChanged(long? value) => CellVersion++;
+    partial void OnIsCalculatingSizeChanged(bool value) => CellVersion++;
+
     /// <summary>Re-renders size/date after a display-mode toggle without rebuilding the list (PRD §6.1/§6.2).</summary>
     public void RefreshDisplay()
     {
         OnPropertyChanged(nameof(SizeDisplay));
         OnPropertyChanged(nameof(ModifiedDisplay));
+        CellVersion++;
     }
+
+    /// <summary>The display text for a column by id — the value shown in that column's cell (PRD §6.1).
+    /// Metadata columns are resolved lazily by <see cref="Metadata"/> (null until wired), else blank.</summary>
+    public string GetCellText(string columnId) => columnId switch
+    {
+        "name" => Name,
+        "size" => SizeDisplay,
+        "type" => TypeDisplay,
+        "modified" => ModifiedDisplay,
+        "extension" => Entry.Extension,
+        "location" => LocationDisplay ?? string.Empty,
+        _ => Metadata?.Invoke(this, columnId) ?? string.Empty,
+    };
+
+    /// <summary>Set by the owner to resolve metadata columns (image/audio/video) lazily.</summary>
+    public Func<FileEntryViewModel, string, string>? Metadata { get; set; }
 
     /// <summary>Containing directory, shown under the name for flattened search hits (PRD §6.4). Null when browsing.</summary>
     public string? LocationDisplay { get; } = location;
