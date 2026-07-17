@@ -189,6 +189,12 @@ Check off items as they're completed; delete lines you decide not to build.
 - [x] Auto-refresh volume list on device plug/unplug events
 - [x] Sidebar context menu — right-click a favorite/drive/partition/device to Open, Open in New Tab,
   Open in New Pane, Eject/Unmount (removable) or Unpin (favorites)
+- [x] Format drives/partitions & create filesystems — an opt-in "Format / create filesystem…" sidebar
+  action (Settings ▸ Disks) creates ext4/ext3/ext2/btrfs/xfs/f2fs/FAT32/exFAT/NTFS filesystems (those
+  whose mkfs.* tools are installed) on the selected device. It unmounts, wipes old signatures and runs
+  mkfs as root via pkexec (polkit), guarded by a type-the-device-name confirmation and a refusal to
+  ever touch the running "/" device. Which filesystem types are offered is configurable. (Linux only
+  for now; Windows/macOS pending.)
 - [x] Per-device free-space bar & value and filesystem-type display
 - [x] Recognise partitions of the same physical disk and group them under one drive (indented
   partitions with their fs/free-space), instead of scattering them as separate devices — the disk's

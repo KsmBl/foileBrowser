@@ -50,7 +50,8 @@ public partial class MainWindow : Window
             // The view supplies the prompts, dialogs, clipboard and theming the VM asks for.
             vm.NameRequester = current => new NameInputWindow(current).ShowDialog<string?>(this);
             vm.BatchRenameRequester = entries => new BatchRenameWindow(entries).ShowDialog<IReadOnlyList<RenameProposal>?>(this);
-            vm.SettingsRequester = settings => new SettingsWindow(settings, vm.RebindableCommands).ShowDialog<bool>(this);
+            vm.SettingsRequester = settings => new SettingsWindow(settings, vm.RebindableCommands, vm.Disk.AvailableFilesystems()).ShowDialog<bool>(this);
+            vm.FormatRequester = item => new FormatWindow(item, vm.Disk, vm.AllowedFilesystems()).ShowDialog<bool>(this);
             vm.ClipboardCopyRequested -= OnClipboardCopyRequested;
             vm.ClipboardCopyRequested += OnClipboardCopyRequested;
             vm.ThemeChanged -= OnThemeChanged;

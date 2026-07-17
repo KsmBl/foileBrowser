@@ -28,6 +28,12 @@ public sealed class AppSettings
     /// <summary>Whether each pane's filter/search bar is shown by default; when false, Ctrl+F reveals it (PRD §6.4).</summary>
     public bool SearchBarVisible { get; set; } = true;
 
+    /// <summary>Master switch for the destructive "Format…" action on drives/partitions — off by default (PRD §6.10).</summary>
+    public bool EnableDiskFormatting { get; set; }
+
+    /// <summary>Filesystem ids offered in the format dialog (e.g. "ext4"). Empty = offer every installed type (PRD §6.10).</summary>
+    public List<string> FormatFilesystems { get; set; } = [];
+
     /// <summary>Size display mode: "Binary", "Decimal", or "Bytes" (PRD §6.2).</summary>
     public string SizeUnit { get; set; } = "Binary";
 

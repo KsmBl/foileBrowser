@@ -46,11 +46,18 @@ public sealed class SidebarItemViewModel
     public ICommand? OpenInNewTabCommand { get; init; }
     public ICommand? OpenInNewPaneCommand { get; init; }
     public ICommand? EjectCommand { get; init; }
+    public ICommand? FormatCommand { get; init; }
+
+    /// <summary>Backing block device (e.g. "/dev/sdb1") for drives/partitions; null for GVfs/favorites.</summary>
+    public string? Device { get; init; }
+
+    /// <summary>True when this row can be formatted (a real block device, formatting enabled — PRD §6.10).</summary>
+    public bool CanFormat { get; init; }
 
     public bool CanUnpin => UnpinCommand is not null;
 
     /// <summary>True when the sidebar row has any context-menu action below "open" (keeps the separator tidy).</summary>
-    public bool HasActions => IsEjectable || CanUnpin;
+    public bool HasActions => IsEjectable || CanUnpin || CanFormat;
 
     public bool IsNavigable =>
         Kind is SidebarItemKind.Favorite or SidebarItemKind.Drive or SidebarItemKind.Device or SidebarItemKind.Partition;

@@ -59,6 +59,32 @@
         </DockPanel>
       </TabItem>
 
+      <!-- Disks (destructive — PRD §6.10) -->
+      <TabItem Header="Disks">
+        <DockPanel Margin="4,10">
+          <StackPanel DockPanel.Dock="Top" Spacing="8">
+            <CheckBox x:Name="EnableFormatBox"
+                      Content="Enable formatting drives &amp; partitions (creates new filesystems — destructive)" />
+            <Border Background="#33E06C6C" BorderBrush="#E06C6C" BorderThickness="1" CornerRadius="4" Padding="8">
+              <TextBlock TextWrapping="Wrap" FontSize="12"
+                         Text="⚠  When enabled, a “Format / create filesystem…” action appears in the sidebar context menu for drives and partitions. It runs mkfs as root via pkexec and ERASES the target. Always double-check the device." />
+            </Border>
+            <TextBlock Text="Filesystems to offer in the format dialog:" Margin="0,4,0,0" Opacity="0.75" FontSize="12" />
+            <TextBlock x:Name="NoMkfsText" IsVisible="False" FontSize="12" Opacity="0.7" TextWrapping="Wrap"
+                       Text="No mkfs.* tools were found on this system. Install e.g. e2fsprogs, dosfstools, exfatprogs, ntfs-3g to enable formatting." />
+          </StackPanel>
+          <ScrollViewer>
+            <ItemsControl ItemsSource="{Binding FormatFilesystemOptions}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:ToolbarOption">
+                  <CheckBox Content="{Binding Label}" IsChecked="{Binding IsEnabled, Mode=TwoWay}" Margin="0,1" />
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </ScrollViewer>
+        </DockPanel>
+      </TabItem>
+
       <!-- Keybinds (interactive capture — PRD §6.6) -->
       <TabItem Header="Keybinds">
         <DockPanel Margin="4,10">

@@ -135,6 +135,8 @@
                         <Separator IsVisible="{Binding HasActions}" />
                         <MenuItem Header="Eject / Unmount" IsVisible="{Binding IsEjectable}"
                                   Command="{Binding EjectCommand}" CommandParameter="{Binding}" />
+                        <MenuItem Header="Format / create filesystem…" IsVisible="{Binding CanFormat}"
+                                  Command="{Binding FormatCommand}" CommandParameter="{Binding}" />
                         <MenuItem Header="Unpin from favorites" IsVisible="{Binding CanUnpin}"
                                   Command="{Binding UnpinCommand}" CommandParameter="{Binding}" />
                       </ContextMenu>

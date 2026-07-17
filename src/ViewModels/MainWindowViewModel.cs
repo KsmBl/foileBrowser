@@ -27,6 +27,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly IShellService _shell;
     private readonly IArchiveService _archives;
     private readonly IDeviceService _device;
+    private readonly IDiskService _disk;
     private readonly IDirectorySizeService _sizes;
     private readonly DisplayOptions _display = new();
 
@@ -100,7 +101,7 @@ public partial class MainWindowViewModel : ViewModelBase
         IFileSystemService fileSystem, IFileOperationService operations, ITrashService trash,
         ISearchService? search = null, IPreviewService? preview = null,
         ISettingsService? settings = null, ITagService? tags = null, IShellService? shell = null,
-        IArchiveService? archives = null, IDeviceService? device = null)
+        IArchiveService? archives = null, IDeviceService? device = null, IDiskService? disk = null)
     {
         _fileSystem = fileSystem;
         _operations = operations;
@@ -111,6 +112,7 @@ public partial class MainWindowViewModel : ViewModelBase
         _shell = shell ?? new ShellService();
         _archives = archives ?? new ArchiveService();
         _device = device ?? new DeviceService();
+        _disk = disk ?? new DiskService();
         _sizes = new DirectorySizeService();
         _search = search ??= new SearchService();
 
@@ -718,10 +720,14 @@ public partial class MainWindowViewModel : ViewModelBase
         TotalBytes = volume.TotalBytes,
         FileSystem = volume.FileSystem ?? (volume.Kind == VolumeKind.Gvfs ? "GVfs" : null),
         IsEjectable = volume.IsRemovable,
+        Device = volume.Device,
+        // Formatting is opt-in, needs a real block device, and never targets the running root mount.
+        CanFormat = _settings.Current.EnableDiskFormatting && volume.Device is not null && volume.RootPath != "/",
         OpenCommand = OpenSidebarItemCommand,
         OpenInNewTabCommand = OpenSidebarInNewTabCommand,
         OpenInNewPaneCommand = OpenSidebarInNewPaneCommand,
         EjectCommand = EjectCommand,
+        FormatCommand = FormatVolumeCommand,
     };
 
     private static string VolumeSignature(IReadOnlyList<DriveVolume> volumes) =>
@@ -735,6 +741,30 @@ public partial class MainWindowViewModel : ViewModelBase
             await _device.EjectAsync(item.Path);
             await LoadSidebarAsync();
         }
+    }
+
+    /// <summary>Set by the view to launch the format dialog for a device; true if a filesystem was created.</summary>
+    public Func<SidebarItemViewModel, Task<bool>>? FormatRequester { get; set; }
+
+    /// <summary>The format service, exposed so the view can build the format dialog (PRD §6.10).</summary>
+    public IDiskService Disk => _disk;
+
+    /// <summary>Filesystems offered in the format dialog: the installed set narrowed by the user's choice.</summary>
+    public IReadOnlyList<FilesystemType> AllowedFilesystems()
+    {
+        var available = _disk.AvailableFilesystems();
+        var wanted = _settings.Current.FormatFilesystems;
+        return wanted.Count == 0 ? available : available.Where(f => wanted.Contains(f.Id)).ToList();
+    }
+
+    /// <summary>Context menu: format a drive/partition (creating a new filesystem) after confirmation.</summary>
+    [RelayCommand]
+    private async Task FormatVolume(SidebarItemViewModel? item)
+    {
+        if (item is not { CanFormat: true } || FormatRequester is null)
+            return;
+        if (await FormatRequester(item))
+            await LoadSidebarAsync();
     }
 
     /// <summary>Polls for volume plug/unplug and refreshes the sidebar only when the set changes (PRD §6.10).</summary>

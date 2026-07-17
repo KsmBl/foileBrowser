@@ -4,6 +4,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using FoileBrowser.Models;
+using FoileBrowser.Services;
 using FoileBrowser.ViewModels;
 
 namespace FoileBrowser.Views;
@@ -20,11 +21,14 @@ public partial class SettingsWindow : Window
     /// <summary>Per-button show/hide toggles for the operations toolbar (PRD §6.8).</summary>
     public ObservableCollection<ToolbarOption> ToolbarOptions { get; } = [];
 
-    public SettingsWindow() : this(new AppSettings(), [])
+    /// <summary>Which installed filesystem types to offer in the format dialog (PRD §6.10).</summary>
+    public ObservableCollection<ToolbarOption> FormatFilesystemOptions { get; } = [];
+
+    public SettingsWindow() : this(new AppSettings(), [], [])
     {
     }
 
-    public SettingsWindow(AppSettings settings, IReadOnlyList<CommandItem> rebindable)
+    public SettingsWindow(AppSettings settings, IReadOnlyList<CommandItem> rebindable, IReadOnlyList<FilesystemType> availableFilesystems)
     {
         InitializeComponent();
         DataContext = this;
@@ -47,6 +51,13 @@ public partial class SettingsWindow : Window
 
         foreach (var (id, label) in ToolbarButtons.All)
             ToolbarOptions.Add(new ToolbarOption(id, label, enabled: !settings.HiddenToolbarButtons.Contains(id)));
+
+        EnableFormatBox.IsChecked = settings.EnableDiskFormatting;
+        foreach (var fs in availableFilesystems)
+            FormatFilesystemOptions.Add(new ToolbarOption(fs.Id, fs.Display,
+                enabled: settings.FormatFilesystems.Count == 0 || settings.FormatFilesystems.Contains(fs.Id)));
+        if (FormatFilesystemOptions.Count == 0)
+            NoMkfsText.IsVisible = true;
     }
 
     // ---- keybind capture (PRD §6.6) ----
@@ -159,6 +170,11 @@ public partial class SettingsWindow : Window
 
         _settings.HiddenToolbarButtons = ToolbarOptions.Where(o => !o.IsEnabled).Select(o => o.Id).ToList();
         _settings.SearchBarVisible = SearchBarBox.IsChecked ?? true;
+
+        _settings.EnableDiskFormatting = EnableFormatBox.IsChecked ?? false;
+        // Store the offered set only when it's a real subset; all-selected persists as "offer everything".
+        var chosen = FormatFilesystemOptions.Where(o => o.IsEnabled).Select(o => o.Id).ToList();
+        _settings.FormatFilesystems = chosen.Count == FormatFilesystemOptions.Count ? [] : chosen;
 
         // Persist only overrides: a gesture equal to the default is dropped (so it tracks default
         // changes); an empty gesture is stored explicitly to mean "unbound".
