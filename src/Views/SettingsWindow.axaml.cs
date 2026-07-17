@@ -56,6 +56,7 @@ public partial class SettingsWindow : Window
         SidebarDrivesBox.IsChecked = settings.SidebarShowDrives;
         SidebarDevicesBox.IsChecked = settings.SidebarShowDevices;
         SidebarTreeBox.IsChecked = settings.SidebarShowTree;
+        TreeRootBox.SelectedIndex = settings.TreeRoot switch { "Root" => 1, "Current" => 2, _ => 0 };
         if (settings.HiddenDefaultFavorites.Count > 0)
         {
             RestoreDefaultsBox.IsVisible = true;
@@ -186,6 +187,7 @@ public partial class SettingsWindow : Window
         _settings.SidebarShowDrives = SidebarDrivesBox.IsChecked ?? true;
         _settings.SidebarShowDevices = SidebarDevicesBox.IsChecked ?? true;
         _settings.SidebarShowTree = SidebarTreeBox.IsChecked ?? false;
+        _settings.TreeRoot = TreeRootBox.SelectedIndex switch { 1 => "Root", 2 => "Current", _ => "HomeAndDrives" };
         if (RestoreDefaultsBox.IsChecked == true)
             _settings.HiddenDefaultFavorites.Clear();
 

@@ -34,6 +34,9 @@ public sealed class AppSettings
     public bool SidebarShowDevices { get; set; } = true;
     public bool SidebarShowTree { get; set; }
 
+    /// <summary>Folder-tree root: "HomeAndDrives", "Root" (/), or "Current" (the active pane's folder) (PRD §6.2).</summary>
+    public string TreeRoot { get; set; } = "HomeAndDrives";
+
     /// <summary>Master switch for the destructive "Format…" action on drives/partitions — off by default (PRD §6.10).</summary>
     public bool EnableDiskFormatting { get; set; }
 

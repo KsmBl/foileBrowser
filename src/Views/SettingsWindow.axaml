@@ -67,6 +67,15 @@
           <CheckBox x:Name="SidebarDrivesBox" Content="Drives" />
           <CheckBox x:Name="SidebarDevicesBox" Content="Devices (removable)" />
           <CheckBox x:Name="SidebarTreeBox" Content="Folder tree navigator" />
+          <StackPanel Orientation="Horizontal" Spacing="8" Margin="24,0,0,0"
+                      IsVisible="{Binding #SidebarTreeBox.IsChecked}">
+            <TextBlock Text="Tree root:" VerticalAlignment="Center" Opacity="0.75" FontSize="12" />
+            <ComboBox x:Name="TreeRootBox" MinWidth="180">
+              <ComboBoxItem>Home &amp; drives</ComboBoxItem>
+              <ComboBoxItem>Filesystem root (/)</ComboBoxItem>
+              <ComboBoxItem>Current folder</ComboBoxItem>
+            </ComboBox>
+          </StackPanel>
           <Border Height="1" Background="{DynamicResource SystemControlForegroundBaseLowBrush}" Margin="0,6" />
           <CheckBox x:Name="RestoreDefaultsBox" IsVisible="False"
                     Content="Restore removed built-in favorites (Home/Desktop/…) on save" />

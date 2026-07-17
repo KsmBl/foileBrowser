@@ -181,8 +181,12 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private void OnTabPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(FileTabViewModel.SelectedEntry) && ReferenceEquals(sender, ActiveTab))
+        if (!ReferenceEquals(sender, ActiveTab))
+            return;
+        if (e.PropertyName == nameof(FileTabViewModel.SelectedEntry))
             _ = UpdatePreviewAsync();
+        else if (e.PropertyName == nameof(FileTabViewModel.CurrentPath))
+            ReRootTreeToCurrent(); // "Current folder" tree follows the active pane
     }
 
     /// <summary>Wraps tabs in a document dock (a "pane"); its "+" opens a new tab there.</summary>
@@ -325,6 +329,7 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         NotifyPaneCountChanged();
         RewireInspector();
+        ReRootTreeToCurrent(); // switching panes re-roots a "Current folder" tree to that pane
     }
 
     private static bool SameDock(FileTabViewModel a, FileTabViewModel b) => ReferenceEquals(a.Owner, b.Owner);
@@ -710,7 +715,7 @@ public partial class MainWindowViewModel : ViewModelBase
             AddVolumeGroups(removable, removableSection: true);
         }
 
-        // Folder tree: build its roots once (preserving expansion across device-poll refreshes).
+        // Folder tree: build its roots per the configured mode.
         IsTreeVisible = s.SidebarShowTree;
         if (s.SidebarShowTree)
             BuildTreeRoots(volumes);
@@ -718,18 +723,61 @@ public partial class MainWindowViewModel : ViewModelBase
             TreeRoots.Clear();
     }
 
-    /// <summary>Builds the folder-tree roots (Home + each fixed drive) if not already present.</summary>
+    private string _builtTreeMode = string.Empty;
+
+    /// <summary>Builds the folder-tree roots for the configured root mode (PRD §6.2). Rebuilds when the
+    /// mode changes but preserves expansion across device-poll refreshes within the same mode.</summary>
     private void BuildTreeRoots(IReadOnlyList<DriveVolume> volumes)
     {
-        if (TreeRoots.Count > 0)
+        var mode = _settings.Current.TreeRoot;
+        if (mode == "Current")
+        {
+            _builtTreeMode = mode;
+            ReRootTreeToCurrent();
             return;
+        }
 
+        if (TreeRoots.Count > 0 && _builtTreeMode == mode)
+            return;
+        _builtTreeMode = mode;
+        TreeRoots.Clear();
+
+        if (mode == "Root")
+        {
+            if (OperatingSystem.IsWindows())
+                foreach (var volume in volumes.Where(v => v.Kind == VolumeKind.Fixed))
+                    TreeRoots.Add(new FolderNodeViewModel(volume.RootPath, volume.RootPath));
+            else
+                TreeRoots.Add(new FolderNodeViewModel("/", "/"));
+            return;
+        }
+
+        // "HomeAndDrives"
         var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
         if (!string.IsNullOrEmpty(home) && _fileSystem.DirectoryExists(home))
             TreeRoots.Add(new FolderNodeViewModel("Home", home));
-
         foreach (var volume in volumes.Where(v => v.Kind == VolumeKind.Fixed))
             TreeRoots.Add(new FolderNodeViewModel(volume.Label, volume.RootPath));
+    }
+
+    /// <summary>In "Current folder" mode, re-roots the tree at the active pane's folder (if it changed).</summary>
+    private void ReRootTreeToCurrent()
+    {
+        if (!IsTreeVisible || _settings.Current.TreeRoot != "Current")
+            return;
+
+        var path = ActiveTab?.CurrentPath;
+        if (string.IsNullOrEmpty(path) || !_fileSystem.DirectoryExists(path))
+        {
+            TreeRoots.Clear();
+            return;
+        }
+        if (TreeRoots.Count == 1 && string.Equals(TreeRoots[0].Path, path, StringComparison.Ordinal))
+            return; // already rooted here
+
+        var name = Path.GetFileName(path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+        TreeRoots.Clear();
+        TreeRoots.Add(new FolderNodeViewModel(string.IsNullOrEmpty(name) ? path : name, path));
     }
 
     /// <summary>

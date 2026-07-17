@@ -104,8 +104,10 @@ Check off items as they're completed; delete lines you decide not to build.
   remembered and can be restored from Settings ▸ Sidebar
 - [x] Choose which sidebar sections are shown (Favorites, Drives, Devices, Folder tree) in
   Settings ▸ Sidebar
-- [x] Folder-tree navigator: an optional sidebar section with a lazily-loaded directory tree (rooted at
-  Home + fixed drives) that expands on demand and navigates the pane it lives in on selection
+- [x] Folder-tree navigator: an optional sidebar section with a lazily-loaded directory tree that
+  expands on demand and navigates the pane it lives in on selection. Its root is settable
+  (Settings ▸ Sidebar): Home & drives, the filesystem root (/), or the current folder (which re-roots
+  the tree to the active pane as you navigate)
 - [ ] Drag-and-drop reordering of sidebar favorites
 
 ### 6.3 File Operations
