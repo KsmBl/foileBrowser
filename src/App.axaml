@@ -4,6 +4,7 @@
              xmlns:vm="using:FoileBrowser.ViewModels"
              xmlns:views="using:FoileBrowser.Views"
              xmlns:dockThemes="using:Dock.Avalonia.Themes.Fluent"
+             xmlns:dockControls="using:Dock.Avalonia.Controls"
              x:Class="FoileBrowser.App"
              RequestedThemeVariant="Default">
   <!-- "Default" theme variant follows the OS light/dark setting (PRD §6.8). -->
@@ -24,5 +25,11 @@
   <Application.Styles>
     <FluentTheme />
     <dockThemes:DockFluentTheme />
+
+    <!-- Hide a pane's tab strip while it holds a single tab (PRD §6.2). -->
+    <Style Selector="dockControls|DocumentTabStrip">
+      <Setter Property="IsVisible"
+              Value="{Binding ItemCount, RelativeSource={RelativeSource Self}, Converter={x:Static views:MainWindow.MoreThanOne}}" />
+    </Style>
   </Application.Styles>
 </Application>

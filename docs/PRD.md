@@ -73,7 +73,8 @@ Check off items as they're completed; delete lines you decide not to build.
   pane; New Pane splits one off side by side. The dual-pane toggle is retired — arrange any number of
   tabs/panes freely; the layout (panes + tabs) is restored across restart. New Pane works even after
   every tab is closed. The operations toolbar can also be shown/hidden from a button inside each tab's
-  nav bar (like the hidden-files toggle).
+  nav bar (like the hidden-files toggle). A pane's tab strip is hidden while it holds a single tab and
+  appears once a second tab joins it.
 - [ ] Toolbar and copy/move queue as dockable/floatable tool panels — the queue already auto-hides
   when idle and the toolbar can be hidden; turning them into draggable Dock tools is still pending
 - [x] Dockable multi-pane layout: open any number of panes and arrange them by splitting, tabbing,
