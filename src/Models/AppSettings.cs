@@ -31,6 +31,12 @@ public sealed class AppSettings
     /// <summary>Whether each pane's filter/search bar is shown by default; when false, Ctrl+F reveals it (PRD §6.4).</summary>
     public bool SearchBarVisible { get; set; } = true;
 
+    /// <summary>
+    /// Terminal launched by "Open terminal here" (PRD §6.9). Empty auto-detects. May be a bare
+    /// executable ("kitty") or a full command line, where <c>{dir}</c> is replaced by the folder.
+    /// </summary>
+    public string TerminalCommand { get; set; } = string.Empty;
+
     // Which navigation-sidebar sections are shown (PRD §6.2). The folder tree is off by default.
     public bool SidebarShowFavorites { get; set; } = true;
     public bool SidebarShowDrives { get; set; } = true;

@@ -24,6 +24,9 @@ public partial class SettingsWindow : Window
     /// <summary>Which installed filesystem types to offer in the format dialog (PRD §6.10).</summary>
     public ObservableCollection<ToolbarOption> FormatFilesystemOptions { get; } = [];
 
+    /// <summary>Terminals detected on this machine, suggested for "Open terminal here" (PRD §6.9).</summary>
+    public ObservableCollection<string> Terminals { get; } = [];
+
     public SettingsWindow() : this(new AppSettings(), [], [])
     {
     }
@@ -44,6 +47,10 @@ public partial class SettingsWindow : Window
         FontBox.Value = (decimal)settings.FontSize;
         RowHeightBox.Value = (decimal)settings.RowHeight;
         SearchBarBox.IsChecked = settings.SearchBarVisible;
+
+        foreach (var term in ShellService.DetectTerminals())
+            Terminals.Add(term);
+        TerminalBox.Text = settings.TerminalCommand;
 
         foreach (var command in rebindable)
             Keybinds.Add(new KeybindRow(command.Id, command.Title, command.DefaultGesture, command.Gesture));
@@ -182,6 +189,7 @@ public partial class SettingsWindow : Window
 
         _settings.HiddenToolbarButtons = ToolbarOptions.Where(o => !o.IsEnabled).Select(o => o.Id).ToList();
         _settings.SearchBarVisible = SearchBarBox.IsChecked ?? true;
+        _settings.TerminalCommand = TerminalBox.Text?.Trim() ?? string.Empty;
 
         _settings.SidebarShowFavorites = SidebarFavoritesBox.IsChecked ?? true;
         _settings.SidebarShowDrives = SidebarDrivesBox.IsChecked ?? true;

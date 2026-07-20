@@ -405,6 +405,7 @@ public partial class MainWindowViewModel : ViewModelBase
         IsInspectorOpen = _settings.Current.IsInspectorOpen;
         IsToolbarVisible = _settings.Current.IsToolbarVisible;
         IsSearchBarVisible = _settings.Current.SearchBarVisible;
+        _shell.TerminalCommand = _settings.Current.TerminalCommand;
 
         if (Enum.TryParse<SizeUnit>(_settings.Current.SizeUnit, out var unit))
             _display.SizeUnit = unit;
@@ -1341,6 +1342,7 @@ public partial class MainWindowViewModel : ViewModelBase
             ThemeChanged?.Invoke(this, EventArgs.Empty);
             ApplyKeybinds();
             IsSearchBarVisible = _settings.Current.SearchBarVisible;
+            _shell.TerminalCommand = _settings.Current.TerminalCommand;
             BuildToolbar(); // reflect any hide/show changes while preserving the saved order
             await LoadSidebarAsync();
         }

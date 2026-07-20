@@ -38,7 +38,20 @@
             <NumericUpDown Grid.Row="3" Grid.Column="1" x:Name="RowHeightBox" Minimum="18" Maximum="48" Increment="2" Margin="0,8,0,0" />
           </Grid>
 
-          <CheckBox x:Name="SearchBarBox" Content="Show the filter/search bar in each pane (else use Ctrl+F to reveal it)" />
+          <CheckBox x:Name="SearchBarBox" Content="Always show each pane's filter/search bar" />
+          <TextBlock Text="When unchecked, both search bars stay hidden until you press Ctrl+F (Esc hides them again)."
+                     Opacity="0.7" FontSize="12" TextWrapping="Wrap" Margin="24,-6,0,0" />
+
+          <!-- Terminal launched by "Open terminal here" (PRD §6.9) -->
+          <Grid ColumnDefinitions="120,*">
+            <TextBlock Grid.Column="0" Text="Terminal" VerticalAlignment="Center" />
+            <AutoCompleteBox Grid.Column="1" x:Name="TerminalBox" HorizontalAlignment="Stretch"
+                             Watermark="Auto-detect" MinimumPrefixLength="0" FilterMode="Contains"
+                             ItemsSource="{Binding Terminals}"
+                             ToolTip.Tip="The terminal that &quot;Open terminal here&quot; launches. Leave empty to auto-detect, pick an installed one, or type any command — {dir} is replaced by the folder." />
+          </Grid>
+          <TextBlock Text="Leave empty (Auto-detect) to use the first installed terminal, or type a custom command such as &quot;kitty --working-directory {dir}&quot;."
+                     Opacity="0.7" FontSize="12" TextWrapping="Wrap" Margin="120,-6,0,0" />
         </StackPanel>
       </TabItem>
 
