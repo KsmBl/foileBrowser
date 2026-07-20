@@ -269,6 +269,56 @@ public class ShellViewModelTests
         Assert.That(captured, Is.EqualTo("clip.txt"));
     }
 
+    // ---- search bar visibility (PRD §6.4): off means "only show it on Ctrl+F" ----
+
+    [Test]
+    public async Task Search_Bars_Are_Shown_By_Default()
+    {
+        var vm = CreateShell(new FakeFileSystem(), new RecordingTrash());
+        await vm.InitializeAsync();
+
+        Assert.That(vm.IsSearchBarVisible, Is.True);
+    }
+
+    [Test]
+    public async Task Search_Bars_Stay_Hidden_At_Startup_When_The_Setting_Is_Off()
+    {
+        System.IO.File.WriteAllText(_settingsFile, """{ "SearchBarVisible": false }""");
+        var vm = CreateShell(new FakeFileSystem(), new RecordingTrash());
+        await vm.InitializeAsync();
+
+        Assert.That(vm.IsSearchBarVisible, Is.False,
+            "with the setting off the bars are hidden until the user asks for them");
+    }
+
+    [Test]
+    public async Task Ctrl_F_Reveals_Hidden_Search_Bars_And_Escape_Hides_Them_Again()
+    {
+        System.IO.File.WriteAllText(_settingsFile, """{ "SearchBarVisible": false }""");
+        var vm = CreateShell(new FakeFileSystem(), new RecordingTrash());
+        await vm.InitializeAsync();
+
+        vm.FocusSearchCommand.Execute(null);   // Ctrl+F
+        Assert.That(vm.IsSearchBarVisible, Is.True, "Ctrl+F reveals the bars on demand");
+
+        vm.CollapseSearchBar();                 // Escape from the search box
+        Assert.That(vm.IsSearchBarVisible, Is.False, "Escape returns them to hidden");
+    }
+
+    [Test]
+    public async Task Escape_Leaves_The_Bars_Up_When_They_Are_Configured_To_Always_Show()
+    {
+        System.IO.File.WriteAllText(_settingsFile, """{ "SearchBarVisible": true }""");
+        var vm = CreateShell(new FakeFileSystem(), new RecordingTrash());
+        await vm.InitializeAsync();
+
+        vm.FocusSearchCommand.Execute(null);
+        vm.CollapseSearchBar();
+
+        Assert.That(vm.IsSearchBarVisible, Is.True,
+            "Escape collapses only a bar that was revealed on demand");
+    }
+
     [Test]
     public async Task Inspector_Summarises_A_Multi_Selection_Instead_Of_Previewing_One_Item()
     {
