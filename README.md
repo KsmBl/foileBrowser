@@ -49,6 +49,10 @@ as the default file manager). No root required — it installs under `~/.local` 
 Without `--self-contained` the launcher runs on the installed .NET 10 runtime; with it, a
 standalone **trimmed** build is published that needs no runtime and has the smallest footprint.
 
+**Optional:** install `ffprobe` (from FFmpeg) to get the audio/video metadata columns — resolution,
+fps, duration, channels, bitrate, codec. Without it those columns stay blank; image metadata columns
+(dimensions, megapixels, channels, depth, colour count) need no extra tools.
+
 **Memory:** the app renders on the CPU (software) by default, which skips the ~120 MB GPU/Mesa stack —
 idle RSS is ~100 MB instead of ~290 MB. Set `FOILE_GPU=1` to use GPU rendering (smoother, more RAM).
 For the smallest footprint (~80 MB RSS), build with `./install.sh --aot` (NativeAOT; needs `clang`) —

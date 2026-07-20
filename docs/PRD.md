@@ -57,6 +57,11 @@ Check off items as they're completed; delete lines you decide not to build.
   (drag a header's right grip), **reorderable** (drag a header onto another), and **add/removable** via
   the header's right-click menu; the visible set, order and widths persist. Clicking a header sorts by
   it (▲/▼ on the active column). The header sits above the file list only (right of the navigation pane)
+- [x] Arbitrary metadata columns, computed lazily in the background only for shown columns / on-screen
+  rows: **image** dimensions, megapixels, channels and bit depth (+ distinct colour count, capped) via
+  SkiaSharp; **audio/video** resolution, fps, duration, audio channels, bitrate and codec via `ffprobe`
+  when it's installed (blank otherwise). New metadata sources plug in behind an `IMetadataService`
+  provider interface
 - [x] Hidden/system file visibility toggle
 - [x] Navigation history: back / forward / up
 - [x] Multiple selection (click, Ctrl/Shift-click, and rubber-band: drag a rectangle over the list to

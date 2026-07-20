@@ -76,6 +76,9 @@
     <!-- Archive & filesystem-image formats (LGPL-3.0), PRD §5/§6.11 -->
     <PackageReference Include="Hawkynt.FileFormats.Archives" Version="1.0.0.696" />
     <PackageReference Include="Hawkynt.FileFormats.FileSystems" Version="1.0.0.696" />
+    <!-- Image metadata for file-list columns via SkiaSharp (already transitive via Avalonia; referenced
+         explicitly so SKCodec is compile-visible). Audio/video columns use ffprobe when installed. -->
+    <PackageReference Include="SkiaSharp" Version="2.88.9" />
   </ItemGroup>
 
 </Project>

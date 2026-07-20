@@ -52,9 +52,12 @@ public static class ColumnCatalog
         new() { Id = "location", Header = "Location", DefaultWidth = 220 },
     ];
 
-    /// <summary>Registers additional columns (e.g. metadata) into the catalogue.</summary>
-    public static void Register(IEnumerable<ColumnSpec> columns) =>
-        All = All.Concat(columns).ToList();
+    /// <summary>Registers additional columns (e.g. metadata) into the catalogue, ignoring duplicate ids.</summary>
+    public static void Register(IEnumerable<ColumnSpec> columns)
+    {
+        var known = All.Select(c => c.Id).ToHashSet();
+        All = All.Concat(columns.Where(c => known.Add(c.Id))).ToList();
+    }
 
     /// <summary>A fresh <see cref="ColumnSpec"/> instance for <paramref name="id"/> (so widths are per-profile).</summary>
     public static ColumnSpec? Create(string id)

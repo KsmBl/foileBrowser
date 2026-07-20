@@ -26,6 +26,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly IDeviceService _device;
     private readonly IDiskService _disk;
     private readonly IDirectorySizeService _sizes;
+    private readonly IMetadataService _metadata;
     private readonly DisplayOptions _display = new();
 
     private CancellationTokenSource? _previewCts;
@@ -132,7 +133,20 @@ public partial class MainWindowViewModel : ViewModelBase
         _device = device ?? new DeviceService();
         _disk = disk ?? new DiskService();
         _sizes = new DirectorySizeService();
+        _metadata = new MetadataService();
         _search = search ??= new SearchService();
+
+        // Add the metadata columns (image/audio/video) to the catalogue so they're offered in the
+        // header's add/remove menu (PRD §6.1).
+        ColumnCatalog.Register(_metadata.Columns.Select(c => new ColumnSpec
+        {
+            Id = c.Id,
+            Header = c.Header,
+            Kind = c.Category == "Media" ? ColumnKind.Video : ColumnKind.Image,
+            RightAligned = c.RightAligned,
+            DefaultWidth = c.Width,
+            Width = c.Width,
+        }));
 
         var first = CreateTab();
         var second = CreateTab();
@@ -175,7 +189,7 @@ public partial class MainWindowViewModel : ViewModelBase
     /// <summary>Creates a folder tab and subscribes to it (the docking layout owns placement).</summary>
     private FileTabViewModel CreateTab()
     {
-        var tab = new FileTabViewModel(_fileSystem, _search, _shell, _archives, _sizes, _display)
+        var tab = new FileTabViewModel(_fileSystem, _search, _shell, _archives, _sizes, _display, _metadata)
         {
             TagLookup = _tags.GetTag,
         };

@@ -23,6 +23,7 @@ public partial class FileTabViewModel : ViewModelBase, IDockable, IDisposable
     private readonly IShellService _shell;
     private readonly IArchiveService _archives;
     private readonly IDirectorySizeService _sizes;
+    private readonly IMetadataService? _metadata;
     private readonly DisplayOptions _display;
     private readonly NavigationHistory _history = new();
     private readonly SynchronizationContext? _sync = SynchronizationContext.Current;
@@ -159,15 +160,30 @@ public partial class FileTabViewModel : ViewModelBase, IDockable, IDisposable
     public FileTabViewModel(
         IFileSystemService fileSystem, ISearchService? search = null,
         IShellService? shell = null, IArchiveService? archives = null,
-        IDirectorySizeService? sizes = null, DisplayOptions? display = null)
+        IDirectorySizeService? sizes = null, DisplayOptions? display = null,
+        IMetadataService? metadata = null)
     {
         _fileSystem = fileSystem;
         _search = search ?? new SearchService();
         _shell = shell ?? new ShellService();
         _archives = archives ?? new ArchiveService();
         _sizes = sizes ?? new DirectorySizeService();
+        _metadata = metadata;
         _display = display ?? new DisplayOptions();
         UpdateTitle();
+    }
+
+    /// <summary>Resolves a metadata column's value lazily; refreshes the row when the value arrives.</summary>
+    private string ResolveMetadata(FileEntryViewModel entry, string columnId) =>
+        _metadata?.Get(entry.FullPath, columnId, () => Post(() => entry.CellVersion++)) ?? string.Empty;
+
+    /// <summary>Wraps a real (on-disk) entry, wiring metadata-column resolution.</summary>
+    private FileEntryViewModel NewEntry(FileSystemEntry entry, string? location = null)
+    {
+        var vm = new FileEntryViewModel(entry, location, TagLookup?.Invoke(entry.FullPath), _display);
+        if (_metadata is not null)
+            vm.Metadata = ResolveMetadata;
+        return vm;
     }
 
     /// <summary>Re-renders every visible entry's size/date after a display-mode toggle (PRD §6.1/§6.2).</summary>
@@ -528,7 +544,7 @@ public partial class FileTabViewModel : ViewModelBase, IDockable, IDisposable
         {
             await foreach (var hit in _search.SearchAsync(CurrentPath, SearchQuery.Trim(), exts, token))
             {
-                Entries.Add(new FileEntryViewModel(hit, Path.GetDirectoryName(hit.FullPath), TagLookup?.Invoke(hit.FullPath), _display));
+                Entries.Add(NewEntry(hit, Path.GetDirectoryName(hit.FullPath)));
                 count++;
                 if ((count & 31) == 0)
                     StatusText = $"Searching… {count} matches";
@@ -633,7 +649,7 @@ public partial class FileTabViewModel : ViewModelBase, IDockable, IDisposable
 
         Entries.Clear();
         foreach (var entry in sorted)
-            Entries.Add(new FileEntryViewModel(entry, tagColor: TagLookup?.Invoke(entry.FullPath), display: _display));
+            Entries.Add(NewEntry(entry));
 
         var folders = sorted.Count(e => e.IsDirectory);
         StatusText = $"{sorted.Count} items ({folders} folders, {sorted.Count - folders} files)";
