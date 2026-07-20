@@ -80,6 +80,7 @@ public partial class MainWindow : Window
             vm.SettingsRequester = settings => new SettingsWindow(settings, vm.RebindableCommands, vm.Disk.AvailableFilesystems()).ShowDialog<bool>(this);
             vm.FormatRequester = item => new FormatWindow(item, vm.Disk, vm.AllowedFilesystems()).ShowDialog<bool>(this);
             vm.PropertiesRequester = entry => new PropertiesWindow(entry, vm.Sizes, vm.Applications).ShowDialog(this);
+            vm.ShredConfirmRequester = paths => new ShredConfirmWindow(paths).ShowDialog<bool>(this);
             vm.ClipboardCopyRequested -= OnClipboardCopyRequested;
             vm.ClipboardCopyRequested += OnClipboardCopyRequested;
             vm.ThemeChanged -= OnThemeChanged;

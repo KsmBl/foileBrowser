@@ -23,6 +23,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly ITagService _tags;
     private readonly IShellService _shell;
     private readonly IApplicationService _apps;
+    private readonly ISecureDeleteService _secureDelete;
     private readonly IArchiveService _archives;
     private readonly IDeviceService _device;
     private readonly IDiskService _disk;
@@ -125,9 +126,10 @@ public partial class MainWindowViewModel : ViewModelBase
         ISearchService? search = null, IPreviewService? preview = null,
         ISettingsService? settings = null, ITagService? tags = null, IShellService? shell = null,
         IArchiveService? archives = null, IDeviceService? device = null, IDiskService? disk = null,
-        IApplicationService? apps = null)
+        IApplicationService? apps = null, ISecureDeleteService? secureDelete = null)
     {
         _apps = apps ?? new ApplicationService();
+        _secureDelete = secureDelete ?? new SecureDeleteService();
         _fileSystem = fileSystem;
         _operations = operations;
         _trash = trash;
@@ -394,6 +396,7 @@ public partial class MainWindowViewModel : ViewModelBase
             new("file.newFile", "New File", "File", null, () => NewFileCommand.ExecuteAsync(null), global: true),
             new("file.rename", "Rename…", "File", "F2", () => RenameSelectedCommand.ExecuteAsync(null)),
             new("file.delete", "Delete to Trash", "File", "Delete", () => DeleteSelectedCommand.ExecuteAsync(null)),
+            new("file.shred", "Delete Permanently (overwrite with zeroes)", "File", null, () => ShredSelectedCommand.ExecuteAsync(null), global: true),
             new("file.properties", "Properties", "File", "Alt+Enter", () => ShowPropertiesCommand.ExecuteAsync(null), global: true),
             new("file.copyToOther", "Copy to Other Pane", "File", "F6", () => { CopyToOtherCommand.Execute(null); return Task.CompletedTask; }, global: true),
             new("file.moveToOther", "Move to Other Pane", "File", "F7", () => { MoveToOtherCommand.Execute(null); return Task.CompletedTask; }, global: true),
@@ -1208,6 +1211,42 @@ public partial class MainWindowViewModel : ViewModelBase
                 if (ActiveTab is { } t) t.StatusText = $"Delete failed: {ex.Message}";
             }
         }
+        RefreshActiveTab();
+    }
+
+    /// <summary>Asks the view to confirm an irreversible shred; true means go ahead (PRD §6.3).</summary>
+    public Func<IReadOnlyList<string>, Task<bool>>? ShredConfirmRequester { get; set; }
+
+    /// <summary>
+    /// Overwrites the selection with zeroes and deletes it outright — no trash, no undo (PRD §6.3).
+    /// Always routed through <see cref="ShredConfirmRequester"/> first.
+    /// </summary>
+    [RelayCommand]
+    private async Task ShredSelectedAsync()
+    {
+        var sources = SelectedPaths(ActiveTab);
+        if (sources.Count == 0 || ShredConfirmRequester is null)
+            return;
+        if (!await ShredConfirmRequester(sources))
+            return;
+
+        var shredded = 0;
+        foreach (var path in sources)
+        {
+            try
+            {
+                await _secureDelete.ShredAsync(path);
+                shredded++;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                if (ActiveTab is { } t)
+                    t.StatusText = $"Overwrite failed for {Path.GetFileName(path)}: {ex.Message}";
+            }
+        }
+
+        if (ActiveTab is { } tab && shredded == sources.Count)
+            tab.StatusText = $"Overwrote and deleted {shredded} item(s).";
         RefreshActiveTab();
     }
 

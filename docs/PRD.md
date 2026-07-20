@@ -140,7 +140,15 @@ Check off items as they're completed; delete lines you decide not to build.
   Linux (/proc/mounts + /sys/block rotational) and Windows (DriveType + IncursSeekPenalty query),
   cached per device
 - [x] Delete to OS trash (platform-specific: Recycle Bin / gio trash / NSFileManager)
-- [ ] Permanent delete with confirmation (optional overwriting disk space with zeros / random to fully erase file)
+- [x] Permanent delete with confirmation, overwriting the file's bytes with zeroes first ("Delete
+  permanently" in the entry context menu and command palette). Recurses into folders, unlinks symlinks
+  without following them into their target, clears the read-only attribute so the pass can't be
+  silently skipped, and flushes past the OS cache (`WriteThrough` + flush-to-disk) before unlinking.
+  The confirmation dialog requires an explicit acknowledgement tick and states plainly that this is a
+  best-effort wipe: **overwriting only reliably destroys the old data on a traditional
+  overwrite-in-place filesystem on rotating media** — on SSDs (wear levelling/TRIM), copy-on-write
+  filesystems (btrfs, ZFS), and journalled, compressed, RAID or network storage the original blocks can
+  survive. Multi-pass / random-fill patterns are not offered, as they add cost without fixing that
 - [ ] Conflict resolution dialog (overwrite / skip / rename / apply-to-all) — resolver supports overwrite/skip/rename/cancel; interactive dialog + apply-to-all pending (defaults to auto-rename)
 - [x] Inline rename (F2) — via a rename prompt; true in-list inline editing pending. F2 (rename) and
   Delete (trash) are scoped to the focused file list, so they never hijack those keys while typing in

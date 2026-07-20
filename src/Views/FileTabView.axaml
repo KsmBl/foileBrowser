@@ -321,6 +321,8 @@
           <MenuItem Header="Move to other pane" InputGesture="F7" Command="{Binding MoveToOtherCommand}" />
           <MenuItem Header="Rename…" InputGesture="F2" Command="{Binding RenameSelectedCommand}" />
           <MenuItem Header="Delete to trash" InputGesture="Delete" Command="{Binding DeleteSelectedCommand}" />
+          <MenuItem Header="Delete permanently (overwrite with zeroes)…" Command="{Binding ShredSelectedCommand}"
+                    ToolTip.Tip="Overwrites the file's contents with zeroes, then deletes it. No trash, no undo." />
           <Separator />
           <MenuItem Header="Copy path" Command="{Binding CopyPathCommand}" />
           <MenuItem Header="Copy name" Command="{Binding CopyNameCommand}" />
