@@ -73,7 +73,9 @@ Check off items as they're completed; delete lines you decide not to build.
 - [x] Properties window (Alt+Enter): shows the selected item's type, location, full path, size (folders
   are measured in the background), created/modified times and Unix permissions
 - [x] Combined path bar (Thunar-style): clickable breadcrumb segments by default; clicking the empty
-  area to the right (or Ctrl+L) turns it into an editable path entry, and it reverts on Esc / focus loss
+  area to the right (or Ctrl+L) turns it into an editable path entry, and it reverts on Esc / focus loss.
+  A path too long for the bar is cut off on the left — the bar stays pinned to its right end so the
+  current folder is always visible — instead of showing a scrollbar on top of the segment buttons
 - [x] Switch modified dates between absolute timestamps and relative ("5 min ago", "yesterday"),
   quick-toggle in the toolbar / View menu / command palette (persisted)
 - [ ] Editable path bar with autocompletion and recent-folder suggestions (File Pilot "GoTo") — combined breadcrumb/entry path bar with Ctrl+L done; autocompletion/suggestions pending

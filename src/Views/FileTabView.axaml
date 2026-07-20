@@ -25,7 +25,11 @@
                   PointerPressed="OnPathBarPressed" ToolTip.Tip="Click a segment to jump, or click here to type a path (Ctrl+L)"
                   BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}" BorderThickness="1"
                   CornerRadius="3" Padding="2,1">
-            <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+            <!-- A long path is clipped on the left (the tail — the current folder — stays visible)
+                 rather than getting a scrollbar that would sit on top of the segment buttons.
+                 The scroller is kept pinned to its right end by OnPathScrollChanged. -->
+            <ScrollViewer x:Name="PathScroller" HorizontalScrollBarVisibility="Hidden"
+                          VerticalScrollBarVisibility="Disabled" ScrollChanged="OnPathScrollChanged">
               <ItemsControl ItemsSource="{Binding Breadcrumbs}" VerticalAlignment="Center">
                 <ItemsControl.ItemsPanel>
                   <ItemsPanelTemplate>

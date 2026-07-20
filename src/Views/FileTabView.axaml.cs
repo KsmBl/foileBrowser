@@ -229,6 +229,18 @@ public partial class FileTabView : UserControl
             vm.BeginEditPathCommand.Execute(null);
     }
 
+    // A path too long for the bar is cut off on the left rather than getting a scrollbar over the
+    // segment buttons: the scroller stays pinned to its right end, so the current folder is always
+    // the visible one and the leading segments scroll out of view.
+    private void OnPathScrollChanged(object? sender, ScrollChangedEventArgs e)
+    {
+        if (sender is not ScrollViewer scroller)
+            return;
+        var end = Math.Max(0, scroller.Extent.Width - scroller.Viewport.Width);
+        if (Math.Abs(scroller.Offset.X - end) > 0.5)
+            scroller.Offset = new Vector(end, scroller.Offset.Y);
+    }
+
     // Leaving the entry without committing reverts to the breadcrumb view.
     private void OnPathEntryLostFocus(object? sender, RoutedEventArgs e)
     {
