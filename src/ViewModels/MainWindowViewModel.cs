@@ -814,6 +814,14 @@ public partial class MainWindowViewModel : ViewModelBase
             return;
         }
 
+        // More than one item selected: show them combined rather than previewing an arbitrary one.
+        if (ActiveTab.SelectedEntries is { Count: > 1 } multiple)
+        {
+            Preview = SelectionSummary.Build(
+                [.. multiple.Select(e => e.Entry)], _display.SizeUnit, _display.DateDisplay);
+            return;
+        }
+
         try
         {
             // Inside an archive this streams the entry out to temp first, so previews work there too.

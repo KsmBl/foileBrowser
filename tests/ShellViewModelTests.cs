@@ -268,4 +268,40 @@ public class ShellViewModelTests
 
         Assert.That(captured, Is.EqualTo("clip.txt"));
     }
+
+    [Test]
+    public async Task Inspector_Summarises_A_Multi_Selection_Instead_Of_Previewing_One_Item()
+    {
+        var fs = new FakeFileSystem();
+        fs.Entries.Add(File("a.txt"));
+        fs.Entries.Add(File("b.txt"));
+        fs.Entries.Add(Dir("sub"));
+        var vm = CreateShell(fs, new RecordingTrash());
+        await vm.InitializeAsync();
+
+        var tab = vm.ActiveTab!;
+        tab.SetSelection([.. tab.Entries]);
+        tab.SelectedEntry = tab.Entries.First();
+
+        Assert.That(await WaitUntilAsync(() => vm.Preview?.Title == "3 items selected"), Is.True,
+            "the inspector shows the combined summary, not a single file's preview");
+        Assert.That(vm.Preview!.Text, Does.Contain("(2 file(s), 1 folder(s))"));
+    }
+
+    [Test]
+    public async Task Inspector_Previews_The_Single_Item_When_Only_One_Is_Selected()
+    {
+        var fs = new FakeFileSystem();
+        fs.Entries.Add(File("only.txt"));
+        var vm = CreateShell(fs, new RecordingTrash());
+        await vm.InitializeAsync();
+
+        var tab = vm.ActiveTab!;
+        tab.SetSelection([tab.Entries.First()]);
+        tab.SelectedEntry = tab.Entries.First();
+
+        Assert.That(await WaitUntilAsync(() => vm.Preview is not null), Is.True);
+        Assert.That(vm.Preview!.Title, Is.Not.EqualTo("1 items selected"),
+            "a single selection still gets the normal per-file preview");
+    }
 }

@@ -181,6 +181,11 @@ Check off items as they're completed; delete lines you decide not to build.
 - [x] Preview of files inside an opened archive — selecting an entry while browsing an archive streams
   just that entry out to a temp file so the inspector and spacebar quick-preview work there too (entries
   above 16 MB are skipped rather than extracted on a whim)
+- [x] Combined properties for a multi-item selection: selecting several items shows them summarised
+  together instead of previewing an arbitrary one — item/file/folder counts, total, average, largest
+  and smallest size, the modified-date range, and a per-type breakdown (count + bytes per extension,
+  largest type first, long tails collapsed). Folder contents aren't walked, and the summary says so
+  rather than quietly reporting a total that excludes them
 - [x] Folder preview in inspector (item count, size, top-level contents) — count + top-level listing; aggregate byte size pending
 - [ ] Thumbnail generation with cache (async, off UI thread) — images decode to bounded width (thumbnail-like); persistent cache pending
 - [ ] Syntax-highlighted text/code preview — plain-text preview done; highlighting pending
