@@ -228,6 +228,10 @@ Check off items as they're completed; delete lines you decide not to build.
   and non-Application entries), and launching goes through `gio`/`gtk-launch`, falling back to the
   entry's own `Exec` line with its field codes expanded. The scan runs when the menu opens, not on
   every selection change. Other platforms keep the OS default handler
+- [x] The Properties window (Alt+Enter) shows an **Opens with** picker for a file's type, listing the
+  same candidates and preselecting the current default; "Set default" re-registers the association for
+  every file of that type and reports back what actually stuck. Hidden for folders and on platforms
+  without association support
 - [ ] Run user scripts on selected items (PowerShell / bash / Python), configurable script library
 - [ ] Set as default file manager guidance per platform
 

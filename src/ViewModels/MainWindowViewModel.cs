@@ -108,6 +108,9 @@ public partial class MainWindowViewModel : ViewModelBase
     /// <summary>The background size service, exposed so the properties window can compute a folder's size.</summary>
     public IDirectorySizeService Sizes => _sizes;
 
+    /// <summary>Application associations, used by the Properties window's default-app picker (PRD §6.9).</summary>
+    public IApplicationService Applications => _apps;
+
     /// <summary>Raised when the VM wants text placed on the clipboard (path/name copy — PRD §6.3).</summary>
     public event EventHandler<string>? ClipboardCopyRequested;
 

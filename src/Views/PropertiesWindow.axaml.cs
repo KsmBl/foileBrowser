@@ -19,9 +19,14 @@ public partial class PropertiesWindow : Window
         InitializeComponent();
     }
 
-    public PropertiesWindow(FileSystemEntry entry, IDirectorySizeService sizes)
+    private readonly IApplicationService? _apps;
+    private readonly string _path = string.Empty;
+
+    public PropertiesWindow(FileSystemEntry entry, IDirectorySizeService sizes, IApplicationService? apps = null)
     {
         InitializeComponent();
+        _apps = apps;
+        _path = entry.FullPath;
 
         var isDir = entry.IsDirectory;
         GlyphText.Text = entry.Kind switch
@@ -52,6 +57,69 @@ public partial class PropertiesWindow : Window
         }
         else
             SizeText.Text = "—";
+
+        if (!isDir && _apps is { SupportsAssociations: true })
+            _ = LoadDefaultAppAsync();
+    }
+
+    /// <summary>
+    /// Fills the "Opens with" picker with the applications registered for this file's type and
+    /// preselects the current default (PRD §6.9). Runs off the constructor so the window shows at once.
+    /// </summary>
+    private async Task LoadDefaultAppAsync()
+    {
+        if (_apps is null)
+            return;
+
+        var candidates = await _apps.GetCandidatesAsync(_path);
+        if (_cts.IsCancellationRequested)
+            return;
+
+        var mime = await _apps.GetTypeAsync(_path);
+        if (_cts.IsCancellationRequested)
+            return;
+
+        if (candidates.Count == 0)
+        {
+            DefaultAppStatus.Text = mime.Length > 0
+                ? $"No installed application is registered for {mime}."
+                : "This file's type could not be determined.";
+            DefaultAppStatus.IsVisible = true;
+            return;
+        }
+
+        var current = await _apps.GetDefaultAsync(_path);
+        if (_cts.IsCancellationRequested)
+            return;
+
+        DefaultAppBox.ItemsSource = candidates;
+        DefaultAppBox.SelectedItem = candidates.FirstOrDefault(a => a.Id == current?.Id) ?? candidates[0];
+        DefaultAppRow.IsVisible = true;
+        SetDefaultButton.IsEnabled = true;
+        if (mime.Length > 0)
+        {
+            DefaultAppStatus.Text = $"Applies to every {mime} file.";
+            DefaultAppStatus.IsVisible = true;
+        }
+    }
+
+    private async void OnSetDefaultApp(object? sender, RoutedEventArgs e)
+    {
+        if (_apps is null || DefaultAppBox.SelectedItem is not DesktopApp app)
+            return;
+
+        SetDefaultButton.IsEnabled = false;
+        await _apps.SetDefaultAsync(_path, app);
+
+        // Report what actually stuck rather than assuming the write took effect.
+        var now = await _apps.GetDefaultAsync(_path);
+        if (_cts.IsCancellationRequested)
+            return;
+        DefaultAppStatus.Text = now?.Id == app.Id
+            ? $"{app.Name} is now the default for this file type."
+            : $"Could not make {app.Name} the default.";
+        DefaultAppStatus.IsVisible = true;
+        SetDefaultButton.IsEnabled = true;
     }
 
     private void PopulateFilesystemFacts(FileSystemEntry entry, bool isDir)
