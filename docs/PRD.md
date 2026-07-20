@@ -221,7 +221,13 @@ Check off items as they're completed; delete lines you decide not to build.
   auto-detect the first installed one, pick from the terminals detected on this machine, or type any
   command line, where `{dir}` is replaced by the folder (without it the folder becomes the working
   directory). A configured terminal that fails to start falls back to auto-detection
-- [x] "Open with…" application picker — opens with the OS default handler; explicit app-picker pending
+- [x] "Open with…" application picker — the context menu's **Open with** submenu lists the applications
+  registered for the file's type, exact MIME matches before `type/*` handlers and the current default
+  first. On Linux the type comes from `xdg-mime`, the candidates from the installed `.desktop` files
+  (XDG_DATA_DIRS + XDG_DATA_HOME, user entries overriding system ones, skipping `NoDisplay`/`Hidden`
+  and non-Application entries), and launching goes through `gio`/`gtk-launch`, falling back to the
+  entry's own `Exec` line with its field codes expanded. The scan runs when the menu opens, not on
+  every selection change. Other platforms keep the OS default handler
 - [ ] Run user scripts on selected items (PowerShell / bash / Python), configurable script library
 - [ ] Set as default file manager guidance per platform
 

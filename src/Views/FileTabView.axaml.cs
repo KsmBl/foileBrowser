@@ -90,6 +90,9 @@ public partial class FileTabView : UserControl
     {
         MenuSearchBox.Text = string.Empty;
         FilterMenu(string.Empty);
+        // Scan for "Open with" candidates only now, not on every selection change (PRD §6.9).
+        if (EntryMenu.DataContext is MainWindowViewModel shell)
+            _ = shell.RefreshOpenWithAsync();
         // Focus the search box once the popup is up so the user can type immediately.
         Avalonia.Threading.Dispatcher.UIThread.Post(() => MenuSearchBox.Focus());
     }

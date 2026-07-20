@@ -304,6 +304,18 @@
                    TextChanged="OnMenuSearchChanged" KeyDown="OnMenuSearchKeyDown" />
           <Separator />
           <MenuItem Header="Open" Command="{Binding OpenSelectedExternallyCommand}" />
+          <!-- Applications registered for this file's type; filled when the menu opens (PRD §6.9) -->
+          <MenuItem Header="Open with" ItemsSource="{Binding OpenWithApps}"
+                    IsVisible="{Binding HasOpenWithApps}">
+            <MenuItem.ItemContainerTheme>
+              <ControlTheme TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}" x:DataType="svc:DesktopApp">
+                <Setter Property="Header" Value="{Binding Name}" />
+                <Setter Property="Command"
+                        Value="{Binding #EntryMenu.((vm:MainWindowViewModel)DataContext).OpenWithAppCommand}" />
+                <Setter Property="CommandParameter" Value="{Binding}" />
+              </ControlTheme>
+            </MenuItem.ItemContainerTheme>
+          </MenuItem>
           <Separator />
           <MenuItem Header="Copy to other pane" InputGesture="F6" Command="{Binding CopyToOtherCommand}" />
           <MenuItem Header="Move to other pane" InputGesture="F7" Command="{Binding MoveToOtherCommand}" />

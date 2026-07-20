@@ -22,6 +22,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly ISettingsService _settings;
     private readonly ITagService _tags;
     private readonly IShellService _shell;
+    private readonly IApplicationService _apps;
     private readonly IArchiveService _archives;
     private readonly IDeviceService _device;
     private readonly IDiskService _disk;
@@ -120,8 +121,10 @@ public partial class MainWindowViewModel : ViewModelBase
         IFileSystemService fileSystem, IFileOperationService operations, ITrashService trash,
         ISearchService? search = null, IPreviewService? preview = null,
         ISettingsService? settings = null, ITagService? tags = null, IShellService? shell = null,
-        IArchiveService? archives = null, IDeviceService? device = null, IDiskService? disk = null)
+        IArchiveService? archives = null, IDeviceService? device = null, IDiskService? disk = null,
+        IApplicationService? apps = null)
     {
+        _apps = apps ?? new ApplicationService();
         _fileSystem = fileSystem;
         _operations = operations;
         _trash = trash;
@@ -339,6 +342,37 @@ public partial class MainWindowViewModel : ViewModelBase
     public AppSettings Settings => _settings.Current;
 
     public IReadOnlyList<TagColor> TagPalette => _tags.Palette;
+
+    /// <summary>
+    /// Applications offered by the selection's "Open with" submenu (PRD §6.9). Refilled by
+    /// <see cref="RefreshOpenWithAsync"/> when the context menu opens, so the .desktop scan only
+    /// happens on demand rather than on every selection change.
+    /// </summary>
+    public ObservableCollection<DesktopApp> OpenWithApps { get; } = [];
+
+    /// <summary>Whether the "Open with" submenu has anything to show for the current selection.</summary>
+    [ObservableProperty]
+    private bool _hasOpenWithApps;
+
+    /// <summary>Repopulates <see cref="OpenWithApps"/> for the current selection.</summary>
+    public async Task RefreshOpenWithAsync()
+    {
+        OpenWithApps.Clear();
+        HasOpenWithApps = false;
+        if (ActiveTab?.SelectedEntry is not { IsDirectory: false } entry)
+            return;
+
+        foreach (var app in await _apps.GetCandidatesAsync(entry.FullPath))
+            OpenWithApps.Add(app);
+        HasOpenWithApps = OpenWithApps.Count > 0;
+    }
+
+    /// <summary>Opens the selection with a specific application from the "Open with" submenu.</summary>
+    [RelayCommand]
+    private Task OpenWithApp(DesktopApp? app) =>
+        app is not null && ActiveTab?.SelectedEntry is { } e
+            ? _apps.LaunchAsync(app, e.FullPath)
+            : Task.CompletedTask;
 
     [RelayCommand]
     private void OpenCommandPalette() => CommandPalette.Open();
