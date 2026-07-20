@@ -209,7 +209,9 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         if (!ReferenceEquals(sender, ActiveTab))
             return;
-        if (e.PropertyName == nameof(FileTabViewModel.SelectedEntry))
+        // Both matter: SelectedEntry drives the single-item preview, SelectedEntries the combined
+        // summary — and extending a selection changes only the latter.
+        if (e.PropertyName is nameof(FileTabViewModel.SelectedEntry) or nameof(FileTabViewModel.SelectedEntries))
             _ = UpdatePreviewAsync();
         else if (e.PropertyName == nameof(FileTabViewModel.CurrentPath))
             ReRootTreeToCurrent(); // "Current folder" tree follows the active pane

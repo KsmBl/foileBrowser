@@ -329,13 +329,38 @@ public class ShellViewModelTests
         var vm = CreateShell(fs, new RecordingTrash());
         await vm.InitializeAsync();
 
+        // Mirror what the list actually does: click one row, then Ctrl-click to extend. The primary
+        // SelectedEntry stays on the first row, so only SetSelection reports the growth.
         var tab = vm.ActiveTab!;
-        tab.SetSelection([.. tab.Entries]);
         tab.SelectedEntry = tab.Entries.First();
+        tab.SetSelection([tab.Entries.First()]);
+        Assert.That(await WaitUntilAsync(() => vm.Preview is not null), Is.True);
+
+        tab.SetSelection([.. tab.Entries]);
 
         Assert.That(await WaitUntilAsync(() => vm.Preview?.Title == "3 items selected"), Is.True,
-            "the inspector shows the combined summary, not a single file's preview");
+            "extending the selection switches the inspector to the combined summary");
         Assert.That(vm.Preview!.Text, Does.Contain("(2 file(s), 1 folder(s))"));
+    }
+
+    [Test]
+    public async Task Inspector_Returns_To_A_Single_Preview_When_The_Selection_Shrinks()
+    {
+        var fs = new FakeFileSystem();
+        fs.Entries.Add(File("a.txt"));
+        fs.Entries.Add(File("b.txt"));
+        var vm = CreateShell(fs, new RecordingTrash());
+        await vm.InitializeAsync();
+
+        var tab = vm.ActiveTab!;
+        tab.SelectedEntry = tab.Entries.First();
+        tab.SetSelection([.. tab.Entries]);
+        Assert.That(await WaitUntilAsync(() => vm.Preview?.Title == "2 items selected"), Is.True);
+
+        tab.SetSelection([tab.Entries.First()]); // Ctrl-click the second row off again
+
+        Assert.That(await WaitUntilAsync(() => vm.Preview?.Title != "2 items selected"), Is.True,
+            "dropping back to one item restores the normal per-file preview");
     }
 
     [Test]

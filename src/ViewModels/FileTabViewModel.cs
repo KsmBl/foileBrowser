@@ -74,11 +74,19 @@ public partial class FileTabViewModel : ViewModelBase, IDockable, IDisposable
     /// <summary>Every selected row (multi-select). <see cref="SelectedEntry"/> stays the primary/preview item.</summary>
     public IReadOnlyList<FileEntryViewModel> SelectedEntries { get; private set; } = [];
 
-    /// <summary>Pushed from the view when the list selection changes; updates the selection summary.</summary>
+    /// <summary>
+    /// Pushed from the view when the list selection changes; updates the selection summary.
+    /// Raises a change notification because extending a selection (Ctrl/Shift-click) leaves
+    /// <see cref="SelectedEntry"/> on the first row — without this the inspector would never learn
+    /// that the selection grew, and would keep previewing that one item (PRD §6.5).
+    /// </summary>
     public void SetSelection(IReadOnlyList<FileEntryViewModel> items)
     {
+        var changed = !SelectedEntries.SequenceEqual(items);
         SelectedEntries = items;
         UpdateSelectionStatus();
+        if (changed)
+            OnPropertyChanged(nameof(SelectedEntries));
     }
 
     private void UpdateSelectionStatus()
