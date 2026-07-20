@@ -26,6 +26,7 @@
               <ComboBoxItem>System</ComboBoxItem>
               <ComboBoxItem>Light</ComboBoxItem>
               <ComboBoxItem>Dark</ComboBoxItem>
+              <ComboBoxItem>Windows XP (Luna)</ComboBoxItem>
             </ComboBox>
 
             <TextBlock Grid.Row="1" Grid.Column="0" Text="Accent color" VerticalAlignment="Center" Margin="0,8,0,0" />

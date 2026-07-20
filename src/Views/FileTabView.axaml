@@ -37,7 +37,7 @@
                     <StackPanel Orientation="Horizontal" Spacing="1" VerticalAlignment="Center">
                       <TextBlock Text="›" Opacity="0.5" VerticalAlignment="Center" Margin="2,0"
                                  IsVisible="{Binding ShowSeparator}" />
-                      <Button Content="{Binding Name}" Padding="6,2" FontSize="12" Background="Transparent"
+                      <Button Content="{Binding Name}" Padding="6,2" FontSize="12" Background="Transparent" BorderThickness="0"
                               Command="{Binding $parent[ItemsControl].((vm:FileTabViewModel)DataContext).NavigateBreadcrumbCommand}"
                               CommandParameter="{Binding}" />
                     </StackPanel>
@@ -131,7 +131,7 @@
                         <Grid IsVisible="{Binding IsNavigable}" ColumnDefinitions="*,Auto"
                               Margin="{Binding Indent, Converter={x:Static views:MainWindow.IndentConverter}}">
                           <Button Grid.Column="0" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
-                                  Background="Transparent" Padding="4,3"
+                                  Background="Transparent" BorderThickness="0" Padding="4,3"
                                   Command="{Binding $parent[UserControl].((vm:FileTabViewModel)DataContext).OpenSidebarItemCommand}"
                                   CommandParameter="{Binding}">
                             <Button.ContextMenu>
@@ -159,7 +159,7 @@
                               <TextBlock Text="{Binding FileSystem}" FontSize="10" Opacity="0.5" IsVisible="{Binding HasFileSystem}" />
                             </StackPanel>
                           </Button>
-                          <Button Grid.Column="1" Content="⏏" FontSize="12" Padding="5,0" Background="Transparent"
+                          <Button Grid.Column="1" Content="⏏" FontSize="12" Padding="5,0" Background="Transparent" BorderThickness="0"
                                   VerticalAlignment="Center" ToolTip.Tip="Eject / unmount" IsVisible="{Binding IsEjectable}"
                                   Command="{Binding EjectCommand}" CommandParameter="{Binding}" />
                         </Grid>
@@ -209,12 +209,14 @@
       </Border.ContextMenu>
       <StackPanel Orientation="Horizontal" Height="26">
         <StackPanel.Styles>
+          <!-- Themeable so skins (e.g. the Windows XP one) can restyle the header (PRD §6.8) -->
           <Style Selector="Button.colheader">
-            <Setter Property="Background" Value="Transparent" />
-            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Background" Value="{DynamicResource ColumnHeaderBackground}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource ColumnHeaderBorderBrush}" />
+            <Setter Property="BorderThickness" Value="{DynamicResource ColumnHeaderBorderThickness}" />
             <Setter Property="CornerRadius" Value="0" />
             <Setter Property="Padding" Value="6,0" />
-            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="FontWeight" Value="{DynamicResource ColumnHeaderFontWeight}" />
             <Setter Property="FontSize" Value="12" />
             <Setter Property="VerticalAlignment" Value="Stretch" />
             <Setter Property="HorizontalAlignment" Value="Stretch" />

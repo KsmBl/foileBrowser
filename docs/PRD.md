@@ -199,6 +199,11 @@ Check off items as they're completed; delete lines you decide not to build.
 ### 6.8 Customization
 
 - [x] Dark and light themes, following OS setting by default
+- [x] **Windows XP (Luna)** skin — a `Styles` layer on top of Fluent that re-colours the theme
+  resources and restyles the controls the app uses (beige `#ECE9D8` face, sunken white fields,
+  top-lit button gradients, Luna-blue selection, flat Explorer-style column headers, Tahoma).
+  Compiled XAML behind an explicit `Styles` subclass, so it stays trim/AOT-safe. The custom accent
+  colour is ignored while it's active, since Luna blue is part of the skin
 - [x] Custom accent color
 - [x] Font size and row-density settings
 - [x] Configurable toolbar — each button on the global operations toolbar can be individually shown or

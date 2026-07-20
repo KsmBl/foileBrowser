@@ -41,6 +41,7 @@ public partial class SettingsWindow : Window
         {
             "Light" => 1,
             "Dark" => 2,
+            "WindowsXP" => 3,
             _ => 0,
         };
         AccentBox.Text = settings.AccentColor;
@@ -179,7 +180,13 @@ public partial class SettingsWindow : Window
             return;
         }
 
-        _settings.ThemeVariant = ThemeBox.SelectedIndex switch { 1 => "Light", 2 => "Dark", _ => "System" };
+        _settings.ThemeVariant = ThemeBox.SelectedIndex switch
+        {
+            1 => "Light",
+            2 => "Dark",
+            3 => "WindowsXP",
+            _ => "System",
+        };
         if (!string.IsNullOrWhiteSpace(AccentBox.Text))
             _settings.AccentColor = AccentBox.Text.Trim();
         if (FontBox.Value is { } f)

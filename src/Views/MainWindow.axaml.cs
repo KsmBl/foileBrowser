@@ -123,13 +123,23 @@ public partial class MainWindow : Window
     {
         if (Application.Current is { } app)
         {
+            // The XP skin is a Styles layer on top of Fluent; add/remove it as the setting changes.
+            var wantsXp = settings.ThemeVariant == "WindowsXP";
+            var xp = app.Styles.OfType<Themes.WindowsXpTheme>().FirstOrDefault();
+            if (wantsXp && xp is null)
+                app.Styles.Add(new Themes.WindowsXpTheme());
+            else if (!wantsXp && xp is not null)
+                app.Styles.Remove(xp);
+
             app.RequestedThemeVariant = settings.ThemeVariant switch
             {
                 "Light" => ThemeVariant.Light,
                 "Dark" => ThemeVariant.Dark,
+                "WindowsXP" => ThemeVariant.Light, // Luna is a light skin
                 _ => ThemeVariant.Default,
             };
-            if (Color.TryParse(settings.AccentColor, out var accent))
+            // XP's Luna blue is part of the skin — a custom accent would fight it.
+            if (!wantsXp && Color.TryParse(settings.AccentColor, out var accent))
                 app.Resources["SystemAccentColor"] = accent;
             app.Resources["RowHeight"] = settings.RowHeight; // row-density (PRD §6.8)
         }
