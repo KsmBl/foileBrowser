@@ -56,7 +56,9 @@ Check off items as they're completed; delete lines you decide not to build.
   drives both the header and every row, so header and cells always line up. Columns are **resizable**
   (drag a header's right grip), **reorderable** (drag a header onto another), and **add/removable** via
   the header's right-click menu; the visible set, order and widths persist. Clicking a header sorts by
-  it (▲/▼ on the active column). The header sits above the file list only (right of the navigation pane)
+  it (▲/▼ on the active column). The header sits above the file list only (right of the navigation pane).
+  Header and cell text share the same box to the pixel: the list contributes no border or padding of its
+  own, and the resize grip overlays the header's right edge rather than consuming layout width
 - [x] Arbitrary metadata columns, computed lazily in the background only for shown columns / on-screen
   rows: **image** dimensions, megapixels, channels and bit depth (+ distinct colour count, capped) via
   SkiaSharp; **audio/video** resolution, fps, duration, audio channels, bitrate and codec via `ffprobe`
@@ -208,7 +210,10 @@ Check off items as they're completed; delete lines you decide not to build.
 ### 6.9 OS Integration
 
 - [ ] searchable Native context-menu passthrough (Windows shell menu; Linux/macOS: curated equivalent)
-- [x] "Open terminal here" (configurable terminal per platform) — launches the platform terminal (auto-detected on Linux)
+- [x] "Open terminal here" — the terminal is configurable in Settings ▸ General: leave it empty to
+  auto-detect the first installed one, pick from the terminals detected on this machine, or type any
+  command line, where `{dir}` is replaced by the folder (without it the folder becomes the working
+  directory). A configured terminal that fails to start falls back to auto-detection
 - [x] "Open with…" application picker — opens with the OS default handler; explicit app-picker pending
 - [ ] Run user scripts on selected items (PowerShell / bash / Python), configurable script library
 - [ ] Set as default file manager guidance per platform

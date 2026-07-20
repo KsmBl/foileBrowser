@@ -241,8 +241,10 @@
           </ItemsControl.ItemsPanel>
           <ItemsControl.ItemTemplate>
             <DataTemplate x:DataType="vm:ColumnSpec">
-              <Grid Width="{Binding Width}" ColumnDefinitions="*,5">
-                <Button Grid.Column="0" Classes="colheader" Tag="{Binding}"
+              <!-- Single-cell grid: the resize grip overlays the header's right edge instead of
+                   consuming layout width, so the header's text box is exactly the cell's text box. -->
+              <Grid Width="{Binding Width}">
+                <Button Classes="colheader" Tag="{Binding}"
                         Command="{Binding $parent[UserControl].((vm:FileTabViewModel)DataContext).SortByColumnCommand}"
                         CommandParameter="{Binding}"
                         PointerPressed="OnColumnHeaderPressed" PointerMoved="OnColumnHeaderMoved">
@@ -256,10 +258,11 @@
                         </MultiBinding>
                       </TextBlock.Text>
                     </TextBlock>
-                    <TextBlock Text="{Binding Header}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                    <TextBlock Text="{Binding Header}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                               HorizontalAlignment="{Binding RightAligned, Converter={x:Static views:ColumnConverters.Alignment}}" />
                   </DockPanel>
                 </Button>
-                <Thumb Grid.Column="1" Background="Transparent" Cursor="SizeWestEast" Tag="{Binding}"
+                <Thumb Width="5" HorizontalAlignment="Right" Background="Transparent" Cursor="SizeWestEast" Tag="{Binding}"
                        DragDelta="OnColumnResize" DragCompleted="OnColumnResizeDone">
                   <Thumb.Template>
                     <ControlTemplate>
@@ -282,6 +285,7 @@
              SelectionChanged="OnListSelectionChanged"
              DoubleTapped="OnEntryActivated"
              KeyDown="OnListKeyDown"
+             Padding="0" BorderThickness="0" Background="Transparent"
              PointerPressed="OnListPointerPressed"
              PointerMoved="OnListPointerMoved"
              PointerReleased="OnListPointerReleased"
