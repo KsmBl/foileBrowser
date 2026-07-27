@@ -1,6 +1,6 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        x:Class="FoileBrowser.Views.ShredConfirmWindow"
+        x:Class="FoileBrowser.Views.ShredConfirmWindow" Classes="dialog"
         Width="480" SizeToContent="Height" MinHeight="240"
         WindowStartupLocation="CenterOwner"
         CanResize="False"

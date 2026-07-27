@@ -16,6 +16,11 @@
     <SolidColorBrush x:Key="ColumnHeaderBorderBrush" Color="Transparent" />
     <Thickness x:Key="ColumnHeaderBorderThickness">0</Thickness>
     <FontWeight x:Key="ColumnHeaderFontWeight">SemiBold</FontWeight>
+
+    <!-- Outline drawn around dialogs so they stand out from the window behind them on compositors
+         that draw no decoration of their own (sway/i3 and other tiling WMs) — PRD §6.8. -->
+    <SolidColorBrush x:Key="DialogBorderBrush" Color="#8C8C8C" />
+    <Thickness x:Key="DialogBorderThickness">2</Thickness>
   </Application.Resources>
 
   <Application.DataTemplates>
@@ -28,5 +33,12 @@
 
   <Application.Styles>
     <FluentTheme />
+
+    <!-- Window's own BorderBrush/BorderThickness aren't template-bound by the theme, so the outline
+         goes on the content presenter that wraps every dialog's content instead. -->
+    <Style Selector="Window.dialog /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="BorderBrush" Value="{DynamicResource DialogBorderBrush}" />
+      <Setter Property="BorderThickness" Value="{DynamicResource DialogBorderThickness}" />
+    </Style>
   </Application.Styles>
 </Application>

@@ -1,6 +1,6 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        x:Class="FoileBrowser.Views.PropertiesWindow"
+        x:Class="FoileBrowser.Views.PropertiesWindow" Classes="dialog"
         Width="440" SizeToContent="Height" MinHeight="200"
         WindowStartupLocation="CenterOwner"
         CanResize="False"

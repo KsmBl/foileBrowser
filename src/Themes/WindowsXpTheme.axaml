@@ -65,6 +65,10 @@
     <CornerRadius x:Key="ControlCornerRadius">3</CornerRadius>
     <CornerRadius x:Key="OverlayCornerRadius">3</CornerRadius>
 
+    <!-- Luna framed its dialogs in the same blue as the title bar -->
+    <SolidColorBrush x:Key="DialogBorderBrush" Color="#0A5BC4" />
+    <Thickness x:Key="DialogBorderThickness">2</Thickness>
+
     <!-- Flat, top-lit column headers with a hairline separator, as in Explorer's details view -->
     <StaticResource x:Key="ColumnHeaderBackground" ResourceKey="XpHeaderFace" />
     <StaticResource x:Key="ColumnHeaderBorderBrush" ResourceKey="XpBorder" />

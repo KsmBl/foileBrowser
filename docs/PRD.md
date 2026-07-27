@@ -219,6 +219,10 @@ Check off items as they're completed; delete lines you decide not to build.
   top-lit button gradients, Luna-blue selection, flat Explorer-style column headers, Tahoma).
   Compiled XAML behind an explicit `Styles` subclass, so it stays trim/AOT-safe. The custom accent
   colour is ignored while it's active, since Luna blue is part of the skin
+- [x] Dialog outline — every secondary window (Settings, Properties, rename, format, preview, shred
+  confirm) draws a 2px border around its content, so dialogs stay visible against the window behind
+  them on compositors that add no decoration of their own (sway/i3 and other tiling WMs). Neutral grey
+  by default; the Windows XP skin overrides it with Luna title-bar blue
 - [x] Custom accent color
 - [x] Font size and row-density settings
 - [x] Configurable toolbar — each button on the global operations toolbar can be individually shown or

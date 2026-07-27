@@ -3,7 +3,7 @@
         xmlns:vm="using:FoileBrowser.ViewModels"
         xmlns:models="using:FoileBrowser.Models"
         xmlns:views="using:FoileBrowser.Views"
-        x:Class="FoileBrowser.Views.BatchRenameWindow"
+        x:Class="FoileBrowser.Views.BatchRenameWindow" Classes="dialog"
         x:DataType="vm:BatchRenameViewModel"
         Width="640" Height="560"
         WindowStartupLocation="CenterOwner"
