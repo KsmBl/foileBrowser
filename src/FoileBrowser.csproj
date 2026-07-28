@@ -40,6 +40,13 @@
        isn't asked to AOT-compile). -->
   <PropertyGroup Condition="'$(FoileAot)' == 'true'">
     <PublishAot>true</PublishAot>
+    <!-- Optimise the native image for size rather than speed: a file browser spends its time in
+         syscalls and the toolkit's paint loop, not in code the compiler could unroll. Worth 2 MB of
+         binary (19 -> 17 MB); measured against runtime memory it changed nothing, so it is kept for
+         the download rather than for the footprint. Stack-trace metadata stays: dropping it saved
+         nothing measurable and would have cost every future crash report (docs/PRD §6.12). -->
+    <IlcOptimizationPreference>Size</IlcOptimizationPreference>
+    <IlcFoldIdenticalMethodBodies>true</IlcFoldIdenticalMethodBodies>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(PublishTrimmed)' == 'true' Or '$(PublishAot)' == 'true'">
