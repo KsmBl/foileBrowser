@@ -11,6 +11,11 @@ file list, and the inspector. Split it, tab it and arrange it from there:
 
 ![The main window](docs/screenshots/main-window.png)
 
+Ctrl+G switches a pane to the gallery, for the folders where what a file looks like matters more
+than its size and date:
+
+![Gallery view](docs/screenshots/gallery.png)
+
 The app photographs itself, so this can be regenerated anywhere:
 
 ```sh

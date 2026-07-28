@@ -121,7 +121,12 @@ Check off items as they're completed; delete lines you decide not to build.
   collapsed entirely from the pane's own toggle. The width is not yet persisted across restarts.
 - [x] Tabs per pane, restored across restart
 - [x] Details (list) view mode
-- [ ] Grid view mode with thumbnails (generated with https://github.com/Hawkynt/PNGCrushCS)
+- [x] Gallery view mode with thumbnails — Ctrl+G, View ▸ Gallery View, per pane so one can show
+  thumbnails while the other shows rows; the starting mode is a setting. Thumbnails are decoded off
+  the UI thread at most three at a time and letterboxed into 128 px squares, so a cell shows its kind
+  icon immediately and swaps when the picture arrives and a folder of thousands is browsable at once.
+  An LRU keeps ~400 of them (~25 MB) so a long session cannot grow without limit, and a file that
+  will not decode keeps its kind icon rather than a gap
 - [x] Computed folder sizes: calculated recursively in the background as folders come into view,
   showing a live "…/300 MiB+" counting hint, with results kept in a small bounded in-memory LRU cache
   (lock-free reads via a concurrent dictionary + interlocked recency ticks). The walk **never follows
@@ -180,7 +185,14 @@ Check off items as they're completed; delete lines you decide not to build.
   what was just written, which is a destructive act dressed up as an undo
 - [ ] Undo for delete-to-trash — **deliberately not offered**: no platform here exposes a supported
   "restore that item", and an undo that silently half-worked would be worse than none
-- [ ] Drag & drop within the app (pane ↔ pane, into sidebar)
+- [x] Drag & drop within the app — drag a selection from either listing onto another pane, onto the
+  other listing, or onto a sidebar favorite, drive or device. **The drop asks whether to copy or
+  move** rather than guessing: the toolkit's drag events carry no modifier state, and silently
+  moving a file because it happened to share a volume is the kind of surprise that loses work. In
+  the details view a drag starts from an already-selected row, so it never fights the rubber band;
+  in the gallery a press on a cell belongs to the cell, which leaves the band to empty space.
+  Dropping onto the folder the files already live in, or a folder into its own subtree, is refused
+  before the pointer is released (`FileDropTests`)
 - [ ] Drag & drop to/from other OS applications
 - [x] Copy path / copy name to clipboard
 - [x] Right-click context menu on files/folders: open, copy/move to other pane, rename, delete to
@@ -246,7 +258,9 @@ Check off items as they're completed; delete lines you decide not to build.
   largest type first, long tails collapsed). Folder contents aren't walked, and the summary says so
   rather than quietly reporting a total that excludes them
 - [x] Folder preview in inspector (item count, size, top-level contents) — count + top-level listing; aggregate byte size pending
-- [ ] Thumbnail generation with cache (async, off UI thread) — images decode to bounded width (thumbnail-like); persistent cache pending
+- [x] Thumbnail generation with cache (async, off UI thread) — see the gallery above
+- [ ] Thumbnails cached on disk between sessions — the cache is in memory only, so a folder is
+  re-decoded the first time it is opened in a new session
 - [ ] Syntax-highlighted text/code preview — plain-text preview done; highlighting pending
 - [ ] PDF first-page preview
 
