@@ -64,6 +64,8 @@ public sealed class SettingsDialog : Form
         this.Bounds = new(0, 0, 560, 540);
         this.StartPosition = FormStartPosition.CenterParent;
 
+        Ui.Outline(this);
+
         var tabs = new TabControl { Bounds = new(8, 8, 536, 450) };
         tabs.TabPages.AddRange(
             this.BuildAppearanceTab(),

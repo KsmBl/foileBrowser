@@ -24,6 +24,8 @@ public sealed class ShredConfirmDialog : Form
         this.MinimizeBox = false;
         this.MaximizeBox = false;
 
+        Ui.Outline(this);
+
         var shred = new Button { Text = "Overwrite and delete", Bounds = new(322, 330, 170, 30), Enabled = false };
         var cancel = new Button { Text = "Cancel", Bounds = new(222, 330, 90, 30) };
         var acknowledge = new CheckBox

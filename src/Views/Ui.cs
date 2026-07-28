@@ -59,6 +59,14 @@ internal static class Ui
         control.Parent?.PerformLayout();
     }
 
+    /// <summary>
+    /// Draws a border around a dialog's content (PRD §6.8). Tiling window managers add no decoration
+    /// of their own, so without this a dialog blends into whatever is behind it. The panel is added
+    /// first so it sits behind the content and fills whatever the form leaves.
+    /// </summary>
+    public static void Outline(Form dialog) =>
+        dialog.Controls.Add(new Panel { Dock = DockStyle.Fill, BorderStyle = BorderStyle.FixedSingle });
+
     /// <summary>Parses a "#rrggbb" tag colour, or null when it is missing or malformed (PRD §6.7).</summary>
     public static Color? ParseColor(string? hex)
     {

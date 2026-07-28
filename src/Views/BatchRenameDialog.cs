@@ -30,6 +30,8 @@ public sealed class BatchRenameDialog : Form
         this.Bounds = new(0, 0, 640, 560);
         this.StartPosition = FormStartPosition.CenterParent;
 
+        Ui.Outline(this);
+
         _preview.DisplaySelector = static o =>
         {
             var proposal = (RenameProposal)o!;

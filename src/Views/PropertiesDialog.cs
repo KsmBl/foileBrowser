@@ -41,6 +41,8 @@ public sealed class PropertiesDialog : Form
             _ => string.IsNullOrEmpty(entry.Extension) ? "File" : $"{entry.Extension.ToUpperInvariant()} file",
         };
 
+        Ui.Outline(this);
+
         this.Controls.Add(new PictureBox
         {
             Image = Icons.For(entry.Kind),

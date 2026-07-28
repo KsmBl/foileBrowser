@@ -39,6 +39,8 @@ public sealed class FormatDialog : Form
         this.MinimizeBox = false;
         this.MaximizeBox = false;
 
+        Ui.Outline(this);
+
         var size = target.TotalBytes is { } total ? $", {ValueFormat.Size(total, SizeUnit.Binary)}" : string.Empty;
         var current = string.IsNullOrEmpty(target.FileSystem) ? string.Empty : $", currently {target.FileSystem}";
 

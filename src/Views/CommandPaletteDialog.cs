@@ -28,6 +28,8 @@ public sealed class CommandPaletteDialog : Form
         this.MinimizeBox = false;
         this.MaximizeBox = false;
 
+        Ui.Outline(this);
+
         this.Controls.AddRange(_query, _results);
         this.ActiveControl = _query;
 

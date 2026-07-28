@@ -16,6 +16,8 @@ public sealed class NameInputDialog : Form
         this.MinimizeBox = false;
         this.MaximizeBox = false;
 
+        Ui.Outline(this);
+
         _name.Text = initial;
 
         var ok = new Button { Text = "OK", Bounds = new(274, 82, 90, 28), DialogResult = DialogResult.OK };

@@ -12,6 +12,8 @@ public sealed class QuickPreviewForm : Form
         this.Bounds = new(0, 0, 720, 560);
         this.StartPosition = FormStartPosition.CenterParent;
 
+        Ui.Outline(this);
+
         var inspector = new InspectorView { Dock = DockStyle.Fill };
         inspector.Show(preview);
         this.Controls.Add(inspector);
