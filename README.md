@@ -19,7 +19,8 @@ dotnet run --project src/FoileBrowser.csproj -- --screenshot docs/screenshots/ma
 
 It composites the window through the toolkit's own draw pipeline rather than asking the desktop for
 a grab, which is what makes it work on a headless or Wayland session where a screenshot tool gets
-nothing.
+nothing. Add `--standalone` when an instance is already running, so the launch captures its own
+window instead of handing the request over.
 
 ## Layout
 
@@ -58,6 +59,11 @@ standalone **trimmed** build is published that needs no runtime and has the smal
 **Optional:** install `ffprobe` (from FFmpeg) to get the audio/video metadata columns — resolution,
 fps, duration, channels, bitrate, codec. Without it those columns stay blank; image metadata columns
 (dimensions, megapixels, channels, depth, colour count) need no extra tools.
+
+**One process, every window.** Launching `foilebrowser <folder>` while it is already running hands
+the folder to the copy already up — as a new tab — and exits, rather than paying for a second
+runtime. Measured: the first window is 73 MB, the second folder adds **1 MB**. `--standalone` opts
+out.
 
 **Memory:** there is no renderer to choose — the window and the text-bearing controls are real
 platform widgets and everything else is painted straight onto them, so no GPU stack, no rendering

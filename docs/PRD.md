@@ -68,8 +68,10 @@ Check off items as they're completed; delete lines you decide not to build.
 - [x] Navigation history: back / forward / up
 - [x] Multiple selection (click, Ctrl/Shift-click): when a selection is present the status bar shows
   the count and total size of the selected items, and copy/move/delete act on the whole selection
-- [ ] Rubber-band selection — dragging a rectangle over the list. Was available on the Avalonia
-  front-end; the toolkit's grid owns its own mouse handling, so it needs support there first
+- [x] Rubber-band selection — drag a rectangle over the list to select the rows it covers, with
+  Shift adding to the selection and Ctrl flipping what the band touches. The toolkit's grid owns its
+  own mouse handling, so this was reported upstream and implemented there; the file list gets it
+  from `MultiSelect` alone.
 - [x] Clicking the empty area below the file list clears the current selection
 - [x] Properties window (Alt+Enter): shows the selected item's type, location, full path, size (folders
   are measured in the background), created/modified times and Unix permissions
@@ -247,17 +249,17 @@ Check off items as they're completed; delete lines you decide not to build.
 
 ### 6.8 Customization
 
-- [x] Dark and light themes, following OS setting by default
-- [x] **Windows XP (Luna)** skin — a `Styles` layer on top of Fluent that re-colours the theme
-  resources and restyles the controls the app uses (beige `#ECE9D8` face, sunken white fields,
-  top-lit button gradients, Luna-blue selection, flat Explorer-style column headers, Tahoma).
-  Compiled XAML behind an explicit `Styles` subclass, so it stays trim/AOT-safe. The custom accent
-  colour is ignored while it's active, since Luna blue is part of the skin
+- [x] Dark and light themes — taken from the desktop. The window, its buttons and its text
+  fields are the platform's own widgets and everything else is painted in the host theme's
+  colours, so the app follows the OS setting by construction rather than by re-implementing it
+- [ ] ~~Windows XP (Luna) skin~~ — dropped with the toolkit change. Re-colouring the theme was
+  something a styled framework allowed; a native widget takes its look from the desktop, and
+  overriding that is explicitly not what this toolkit does
 - [x] Dialog outline — every secondary window (Settings, Properties, rename, format, preview, shred
-  confirm) draws a 2px border around its content, so dialogs stay visible against the window behind
-  them on compositors that add no decoration of their own (sway/i3 and other tiling WMs). Neutral grey
-  by default; the Windows XP skin overrides it with Luna title-bar blue
-- [x] Custom accent color
+  confirm) draws a border around its content, so dialogs stay visible against the window behind them
+  on compositors that add no decoration of their own (sway/i3 and other tiling WMs). The line is the
+  desktop theme's own border colour
+- [ ] ~~Custom accent color~~ — same reason: the accent is the desktop's, not the app's
 - [x] Font size and row-density settings
 - [x] Configurable toolbar — each button on the global operations toolbar can be individually shown or
   hidden from Settings ▸ Toolbar, and the buttons can be reordered by dragging one onto another; both
@@ -391,6 +393,14 @@ Check off items as they're completed; delete lines you decide not to build.
     `explorer.exe` reimplementation, which would say nothing about Microsoft's, and Windows 95's
     shell is a different machine and a different era. Any number for either would be recalled rather
     than measured, so none is given.
+  - **One process, every window.** A second launch hands its folder to the copy already running
+    over a Unix socket in `$XDG_RUNTIME_DIR` and exits, instead of paying for another whole runtime.
+    Measured: the first window is 73 MB RSS, a second folder opened this way adds **1 MB**. It
+    arrives as a tab rather than a second top-level window, because the toolkit's message loop is
+    anchored to the main form — a sibling window would die with it — and a tab shares more than a
+    window would anyway. `--standalone` opts out, which is what an isolated run (a screenshot, a
+    test) uses. A socket left behind by a killed process is detected by connecting to it and taken
+    over when nothing answers.
   - **What is left to give up.** The floor is now the .NET runtime plus the desktop's own toolkit —
     there is no framework layer left to trade away, and RSS has halved from the Avalonia build.
     Lower still would mean a smaller runtime or fewer GTK dependencies, not a different UI stack.
