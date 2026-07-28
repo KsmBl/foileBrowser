@@ -162,13 +162,21 @@ Check off items as they're completed; delete lines you decide not to build.
   overwrite-in-place filesystem on rotating media** — on SSDs (wear levelling/TRIM), copy-on-write
   filesystems (btrfs, ZFS), and journalled, compressed, RAID or network storage the original blocks can
   survive. Multi-pass / random-fill patterns are not offered, as they add cost without fixing that
-- [ ] Conflict resolution dialog (overwrite / skip / rename / apply-to-all) — resolver supports overwrite/skip/rename/cancel; interactive dialog + apply-to-all pending (defaults to auto-rename)
+- [x] Conflict resolution dialog (overwrite / skip / keep both / cancel, with apply-to-all). Both
+  sides are shown with their size and modified time so they can be told apart. The copy engine asks
+  from its worker thread and waits, so the dialog is marshalled onto the UI thread; "apply to all"
+  answers the rest of that operation and is forgotten before the next one (`ConflictPromptTests`)
 - [x] Inline rename (F2) — via a rename prompt; true in-list inline editing pending. F2 (rename) and
   Delete (trash) are scoped to the focused file list, so they never hijack those keys while typing in
   a text box (path bar, filter, dialogs)
 - [x] Batch rename with RegEx, counters, and file-date tokens (OneCommander File Automator style)
 - [x] New file / new folder
-- [ ] multi Undo / redo for rename/move/delete-to-trash
+- [x] Multi-level undo / redo for renaming — Ctrl+Z / Ctrl+Y, in the Edit menu and the palette, 50
+  steps deep, and a step that can no longer be reversed is dropped rather than left to fail again
+  (`UndoServiceTests`)
+- [ ] Undo for move and delete-to-trash — a move is reversible and is the next step; **trashing is
+  deliberately not undoable**, because no platform here exposes a supported "restore that item" and
+  an undo that silently half-worked would be worse than none
 - [ ] Drag & drop within the app (pane ↔ pane, into sidebar)
 - [ ] Drag & drop to/from other OS applications
 - [x] Copy path / copy name to clipboard
@@ -251,7 +259,9 @@ Check off items as they're completed; delete lines you decide not to build.
   F5 are now real, editable shortcuts. (Multi-key sequences still pending.)
 - [ ] Hotkey assignment directly from the command palette — done via Settings ▸ Keybinds instead
 - [x] Complete keyboard operability: navigation, selection, dialogs, panels — core flows keyboard-driven (nav, palette, search, dialogs)
-- [ ] Type-ahead selection in file lists
+- [x] Type-ahead selection in file lists — typing letters jumps to the next entry starting with
+  them; repeating one letter steps through the entries beginning with it, typing on narrows, a pause
+  starts a new search, and it wraps. `TypeAheadTests` pins the rules
 
 ### 6.7 Organization
 

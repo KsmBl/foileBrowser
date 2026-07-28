@@ -193,6 +193,34 @@ public class NavigationFlowTests
         Assert.That(shell.ActiveTab.CurrentPath, Is.EqualTo(navigable[0].Path));
     }
 
+    // ---- undo ----
+
+    [Test]
+    public async Task Renaming_A_Real_File_Can_Be_Undone_And_Redone()
+    {
+        var shell = NewShell();
+        await shell.InitializeAsync();
+        await shell.ActiveTab!.NavigateToAsync(Path.Combine(_root, "Documents"));
+        shell.ActiveTab.SelectedEntry = shell.ActiveTab.Entries.First(e => e.Name == "notes.txt");
+        shell.NameRequester = _ => Task.FromResult<string?>("renamed.txt");
+
+        await shell.RenameSelectedCommand.ExecuteAsync(null);
+        Assert.That(File.Exists(Path.Combine(_root, "Documents", "renamed.txt")), Is.True, "the rename happened");
+        Assert.That(shell.Undo.CanUndo, Is.True);
+        Assert.That(shell.Undo.UndoDescription, Is.EqualTo("Rename notes.txt"));
+
+        await shell.UndoLastCommand.ExecuteAsync(null);
+        Assert.Multiple(() =>
+        {
+            Assert.That(File.Exists(Path.Combine(_root, "Documents", "notes.txt")), Is.True, "the old name is back");
+            Assert.That(File.Exists(Path.Combine(_root, "Documents", "renamed.txt")), Is.False);
+            Assert.That(shell.Undo.CanRedo, Is.True);
+        });
+
+        await shell.RedoLastCommand.ExecuteAsync(null);
+        Assert.That(File.Exists(Path.Combine(_root, "Documents", "renamed.txt")), Is.True, "redo repeats it");
+    }
+
     // ---- a folder that is not there any more ----
 
     [Test]

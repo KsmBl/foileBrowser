@@ -37,6 +37,9 @@ public sealed partial class MainForm
 
         var edit = new ToolStripMenuItem("&Edit");
         edit.DropDownItems.AddRange(
+            this.CommandItem("&Undo", "edit.undo"),
+            this.CommandItem("&Redo", "edit.redo"),
+            new ToolStripSeparator(),
             this.CommandItem("Copy to Other Pane", "file.copyToOther"),
             this.CommandItem("Move to Other Pane", "file.moveToOther"),
             new ToolStripSeparator(),

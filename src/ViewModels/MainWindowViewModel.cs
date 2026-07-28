@@ -175,6 +175,23 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly List<CommandItem> _commands;
 
     /// <summary>Every registered command (palette, menus, hotkeys).</summary>
+    /// <summary>The undo/redo history for the reversible operations (PRD §6.3).</summary>
+    public UndoService Undo { get; } = new();
+
+    [RelayCommand]
+    private async Task UndoLast()
+    {
+        if (!await Undo.UndoAsync() && ActiveTab is { } tab)
+            tab.StatusText = "Nothing to undo.";
+    }
+
+    [RelayCommand]
+    private async Task RedoLast()
+    {
+        if (!await Undo.RedoAsync() && ActiveTab is { } tab)
+            tab.StatusText = "Nothing to redo.";
+    }
+
     public IReadOnlyList<CommandItem> Commands => _commands;
 
     /// <summary>Window-wide commands the keybind editor can rebind (PRD §6.6).</summary>
@@ -423,6 +440,8 @@ public partial class MainWindowViewModel : ViewModelBase
             new("fav.pin", "Pin Current Folder", "Favorites", null, () => PinFavoriteCommand.ExecuteAsync(null), global: true),
             new("tag.clear", "Clear Tag", "Tag", null, () => ClearTagCommand.ExecuteAsync(null), global: true),
             new("tag.filterClear", "Clear Tag Filter", "Tag", null, () => { ClearTagFilterCommand.Execute(null); return Task.CompletedTask; }, global: true),
+            new("edit.undo", "Undo", "Edit", "Ctrl+Z", () => UndoLastCommand.ExecuteAsync(null), global: true),
+            new("edit.redo", "Redo", "Edit", "Ctrl+Y", () => RedoLastCommand.ExecuteAsync(null), global: true),
             new("app.settings", "Settings…", "App", null, () => OpenSettingsCommand.ExecuteAsync(null), global: true),
             new("archive.extract", "Extract Archive Here", "Archive", null, () => ExtractHereCommand.ExecuteAsync(null), global: true),
             new("archive.identify", "Identify File", "Archive", null, () => { IdentifyFileCommand.Execute(null); return Task.CompletedTask; }, global: true),
@@ -1292,7 +1311,18 @@ public partial class MainWindowViewModel : ViewModelBase
 
         try
         {
-            await _operations.RenameAsync(selected.FullPath, newName.Trim());
+            var from = selected.FullPath;
+            var target = newName.Trim();
+            var original = selected.Name;
+            await _operations.RenameAsync(from, target);
+            var to = Path.Combine(Path.GetDirectoryName(from) ?? string.Empty, target);
+
+            // Renaming is reversible by renaming back, so it goes on the history (PRD §6.3).
+            Undo.Record(new UndoStep(
+                $"Rename {original}",
+                async () => { await _operations.RenameAsync(to, original); RefreshActiveTab(); },
+                async () => { await _operations.RenameAsync(from, target); RefreshActiveTab(); }));
+
             RefreshActiveTab();
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
