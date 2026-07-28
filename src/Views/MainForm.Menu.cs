@@ -57,6 +57,7 @@ public sealed partial class MainForm
             new ToolStripSeparator(),
             _toolbarToggle,
             _inspectorToggle,
+            this.CommandItem("&Gallery View", "view.toggleGallery"),
             this.CommandItem("&Hidden Files", "view.toggleHidden"),
             new ToolStripSeparator(),
             this.CommandItem("Size &Units", "view.sizeUnit"),

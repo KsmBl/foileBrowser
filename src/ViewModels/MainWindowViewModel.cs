@@ -179,6 +179,9 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly List<CommandItem> _commands;
 
     /// <summary>Every registered command (palette, menus, hotkeys).</summary>
+    /// <summary>Thumbnails for the gallery view, decoded in the background and shared (PRD §6.2).</summary>
+    public ThumbnailService Thumbnails { get; } = new();
+
     /// <summary>The undo/redo history for the reversible operations (PRD §6.3).</summary>
     public UndoService Undo { get; } = new();
 
@@ -265,6 +268,7 @@ public partial class MainWindowViewModel : ViewModelBase
         var tab = new FileTabViewModel(_fileSystem, _search, _shell, _archives, _sizes, _display, _metadata)
         {
             TagLookup = _tags.GetTag,
+            IsGallery = string.Equals(_settings.Current.ViewMode, "Gallery", StringComparison.OrdinalIgnoreCase),
         };
         tab.PropertyChanged += OnTabPropertyChanged;
         return tab;
@@ -476,6 +480,8 @@ public partial class MainWindowViewModel : ViewModelBase
             new("view.newPane", "New Pane (split)", "View", null, () => AddPaneCommand.ExecuteAsync(null), global: true),
             new("view.toggleInspector", "Toggle Inspector", "View", "Ctrl+I", () => { ToggleInspectorCommand.Execute(null); return Task.CompletedTask; }, global: true),
             new("view.toggleToolbar", "Toggle Toolbar", "View", null, () => { ToggleToolbarCommand.Execute(null); return Task.CompletedTask; }, global: true),
+            new("view.toggleGallery", "Toggle Gallery View", "View", "Ctrl+G",
+                () => Tab(t => { t.IsGallery = !t.IsGallery; return Task.CompletedTask; }), global: true),
             new("view.toggleHidden", "Toggle Hidden Files", "View", null, () => Tab(t => { t.ShowHidden = !t.ShowHidden; return Task.CompletedTask; }), global: true),
             new("view.sizeUnit", "Cycle Size Units (KiB/KB/Bytes)", "View", null, () => CycleSizeUnitCommand.ExecuteAsync(null), global: true),
             new("view.dateFormat", "Cycle Date Format (absolute/relative)", "View", null, () => CycleDateFormatCommand.ExecuteAsync(null), global: true),

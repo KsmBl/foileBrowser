@@ -64,9 +64,91 @@ internal static class PreviewImage
         return LoadScaled(path, ref failure);
     }
 
+    /// <summary>
+    /// A square thumbnail of <paramref name="edge"/> pixels, letterboxed so every gallery cell is the
+    /// same size whatever the picture's shape, or null when the file will not decode. Runs on a
+    /// worker thread — nothing here touches the UI.
+    /// </summary>
+    public static IImage? Thumbnail(string path, int edge)
+    {
+        var decoded = DecodePixels(path, edge);
+        if (decoded is not { } source)
+            return null;
+
+        var square = Letterbox(source, edge);
+        return new AnimatedImage(new DecodedImage(edge, edge, [new ImageFrame(square, 0)]));
+    }
+
+    /// <summary>
+    /// The raw pixels of an image, no larger than <paramref name="wanted"/> on its longest edge. The
+    /// toolkit's decoder is tried first (no native library, and it is the only one that reads a PCX
+    /// or an ICO here); Skia takes the rest and subsamples on the way in where the format allows.
+    /// </summary>
+    private static (int Width, int Height, int[] Pixels)? DecodePixels(string path, int wanted)
+    {
+        byte[] bytes;
+        try
+        {
+            bytes = File.ReadAllBytes(path);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+        {
+            return null;
+        }
+
+        var size = ReadHeaderSize(bytes);
+        if (size is { } known && (long)known.Width * known.Height <= MaxPixels)
+        {
+            try
+            {
+                var image = ImageDecoder.Decode(bytes);
+                var frame = image.Frames[0];
+                return (image.Width, image.Height, frame.Argb);
+            }
+            catch (Exception)
+            {
+                // Not a format it reads after all.
+            }
+        }
+
+        var failure = Failure.None;
+        return SkiaPixels(path, wanted, ref failure);
+    }
+
+    /// <summary>Scales into a transparent square by nearest-neighbour sampling — ample for a cell.</summary>
+    private static int[] Letterbox((int Width, int Height, int[] Pixels) source, int edge)
+    {
+        var scale = Math.Min((double)edge / source.Width, (double)edge / source.Height);
+        var width = Math.Clamp((int)Math.Round(source.Width * scale), 1, edge);
+        var height = Math.Clamp((int)Math.Round(source.Height * scale), 1, edge);
+        var left = (edge - width) / 2;
+        var top = (edge - height) / 2;
+
+        var square = new int[edge * edge];
+        for (var y = 0; y < height; ++y)
+        {
+            var sourceRow = Math.Min(source.Height - 1, y * source.Height / height) * source.Width;
+            var targetRow = (y + top) * edge;
+            for (var x = 0; x < width; ++x)
+                square[targetRow + x + left] =
+                    source.Pixels[sourceRow + Math.Min(source.Width - 1, x * source.Width / width)];
+        }
+
+        return square;
+    }
+
     // ---- SkiaSharp: everything else, decoded no larger than we will draw it ----
 
     private static IImage? LoadScaled(string path, ref Failure failure)
+    {
+        var pixels = SkiaPixels(path, MaxEdge, ref failure);
+        return pixels is { } decoded
+            ? new AnimatedImage(new DecodedImage(decoded.Width, decoded.Height, [new ImageFrame(decoded.Pixels, 0)]))
+            : null;
+    }
+
+    /// <summary>Decodes through SkiaSharp, no larger than <paramref name="maxEdge"/> on its longest side.</summary>
+    private static (int Width, int Height, int[] Pixels)? SkiaPixels(string path, int maxEdge, ref Failure failure)
     {
         try
         {
@@ -78,7 +160,7 @@ internal static class PreviewImage
             }
 
             var source = codec.Info;
-            var scale = Fit(source.Width, source.Height);
+            var scale = Fit(source.Width, source.Height, maxEdge);
 
             // Only some formats (JPEG) can subsample while decoding; the rest report full size and
             // are scaled after the fact, which is why the decoded size is still capped here.
@@ -98,16 +180,16 @@ internal static class PreviewImage
                 return null;
             }
 
-            var shrink = Fit(decoded.Width, decoded.Height);
+            var shrink = Fit(decoded.Width, decoded.Height, maxEdge);
             if (shrink >= 1f)
-                return ToImage(decoded);
+                return ToPixels(decoded);
 
             using var reduced = new SKBitmap(new SKImageInfo(
                 Math.Max(1, (int)(decoded.Width * shrink)),
                 Math.Max(1, (int)(decoded.Height * shrink)),
                 SKColorType.Bgra8888,
                 SKAlphaType.Unpremul));
-            return decoded.ScalePixels(reduced, SKFilterQuality.Medium) ? ToImage(reduced) : ToImage(decoded);
+            return decoded.ScalePixels(reduced, SKFilterQuality.Medium) ? ToPixels(reduced) : ToPixels(decoded);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
         {
@@ -116,10 +198,10 @@ internal static class PreviewImage
         }
     }
 
-    private static float Fit(int width, int height)
+    private static float Fit(int width, int height, int maxEdge)
     {
         var longest = Math.Max(width, height);
-        return longest <= MaxEdge ? 1f : (float)MaxEdge / longest;
+        return longest <= maxEdge ? 1f : (float)maxEdge / longest;
     }
 
     /// <summary>
@@ -128,12 +210,8 @@ internal static class PreviewImage
     /// Skia's BGRA8888 already holds on a little-endian machine, so the pixels are reinterpreted
     /// rather than converted.
     /// </summary>
-    private static IImage ToImage(SKBitmap bitmap)
-    {
-        var pixels = MemoryMarshal.Cast<byte, int>(bitmap.GetPixelSpan()).ToArray();
-        var frame = new ImageFrame(pixels, 0);
-        return new AnimatedImage(new DecodedImage(bitmap.Width, bitmap.Height, [frame]));
-    }
+    private static (int Width, int Height, int[] Pixels) ToPixels(SKBitmap bitmap) =>
+        (bitmap.Width, bitmap.Height, MemoryMarshal.Cast<byte, int>(bitmap.GetPixelSpan()).ToArray());
 
     // ---- header sniffing, for the formats the toolkit's own decoder accepts ----
 

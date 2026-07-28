@@ -124,6 +124,10 @@ public partial class FileTabViewModel : ViewModelBase, IDockable, IDisposable
     [ObservableProperty]
     private bool _isSidebarVisible = true;
 
+    /// <summary>Whether this pane shows thumbnails instead of rows (PRD §6.2).</summary>
+    [ObservableProperty]
+    private bool _isGallery;
+
     // As-you-type filter over the current folder (PRD §6.4). Empty shows everything.
     [ObservableProperty]
     private string _filterText = string.Empty;

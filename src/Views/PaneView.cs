@@ -57,6 +57,7 @@ public sealed class PaneView : Panel
 
     private readonly SidebarView _sidebar;
     private readonly FileGridView _grid;
+    private readonly GalleryView _gallery;
     private readonly SplitContainer _body;
 
     private bool _suppress;
@@ -69,6 +70,7 @@ public sealed class PaneView : Panel
 
         _sidebar = new SidebarView(shell, tab) { Dock = DockStyle.Fill };
         _grid = new FileGridView(shell, tab) { Dock = DockStyle.Fill };
+        _gallery = new GalleryView(shell, tab, shell.Thumbnails) { Dock = DockStyle.Fill, Visible = false };
 
         // The sidebar and the file list share a splitter so the navigation pane can be dragged to
         // whatever width the user wants, rather than being pinned to one the view picked.
@@ -84,6 +86,7 @@ public sealed class PaneView : Panel
             Panel2MinSize = 160,
         };
         _body.Panel1.Controls.Add(_sidebar);
+        _body.Panel2.Controls.Add(_gallery);
         _body.Panel2.Controls.Add(_grid);
 
         this.BuildNav();
@@ -118,6 +121,9 @@ public sealed class PaneView : Panel
         _body.SplitterDistance = SidebarWidth;
     }
 
+    /// <summary>Whichever of the two listings is on show.</summary>
+    private Control Content => _tab.IsGallery ? _gallery : _grid;
+
     /// <summary>Row density for the file list (PRD §6.8).</summary>
     public int RowHeight
     {
@@ -133,6 +139,7 @@ public sealed class PaneView : Panel
         _cleanup.Clear();
         _sidebar.Detach();
         _grid.Detach();
+        _gallery.Detach();
         _tab.SearchFocusRequested -= this.OnSearchFocusRequested;
     }
 
@@ -222,7 +229,7 @@ public sealed class PaneView : Panel
             case Keys.Escape:
                 // Collapses a bar that was only revealed for this search, then hands focus back.
                 _shell.CollapseSearchBar();
-                _grid.Focus();
+                this.Content.Focus();
                 e.Handled = true;
                 break;
         }
@@ -266,6 +273,14 @@ public sealed class PaneView : Panel
 
         _cleanup.Add(Ui.Watch(_shell, () => Ui.SetDockedExtent(_searchRow, _shell.IsSearchBarVisible, SearchHeight),
             nameof(MainWindowViewModel.IsSearchBarVisible)));
+
+        // Rows or thumbnails — both are always built, so flipping back keeps scroll and selection.
+        _cleanup.Add(Ui.Watch(_tab, () =>
+        {
+            _grid.Visible = !_tab.IsGallery;
+            _gallery.Visible = _tab.IsGallery;
+            _body.Panel2.PerformLayout();
+        }, nameof(FileTabViewModel.IsGallery)));
 
         _tab.SearchFocusRequested += this.OnSearchFocusRequested;
     }

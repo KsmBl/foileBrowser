@@ -38,6 +38,10 @@ public sealed class AppSettings
     /// </summary>
     public string OpenHandoffIn { get; set; } = "Tab";
 
+    /// <summary>Which way a pane lists a folder to begin with: <c>Details</c> rows or a <c>Gallery</c>
+    /// of thumbnails (PRD §6.2).</summary>
+    public string ViewMode { get; set; } = "Details";
+
     /// <summary>
     /// Terminal launched by "Open terminal here" (PRD §6.9). Empty auto-detects. May be a bare
     /// executable ("kitty") or a full command line, where <c>{dir}</c> is replaced by the folder.

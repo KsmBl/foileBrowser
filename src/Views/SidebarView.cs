@@ -147,6 +147,8 @@ public sealed class SidebarView : Panel
 
         tile.Click += (_, _) => _tab.OpenSidebarItemCommand.Execute(item);
         tile.ContextMenuStrip = BuildRowMenu(item);
+
+
         return tile;
     }
 
