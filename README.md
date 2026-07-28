@@ -6,17 +6,20 @@ A fast, keyboard-first, cross-platform (Windows / Linux / macOS) file browser, i
 
 ## Screenshots
 
-> **Note:** the shots below still show the previous Avalonia front-end; they predate the
-> NativeForms rebuild and need retaking.
-
-Dual-pane browsing with per-pane tabs, color tags, an inspector panel, and a sidebar of
-favorites, drives and removable devices:
+Dual-pane browsing with per-pane tabs, an inspector panel, and a sidebar of favorites, drives
+and removable devices:
 
 ![Dual-pane browsing](docs/screenshots/dual-pane.png)
 
-Fuzzy command palette (`Ctrl+P`) — every action, searchable:
+The app photographs itself, so this can be regenerated anywhere:
 
-![Command palette](docs/screenshots/command-palette.png)
+```sh
+dotnet run --project src/FoileBrowser.csproj -- --screenshot docs/screenshots/dual-pane.png
+```
+
+It composites the window through the toolkit's own draw pipeline rather than asking the desktop for
+a grab, which is what makes it work on a headless or Wayland session where a screenshot tool gets
+nothing.
 
 ## Layout
 
