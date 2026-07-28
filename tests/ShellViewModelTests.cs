@@ -46,7 +46,7 @@ public class ShellViewModelTests
     }
 
     [Test]
-    public async Task Initialize_Builds_Both_Panes_And_Sidebar()
+    public async Task Initialize_Opens_One_Pane_And_The_Sidebar()
     {
         var fs = new FakeFileSystem();
         fs.Entries.Add(Dir("child"));
@@ -55,9 +55,10 @@ public class ShellViewModelTests
 
         await vm.InitializeAsync();
 
-        Assert.That(vm.Tabs, Has.Count.EqualTo(2), "two panes side by side by default");
+        // A profile with no saved session opens a single pane; splitting is a command away.
+        Assert.That(vm.Tabs, Has.Count.EqualTo(1), "one pane on a fresh profile");
         Assert.That(vm.ActiveTab, Is.Not.Null);
-        Assert.That(vm.IsDualPane, Is.True);
+        Assert.That(vm.IsDualPane, Is.False);
         var drives = vm.Sections.Single(s => s.Id == "drives");
         Assert.That(drives.Title, Is.EqualTo("Drives"));
         var drive = drives.Items.Single(s => s.Kind == SidebarItemKind.Drive);
@@ -149,6 +150,8 @@ public class ShellViewModelTests
         fs.Entries.Add(File("doc.txt"));
         var vm = CreateShell(fs, new RecordingTrash());
         await vm.InitializeAsync();
+        await vm.AddPaneCommand.ExecuteAsync(null); // a fresh profile starts single-pane
+        vm.ActivateTab(vm.Tabs[0]);
 
         vm.ActiveTab!.SelectedEntry = vm.ActiveTab.Entries.First();
         vm.CopyToOtherCommand.Execute(null);

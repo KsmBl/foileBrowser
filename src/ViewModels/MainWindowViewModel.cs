@@ -481,13 +481,17 @@ public partial class MainWindowViewModel : ViewModelBase
 
         if (restored is null)
         {
-            var paneSpecs = session.Panes.Count > 0
+            // A saved session is restored as it was; a profile with nothing saved opens a single
+            // pane. Splitting is one command away, whereas two empty panes is a layout nobody chose.
+            List<PaneSession> paneSpecs = session.Panes.Count > 0
                 ? session.Panes
-                :
-                [
-                    new PaneSession { Tabs = session.LeftTabs, ActiveIndex = session.LeftActiveIndex },
-                    new PaneSession { Tabs = session.RightTabs, ActiveIndex = session.RightActiveIndex },
-                ];
+                : session.LeftTabs.Count > 0 || session.RightTabs.Count > 0
+                    ?
+                    [
+                        new PaneSession { Tabs = session.LeftTabs, ActiveIndex = session.LeftActiveIndex },
+                        new PaneSession { Tabs = session.RightTabs, ActiveIndex = session.RightActiveIndex },
+                    ]
+                    : [new PaneSession()];
 
             var panes = new List<(List<FileTabViewModel> Tabs, int Active)>();
             foreach (var spec in paneSpecs)

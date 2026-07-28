@@ -188,9 +188,12 @@ public sealed class DockLayoutView : Panel
     private Control BuildPane(DockPane pane)
     {
         var tabs = pane.Tabs.OfType<FileTabViewModel>().ToList();
-        var single = tabs.Count == 1 && _layout!.Panes().Count() == 1;
+        // No strip while there is nothing to switch between: one pane holding one tab is just a
+        // folder view. A second pane brings the strips out so tabs can be moved and closed, and a
+        // second tab needs its own header to be reachable at all.
+        var bare = tabs.Count == 1 && _layout!.Panes().Count() == 1;
 
-        if (single)
+        if (bare)
         {
             var only = this.ViewFor(tabs[0]);
             this.WatchPane(pane, null);
