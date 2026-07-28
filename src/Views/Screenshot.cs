@@ -35,7 +35,7 @@ internal static partial class Screenshot
         try
         {
             Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(path)) ?? ".");
-            return OperatingSystem.IsWindows() ? Win32.Capture(path) : Gtk.Capture(path, out windows);
+            return OperatingSystem.IsWindows() ? Win32.Capture(path, out windows) : Gtk.Capture(path, out windows);
         }
         catch (Exception ex) when (ex is DllNotFoundException or EntryPointNotFoundException or IOException)
         {
@@ -251,11 +251,14 @@ internal static partial class Screenshot
         /// <summary>SRCCOPY.</summary>
         private const uint CopySource = 0x00CC0020;
 
-        public static bool Capture(string path)
+        public static bool Capture(string path, out int windows)
         {
+            windows = 0;
             var window = MainWindow();
             if (window == 0 || !GetWindowRect(window, out var rect))
                 return false;
+
+            windows = 1;
 
             var width = rect.Right - rect.Left;
             var height = rect.Bottom - rect.Top;

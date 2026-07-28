@@ -197,12 +197,24 @@ Check off items as they're completed; delete lines you decide not to build.
   This is how the README image is regenerated and how a UI change gets checked without a person at
   the screen; it caught three real bugs the moment it was first used (grid icons never drawn,
   mirrored back/forward arrows, clipped sidebar rows).
+- [x] **Browsing is covered end to end against a real disk** — `NavigationFlowTests` walks a real
+  directory tree with the real services rather than a fake filesystem: listing with folders first,
+  hidden entries on and off, opening a folder, up/back/forward, a breadcrumb jump, as-you-type
+  filtering, pinning the current folder and opening that favorite, listing and opening a real
+  volume, entering a real ZIP and descending and leaving it, and a path that no longer exists
+  leaving the tab usable. Through the UI itself, a folder, an archive and a handed-over path were
+  each opened and photographed.
 - [x] **Runs on the Win32 backend** as well as GTK — verified under Wine, where the shell realizes
   its full control tree (64 child windows), pumps its message loop and exits cleanly. The *visual*
   check could not be done there: Wine's `PrintWindow` does not descend into owner-drawn child
   windows, and the display it was tested on cannot be grabbed at all, so the Windows-side capture
   falls back through screen-read → `PrintWindow` → per-child print and still comes out mostly blank.
   Confirming how it *looks* on Windows needs a real Windows session.
+
+- [x] A folder, an archive or a file can be named on the command line: a folder is browsed, an
+  archive is entered as a folder, and any other file lands selected in its parent — which is what a
+  desktop hands over when it asks the browser to show something. The same path serves the
+  single-instance hand-over (PRD §6.12).
 
 ### 6.5 Preview
 
