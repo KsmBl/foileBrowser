@@ -159,6 +159,12 @@ public sealed partial class MainForm : Form
         _vm.PropertiesRequester = entry => PropertiesDialog.ShowAsync(this, entry, _vm.Sizes, _vm.Applications);
         _vm.ShredConfirmRequester = paths => ShredConfirmDialog.RequestAsync(this, paths);
 
+        // A name clash asks rather than silently auto-renaming (PRD §6.3); "apply to all" is
+        // forgotten between queued operations.
+        var conflicts = new ConflictDialog.Prompt(this);
+        _vm.OperationQueue.ConflictResolver = conflicts.Resolve;
+        _vm.OperationQueue.OperationCompleted += (_, _) => conflicts.Reset();
+
         _vm.ClipboardCopyRequested += (_, text) =>
         {
             if (!string.IsNullOrEmpty(text))
