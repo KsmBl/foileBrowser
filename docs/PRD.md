@@ -38,7 +38,7 @@ The guiding principle: **every interaction feels instantaneous, and everything i
 | Concern | Choice |
 |---|---|
 | Language | C# 14 on .NET 10 |
-| UI framework | Avalonia UI 11.x |
+| UI framework | [NativeForms](https://github.com/Hawkynt/NativeForms) — a Windows-Forms-shaped toolkit over Win32/GTK via P/Invoke |
 | Architecture | MVVM via CommunityToolkit.Mvvm |
 | Archives & filesystem images | [CompressionWorkbench](https://github.com/Hawkynt/CompressionWorkbench) (`Hawkynt.FileFormats.Archives` / `.FileSystems` / `Hawkynt.Compression.Core` NuGet packages, LGPL-3.0) |
 | Device mounting (Linux) | GVfs/GIO (MTP, GPhoto2, removable media) |
@@ -96,15 +96,17 @@ Check off items as they're completed; delete lines you decide not to build.
   tab is closed. The operations toolbar can also be shown/hidden from a button inside each tab's nav bar
   (like the hidden-files toggle). A pane's tab strip is hidden only for a lone tab in a single-pane
   layout; once docking is in play the strips appear so tabs can be grabbed/closed. (Backed by the
-  in-house docking model — no Dock.Avalonia dependency; tear-off floating windows are not provided.)
+  in-house docking model; tear-off floating windows are not provided.)
 - [ ] Toolbar and copy/move queue as dockable/floatable tool panels — the queue already auto-hides
   when idle and the toolbar can be hidden; turning them into draggable Dock tools is still pending
 - [x] Dockable multi-pane layout: open any number of panes and arrange them by splitting and tabbing,
   with draggable splitters; panes tile side by side by default and the layout (nested splits + tabs) is
   restored across restart. Backed by an **in-house, toolkit-agnostic docking model** (`src/Docking`) —
   a pure-C# tree of panes/splits with the split/move/close/reorder operations, no UI dependency — plus a
-  thin Avalonia renderer (`Views/DockLayoutView`), so the same model could later drive a non-Avalonia
-  front-end. Replaces the Dock.Avalonia dependency. (Tear-off floating windows are not provided.)
+  thin renderer (`Views/DockLayoutView`) that maps it onto nested splitters and tab controls. The
+  model survived the move from Avalonia to NativeForms untouched, which is what it was built for.
+  (Tear-off floating windows are not provided; neither is dragging a tab between panes — the
+  toolkit's tab control has no tear-off gesture, so splitting and moving are menu commands.)
 - [x] Single-pane mode toggle
 - [x] Tabs per pane, restored across restart
 - [x] Details (list) view mode
@@ -295,40 +297,41 @@ Check off items as they're completed; delete lines you decide not to build.
 - [x] 100k-entry directory lists without UI freeze (virtualized lists) — ListBox virtualizes; enumeration is off-thread and cancellable
 - [x] All I/O async; UI thread never blocks on disks / removeables / opticals / floppys etc (also r/w errors)
 - [x] Directory change detection via file-system watchers (auto-refresh)
-- [x] Low memory footprint via layered options (down from ~293 MB idle RSS):
-  - CPU/software rendering by default (skips the ~120 MB Mesa/GL stack; `FOILE_GPU=1` re-enables GPU),
-    InvariantGlobalization (drops ICU), workstation GC + ConserveMemory.
-  - **Trimmed self-contained** (`install.sh --self-contained`): ~103 MB RSS, no runtime needed.
-  - **NativeAOT** (`install.sh --aot`, needs clang): **~77 MB RSS** (jit-maps = 0, i.e. true AOT), with
-    full archive support — the reflective format discovery was replaced by a compile-time **source
-    generator** (`src/Generators`) that statically registers every CompressionWorkbench descriptor, so
-    no runtime reflection/`Assembly.LoadFrom` is used and the whole app is trim/AOT-safe. The in-house
-    dock view (`Views/DockLayoutView`) updates control properties via direct subscriptions rather than
-    reflection string-path bindings, keeping it trim/AOT-clean too.
-  - No bundled UI font: `Avalonia.Fonts.Inter` was dropped in favour of system fonts, removing its
-    ~1.8 MB mapping (and one package) and reading more native.
-  - **Where the memory actually goes** (measured on a framework-dependent Release run, software
-    rendering, ~137 MB RSS / ~110 MB PSS / ~79 MB private): the .NET runtime (CoreLib, RegularExpressions,
-    coreclr, JIT) ≈ 33 MB, **libX11 ≈ 20 MB** (X11 client lib, mapped even under XWayland), the managed
-    heap/JIT-code ≈ 27 MB, SkiaSharp ≈ 4 MB, Avalonia managed assemblies a few MB. Trimming/AOT already
-    removes the JIT and unused framework code (hence the ~79 MB AOT figure).
-  - **Dock.Avalonia was dropped** in favour of an in-house docking model + view (`src/Docking`,
-    `Views/DockLayoutView`). Beyond removing ~10 dependency assemblies, it shaved the footprint to
-    ~131 MB RSS / ~99 MB PSS (from ~137 / ~110) — a modest win, as expected, since Dock's managed dlls
-    were small. The real value is the removed dependency and a portable, toolkit-agnostic layout core.
-  - **Going lower means giving something up** — the remaining floor is the .NET runtime + Skia + X11,
-    not Avalonia sub-packages. Switching **Fluent → Simple theme** would break the current styling (which
-    relies on `SystemControl*` brushes); an experimental **Wayland backend** could shed libX11's ~20 MB
-    but is not production-ready. A materially smaller footprint (≪64 MB) would require leaving the
-    Avalonia/Skia stack entirely (native GTK/Qt or hand-rolled), i.e. a rewrite — the in-house docking
-    model is a first step towards that portability, recorded here as a deliberate direction.
+- [x] Low memory footprint via layered options:
+  - No renderer to choose and nothing to composite: the window, buttons and text fields are real
+    platform widgets and every other control is painted onto them, so no GPU/Mesa stack, no Skia and
+    no bundled font are mapped in. `FOILE_GPU` is gone — there is no GPU path to switch on.
+    InvariantGlobalization (drops ICU), workstation GC + ConserveMemory still apply.
+  - **Where the memory actually goes.** Measured on a framework-dependent Release run, idle, on one
+    Linux/GTK (Wayland) desktop: **131 MB RSS / 68 MB PSS / 47 MB private-dirty**. By mapping:
+    system fonts ≈ 20 MB (meiryo + NotoColorEmoji, mapped by fontconfig and shared desktop-wide),
+    the .NET runtime (CoreLib, coreclr, clrjit) ≈ 20 MB, the GDK window buffer ≈ 11 MB, the managed
+    heap ≈ 11 MB, JIT code ≈ 7 MB, the GTK stack (gtk/gio/glib/harfbuzz/glycin) ≈ 13 MB. Almost all
+    of the remainder is shared library text the desktop already has resident, which is why PSS is
+    half of RSS and private-dirty is a third of it.
+  - **Against the previous Avalonia build**, same machine and method: 149 MB RSS / 107 MB PSS. The
+    RSS win is modest; the PSS win is not, because Avalonia's Skia and managed assemblies were
+    private to the process whereas GTK is shared with everything else on the desktop.
+  - **NativeAOT** (`install.sh --aot`, needs clang) and **trimmed self-contained**
+    (`install.sh --self-contained`) still build, with full archive support: the reflective format
+    discovery is a compile-time **source generator** (`src/Generators`) that statically registers
+    every CompressionWorkbench descriptor, and the view layer subscribes to properties directly
+    rather than through reflection string-path bindings, so the whole app stays trim/AOT-safe.
+    Their footprints have **not been re-measured since the toolkit change** — the pre-port figures
+    (~103 MB self-contained, ~77 MB AOT) no longer apply and are recorded here only as history.
+  - **What is left to give up.** The floor is now the .NET runtime plus the desktop's own toolkit —
+    there is no framework layer left to trade away. Meaningfully lower means a smaller runtime
+    (AOT, once re-measured) or fewer fonts, not a different UI stack. The earlier note that a
+    materially smaller footprint "would require leaving the Avalonia/Skia stack entirely" is what
+    this port did; the toolkit-agnostic docking model that was called "a first step towards that
+    portability" carried over without a single change.
 
 ## 7. Milestones
 
 | Milestone | Contents |
 |---|---|
 | **M0 — Scaffold** ✅ | Repo layout, PRD, README |
-| **M1 — MVP browsing** ✅ | Avalonia app shell, single pane, directory listing, navigation, sorting |
+| **M1 — MVP browsing** ✅ | App shell, single pane, directory listing, navigation, sorting |
 | **M2 — Panes, tabs & operations** ✅ | Dual pane, tabs, copy/move/delete queue, rename, sidebar |
 | **M3 — Search, preview & palette** ✅ | Fuzzy search, inspector/quick preview, command palette, hotkeys |
 | **M4 — Polish** ✅ | Theming, tags, batch rename, saved layouts, OS integration, perf tuning |

@@ -2,9 +2,12 @@
 
 A fast, keyboard-first, cross-platform (Windows / Linux / macOS) file browser, inspired by [OneCommander](https://onecommander.com/) and [File Pilot](https://filepilot.tech/).
 
-**Stack:** C# 14 · .NET 10 · Avalonia UI · MVVM (CommunityToolkit.Mvvm) · NUnit
+**Stack:** C# 14 · .NET 10 · [NativeForms](../NativeForms) (Win32/GTK via P/Invoke) · MVVM (CommunityToolkit.Mvvm) · NUnit
 
 ## Screenshots
+
+> **Note:** the shots below still show the previous Avalonia front-end; they predate the
+> NativeForms rebuild and need retaking.
 
 Dual-pane browsing with per-pane tabs, color tags, an inspector panel, and a sidebar of
 favorites, drives and removable devices:
@@ -53,17 +56,19 @@ standalone **trimmed** build is published that needs no runtime and has the smal
 fps, duration, channels, bitrate, codec. Without it those columns stay blank; image metadata columns
 (dimensions, megapixels, channels, depth, colour count) need no extra tools.
 
-**Memory:** the app renders on the CPU (software) by default, which skips the ~120 MB GPU/Mesa stack —
-idle RSS is ~100 MB instead of ~290 MB. Set `FOILE_GPU=1` to use GPU rendering (smoother, more RAM).
-For the smallest footprint (~80 MB RSS), build with `./install.sh --aot` (NativeAOT; needs `clang`) —
+**Memory:** there is no renderer to choose — the window and the text-bearing controls are real
+platform widgets and everything else is painted straight onto them, so no GPU stack and no bundled
+font are ever mapped in. Measured idle on one Linux/GTK (Wayland) desktop, published Release:
+**131 MB RSS / 68 MB PSS / 47 MB private-dirty**, against 149 MB / 107 MB for the previous Avalonia
+build on the same machine. PSS is the honest figure here — most of what remains is GTK and system
+fonts the desktop already has resident. For the smallest footprint, build with `./install.sh --aot` (NativeAOT; needs `clang`) —
 archive support is preserved via a compile-time source generator, so no runtime reflection is used.
-The UI uses the system fonts (no bundled font) — see [docs/PRD.md](docs/PRD.md) §6.12 for the full
-memory breakdown and why the remaining floor is the .NET runtime + Skia + X11, not Avalonia packages.
+See [docs/PRD.md](docs/PRD.md) §6.12 for the breakdown.
 
 ## Status
 
 - **M0 — Scaffold** ✅ — repo layout, PRD, README
-- **M1 — MVP browsing** ✅ — Avalonia app shell, single virtualized pane, async directory
+- **M1 — MVP browsing** ✅ — app shell, single virtualized pane, async directory
   listing, back/forward/up + editable path bar, column sorting, hidden-file toggle
 - **M2 — Panes, tabs & operations** ✅ — dual pane + splitter, per-pane tabs, sidebar
   (favorites + drives with free-space), background copy/move queue, delete-to-trash,
@@ -71,7 +76,7 @@ memory breakdown and why the remaining floor is the .NET runtime + Skia + X11, n
 - **M3 — Search, preview & palette** ✅ — as-you-type filter, recursive streaming fuzzy
   search with extension filters, inspector panel + spacebar quick-preview (text/image/folder),
   fuzzy command palette (Ctrl+P)
-- **M4 — Polish** ✅ — light/dark/system theme + accent + font/row-density, portable JSON
+- **M4 — Polish** ✅ — font size + row density, portable JSON
   settings, session restore, color tags (filterable), batch rename (regex/counter/date tokens),
   filesystem-watcher auto-refresh, open-with / open-terminal-here
 - **M5 — Devices & archives** ✅ — clean removable/GVfs device list with fs-type + eject and
@@ -80,6 +85,10 @@ memory breakdown and why the remaining floor is the .NET runtime + Skia + X11, n
   as virtual folders, extract, nested descent, identify-format
 - **M6 — Configurability** ✅ — rebindable hotkeys (live key capture + conflict detection), per-button
   toolbar show/hide, hideable search bar with Ctrl+F reveal — all in a tabbed Settings dialog
+- **M7 — Native UI** ✅ — the whole view layer rebuilt on [NativeForms](../NativeForms): real
+  platform windows, buttons and text fields, everything else painted in the desktop's own theme.
+  The view-models, services and docking model were untouched. Theme variant and accent colour are
+  gone as settings — the toolkit takes both from the desktop.
 
 See [docs/PRD.md](docs/PRD.md) for the checkboxed feature list and milestones — check off what's
 built, delete what's not wanted.

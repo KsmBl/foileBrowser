@@ -5,8 +5,6 @@
     <RootNamespace>FoileBrowser</RootNamespace>
     <AssemblyName>FoileBrowser</AssemblyName>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
-    <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
   </PropertyGroup>
 
   <!-- Memory-footprint tuning (see docs/PRD §6.12) -->
@@ -47,7 +45,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <AvaloniaResource Include="Assets/**" />
+    <!-- The window icon is decoded at startup by the toolkit's own PNG decoder, so it ships as a
+         plain embedded resource instead of a toolkit-specific asset pipeline. -->
+    <EmbeddedResource Include="Assets/foilebrowser.png" LogicalName="foilebrowser.png" />
   </ItemGroup>
 
   <ItemGroup>
@@ -65,20 +65,26 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Avalonia" Version="$(AvaloniaVersion)" />
-    <PackageReference Include="Avalonia.Desktop" Version="$(AvaloniaVersion)" />
-    <PackageReference Include="Avalonia.Themes.Fluent" Version="$(AvaloniaVersion)" />
-    <!-- No bundled font (Avalonia.Fonts.Inter dropped): system fonts are used — see PRD §6.12 -->
-    <!-- Diagnostics only in Debug -->
-    <PackageReference Include="Avalonia.Diagnostics" Version="$(AvaloniaVersion)" Condition="'$(Configuration)' == 'Debug'" />
+    <!-- UI toolkit: the NativeForms core plus the backends this build ships. Core never calls a
+         native API; each backend is one platform's P/Invoke layer and only the one matching the
+         running OS is ever realized — so there is no Skia, no GPU stack and no bundled font in the
+         process (PRD §6.12). -->
+    <ProjectReference Include="..\..\NativeForms\NativeForms.Core\NativeForms.Core.csproj" />
+    <ProjectReference Include="..\..\NativeForms\NativeForms.Backends.Gtk\NativeForms.Backends.Gtk.csproj" />
+    <ProjectReference Include="..\..\NativeForms\NativeForms.Backends.Windows\NativeForms.Backends.Windows.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
-    <!-- Dockable multi-pane layout is now in-house (src/Docking + Views/DockLayoutView), no Dock.* deps -->
+    <!-- Dockable multi-pane layout is in-house (src/Docking + Views/DockLayoutView), no Dock.* deps -->
     <!-- Archive & filesystem-image formats (LGPL-3.0), PRD §5/§6.11 -->
     <PackageReference Include="Hawkynt.FileFormats.Archives" Version="1.0.0.696" />
     <PackageReference Include="Hawkynt.FileFormats.FileSystems" Version="1.0.0.696" />
-    <!-- Image metadata for file-list columns via SkiaSharp (already transitive via Avalonia; referenced
-         explicitly so SKCodec is compile-visible). Audio/video columns use ffprobe when installed. -->
+    <!-- Image metadata for the file-list columns; audio/video columns use ffprobe when installed.
+         SkiaSharp ships Windows/macOS native binaries itself but not the Linux one — Avalonia used to
+         pull that in transitively, so it is referenced explicitly now. -->
     <PackageReference Include="SkiaSharp" Version="2.88.9" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux" Version="2.88.9" />
   </ItemGroup>
 
 </Project>

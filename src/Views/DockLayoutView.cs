@@ -1,376 +1,259 @@
-using System.Collections.Specialized;
-using System.ComponentModel;
-using Avalonia;
-using Avalonia.Controls;
-using Avalonia.Controls.Shapes;
-using Avalonia.Input;
-using Avalonia.Interactivity;
-using Avalonia.Layout;
-using Avalonia.Media;
-using Avalonia.VisualTree;
 using FoileBrowser.Docking;
+using FoileBrowser.ViewModels;
+using Hawkynt.NativeForms;
 
 namespace FoileBrowser.Views;
 
 /// <summary>
-/// Renders a <see cref="DockLayout"/> and drives its drag interactions — the Avalonia front-end for the
-/// toolkit-agnostic docking model (PRD §6.2). Splits become nested Grids with <see cref="GridSplitter"/>s;
-/// each pane is a tab strip over its active tab's content. Dragging a tab reorders it in its strip,
-/// moves it onto another pane's strip, or (dropped over a pane edge) splits that pane.
+/// Renders a <see cref="DockLayout"/> (PRD §6.2): splits become nested
+/// <see cref="SplitContainer"/>s carrying the model's weights, and each pane is a
+/// <see cref="TabControl"/> over its tabs — or, when the whole layout is one tab, the pane content
+/// with no strip at all. The pane views are cached per tab so a rebuild keeps their scroll position
+/// and selection.
 /// </summary>
-public sealed class DockLayoutView : Grid
+public sealed class DockLayoutView : Panel
 {
-    public static readonly StyledProperty<DockLayout?> LayoutProperty =
-        AvaloniaProperty.Register<DockLayoutView, DockLayout?>(nameof(Layout));
-
-    public DockLayout? Layout
-    {
-        get => GetValue(LayoutProperty);
-        set => SetValue(LayoutProperty, value);
-    }
-
-    private readonly ContentControl _host = new();
-    private readonly Canvas _overlay = new() { IsHitTestVisible = false };
-    private readonly Border _highlight = new()
-    {
-        IsVisible = false,
-        Background = new SolidColorBrush(Color.FromArgb(60, 45, 125, 245)),
-        BorderBrush = new SolidColorBrush(Color.FromArgb(200, 45, 125, 245)),
-        BorderThickness = new Thickness(2),
-    };
-
-    // Live subscriptions from the current render; cleared and re-made on each full rebuild.
+    private readonly MainWindowViewModel _vm;
+    private readonly Dictionary<FileTabViewModel, PaneView> _panes = [];
     private readonly List<Action> _cleanup = [];
 
-    // Drag state.
-    private IDockable? _dragTab;
-    private Point _dragStart;
-    private bool _dragging;
-    private DockPane? _dropPane;
-    private DockSide _dropSide;
-    private int _dropIndex;
+    /// <summary>Splitters whose distance is a share of the container, re-applied on every resize.</summary>
+    private readonly List<(SplitContainer Split, double Proportion)> _proportions = [];
 
-    public DockLayoutView()
+    private int _rowHeight = 24;
+    private bool _rebuildQueued;
+
+    public DockLayoutView(MainWindowViewModel viewModel)
     {
-        _overlay.Children.Add(_highlight);
-        Children.Add(_host);
-        Children.Add(_overlay);
+        _vm = viewModel;
+        Ui.Watch(_vm, this.OnLayoutReplaced, nameof(MainWindowViewModel.Layout));
     }
 
-    protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
+    /// <summary>Row density for every pane's file list (PRD §6.8).</summary>
+    public int RowHeight
     {
-        base.OnPropertyChanged(change);
-        if (change.Property == LayoutProperty)
+        get => _rowHeight;
+        set
         {
-            if (change.OldValue is DockLayout oldLayout)
-                oldLayout.StructureChanged -= OnStructureChanged;
-            if (change.NewValue is DockLayout newLayout)
-                newLayout.StructureChanged += OnStructureChanged;
-            Rebuild();
+            if (_rowHeight == value)
+                return;
+            _rowHeight = value;
+            foreach (var pane in _panes.Values)
+                pane.RowHeight = value;
         }
     }
 
-    private void OnStructureChanged(object? sender, EventArgs e) => Rebuild();
+    private DockLayout? _layout;
+
+    private void OnLayoutReplaced()
+    {
+        if (ReferenceEquals(_layout, _vm.Layout))
+            return;
+
+        if (_layout is not null)
+            _layout.StructureChanged -= this.OnStructureChanged;
+        _layout = _vm.Layout;
+        if (_layout is not null)
+            _layout.StructureChanged += this.OnStructureChanged;
+        this.Rebuild();
+    }
+
+    private void OnStructureChanged(object? sender, EventArgs e) => this.QueueRebuild();
+
+    /// <summary>
+    /// Defers a rebuild to the next loop turn. Tab closes and splits arrive from inside a control's
+    /// own event, and disposing that control's tree underneath it is not safe.
+    /// </summary>
+    private void QueueRebuild()
+    {
+        if (_rebuildQueued)
+            return;
+        _rebuildQueued = true;
+
+        try
+        {
+            this.BeginInvoke(() =>
+            {
+                _rebuildQueued = false;
+                this.Rebuild();
+            });
+        }
+        catch (InvalidOperationException)
+        {
+            _rebuildQueued = false;
+            this.Rebuild(); // no loop yet — nothing is realized, so rebuilding inline is safe
+        }
+    }
 
     private void Rebuild()
     {
         foreach (var undo in _cleanup)
             undo();
         _cleanup.Clear();
+        _proportions.Clear();
+        this.Controls.Clear();
 
-        _host.Content = Layout is null ? null : BuildNode(Layout.Root);
+        if (_layout is null)
+            return;
+
+        this.DropUnusedPanes();
+
+        var content = this.BuildNode(_layout.Root);
+        content.Dock = DockStyle.Fill;
+        this.Controls.Add(content);
+        this.PerformLayout();
+        this.ApplyProportions();
     }
 
-    // ---- rendering ----
+    /// <summary>Disposes the cached views of tabs the layout no longer holds.</summary>
+    private void DropUnusedPanes()
+    {
+        var live = _layout!.Panes().SelectMany(p => p.Tabs).OfType<FileTabViewModel>().ToHashSet();
+        foreach (var tab in _panes.Keys.Where(t => !live.Contains(t)).ToList())
+        {
+            _panes[tab].Detach();
+            _panes.Remove(tab);
+        }
+    }
+
+    // ---- tree ----
 
     private Control BuildNode(DockNode node) =>
-        node is DockSplit split ? BuildSplit(split) : BuildPane((DockPane)node);
+        node is DockSplit split ? this.BuildSplit(split, 0) : this.BuildPane((DockPane)node);
 
-    private Control BuildSplit(DockSplit split)
+    /// <summary>
+    /// Renders children <paramref name="index"/>… as a right-folded chain of two-panel splitters,
+    /// since the toolkit's splitter is binary while a <see cref="DockSplit"/> may hold any number.
+    /// </summary>
+    private Control BuildSplit(DockSplit split, int index)
     {
-        var grid = new Grid();
-        var horizontal = split.Orientation == DockOrientation.Horizontal;
+        if (index >= split.Children.Count - 1)
+            return this.BuildNode(split.Children[index]);
 
-        for (var i = 0; i < split.Children.Count; i++)
+        var first = split.Children[index];
+        var container = new SplitContainer
         {
-            if (i > 0)
-                AddTrack(grid, horizontal, GridLength.Auto); // splitter track
-            AddTrack(grid, horizontal, new GridLength(Math.Max(0.05, split.Children[i].Weight), GridUnitType.Star));
-        }
+            Dock = DockStyle.Fill,
+            Orientation = split.Orientation == DockOrientation.Horizontal
+                ? Orientation.Vertical   // a horizontal split puts panes side by side
+                : Orientation.Horizontal,
+            Panel1MinSize = 120,
+            Panel2MinSize = 120,
+        };
 
-        for (var i = 0; i < split.Children.Count; i++)
-        {
-            var trackIndex = i * 2; // account for splitter tracks
-            if (i > 0)
-            {
-                var splitter = new GridSplitter
-                {
-                    Background = Brushes.Transparent,
-                    ResizeDirection = horizontal ? GridResizeDirection.Columns : GridResizeDirection.Rows,
-                };
-                if (horizontal) { splitter.Width = 5; splitter.Cursor = new Cursor(StandardCursorType.SizeWestEast); }
-                else { splitter.Height = 5; splitter.Cursor = new Cursor(StandardCursorType.SizeNorthSouth); }
-                Place(splitter, horizontal, trackIndex - 1);
-                splitter.AddHandler(PointerReleasedEvent, (_, _) => SyncWeights(grid, split, horizontal), RoutingStrategies.Bubble);
-                grid.Children.Add(splitter);
-            }
+        var head = this.BuildNode(first);
+        head.Dock = DockStyle.Fill;
+        container.Panel1.Controls.Add(head);
 
-            var childControl = BuildNode(split.Children[i]);
-            Place(childControl, horizontal, trackIndex);
-            grid.Children.Add(childControl);
-        }
+        var tail = this.BuildSplit(split, index + 1);
+        tail.Dock = DockStyle.Fill;
+        container.Panel2.Controls.Add(tail);
 
-        return grid;
+        var total = split.Children.Skip(index).Sum(c => Math.Max(0.05, c.Weight));
+        var share = Math.Clamp(Math.Max(0.05, first.Weight) / total, 0.1, 0.9);
+        _proportions.Add((container, share));
+
+        // Committed drags flow back into the model so the layout persists across sessions.
+        container.SplitterMoved += (_, _) => this.SyncWeights(container, split, index);
+        return container;
     }
 
-    private static void AddTrack(Grid grid, bool horizontal, GridLength length)
+    private void SyncWeights(SplitContainer container, DockSplit split, int index)
     {
-        if (horizontal)
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = length });
-        else
-            grid.RowDefinitions.Add(new RowDefinition { Height = length });
+        var extent = container.Orientation == Orientation.Vertical ? container.Width : container.Height;
+        if (extent <= 0)
+            return;
+
+        var share = Math.Clamp((double)container.SplitterDistance / extent, 0.05, 0.95);
+        var tailTotal = split.Children.Skip(index + 1).Sum(c => Math.Max(0.05, c.Weight));
+        // Keep the tail's internal ratios and give the head the share the user just dragged to.
+        split.Children[index].Weight = tailTotal * share / Math.Max(0.001, 1 - share);
+
+        for (var i = 0; i < _proportions.Count; ++i)
+            if (ReferenceEquals(_proportions[i].Split, container))
+                _proportions[i] = (container, share);
     }
 
-    private static void Place(Control control, bool horizontal, int index)
+    /// <summary>Re-applies every splitter's share of its container — the toolkit sizes panels in pixels.</summary>
+    public void ApplyProportions()
     {
-        if (horizontal)
-            Grid.SetColumn(control, index);
-        else
-            Grid.SetRow(control, index);
-    }
-
-    /// <summary>Reads the live splitter-adjusted star sizes back into the model weights so they persist.</summary>
-    private static void SyncWeights(Grid grid, DockSplit split, bool horizontal)
-    {
-        for (var i = 0; i < split.Children.Count; i++)
+        foreach (var (split, proportion) in _proportions)
         {
-            var track = i * 2;
-            var value = horizontal ? grid.ColumnDefinitions[track].Width.Value : grid.RowDefinitions[track].Height.Value;
-            if (value > 0)
-                split.Children[i].Weight = value;
+            var extent = split.Orientation == Orientation.Vertical ? split.Width : split.Height;
+            if (extent > 0)
+                split.SplitterDistance = (int)(extent * proportion);
         }
     }
 
     private Control BuildPane(DockPane pane)
     {
-        var grid = new Grid { Tag = pane };
-        grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+        var tabs = pane.Tabs.OfType<FileTabViewModel>().ToList();
+        var single = tabs.Count == 1 && _layout!.Panes().Count() == 1;
 
-        var strip = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 2, Margin = new Thickness(2) };
-        Grid.SetRow(strip, 0);
-
-        var content = new ContentControl { Content = pane.ActiveTab };
-        Grid.SetRow(content, 1);
-
-        // Subscriptions scoped to the current strip contents; cleared whenever the strip is rebuilt
-        // (kept trim/AOT-safe by updating properties directly instead of using reflection bindings).
-        var stripCleanup = new List<Action>();
-
-        void RebuildStrip()
+        if (single)
         {
-            foreach (var undo in stripCleanup)
-                undo();
-            stripCleanup.Clear();
-            strip.Children.Clear();
+            var only = this.ViewFor(tabs[0]);
+            this.WatchPane(pane, null);
+            return only;
+        }
 
-            // A lone tab in a single-pane layout hides the strip; docking contexts keep it (to grab/close tabs).
-            var show = pane.Tabs.Count > 1 || (Layout is { } l && l.Panes().Count() > 1);
-            strip.IsVisible = show;
-            if (!show)
+        var control = new TabControl { Dock = DockStyle.Fill, ShowCloseButtons = true };
+        foreach (var tab in tabs)
+        {
+            var page = new TabPage(tab.Title);
+            var view = this.ViewFor(tab);
+            view.Dock = DockStyle.Fill;
+            page.Controls.Add(view);
+            control.TabPages.Add(page);
+
+            // Follow renames without a reflection binding.
+            _cleanup.Add(Ui.Watch(tab, () => page.Text = tab.Title, nameof(FileTabViewModel.Title)));
+        }
+
+        var active = pane.ActiveTab as FileTabViewModel;
+        control.SelectedIndex = active is null ? 0 : Math.Max(0, tabs.IndexOf(active));
+
+        control.SelectedIndexChanged += (_, _) =>
+        {
+            if (control.SelectedIndex >= 0 && control.SelectedIndex < tabs.Count)
+                _layout?.Activate(tabs[control.SelectedIndex]);
+        };
+        control.TabClosing += (_, e) =>
+        {
+            e.Cancel = true; // the model owns removal; the rebuild that follows drops the page
+            if (control.SelectedIndex >= 0 && control.SelectedIndex < tabs.Count)
+                _layout?.CloseTab(tabs[control.SelectedIndex]);
+        };
+
+        this.WatchPane(pane, control);
+        return control;
+    }
+
+    /// <summary>Keeps a pane's strip in step with its model: tab list changes rebuild, activation selects.</summary>
+    private void WatchPane(DockPane pane, TabControl? control)
+    {
+        _cleanup.Add(Ui.ObserveList(pane.Tabs, this.QueueRebuild));
+        _cleanup.Add(Ui.Watch(pane, () =>
+        {
+            if (control is null || pane.ActiveTab is not FileTabViewModel active)
                 return;
-            foreach (var tab in pane.Tabs)
-                strip.Children.Add(BuildTabHeader(pane, tab, stripCleanup));
-        }
-
-        RebuildStrip();
-        void OnTabsChanged(object? s, NotifyCollectionChangedEventArgs e) => RebuildStrip();
-        void OnActiveChanged(object? s, PropertyChangedEventArgs e)
-        {
-            if (e.PropertyName != nameof(DockPane.ActiveTab))
-                return;
-            content.Content = pane.ActiveTab;
-            RebuildStrip();
-        }
-        pane.Tabs.CollectionChanged += OnTabsChanged;
-        pane.PropertyChanged += OnActiveChanged;
-        _cleanup.Add(() => pane.Tabs.CollectionChanged -= OnTabsChanged);
-        _cleanup.Add(() => pane.PropertyChanged -= OnActiveChanged);
-        _cleanup.Add(() => { foreach (var undo in stripCleanup) undo(); stripCleanup.Clear(); });
-
-        grid.Children.Add(strip);
-        grid.Children.Add(content);
-        return grid;
+            var index = pane.Tabs.IndexOf(active);
+            if (index >= 0 && index < control.TabPages.Count && control.SelectedIndex != index)
+                control.SelectedIndex = index;
+        }, nameof(DockPane.ActiveTab)));
     }
 
-    private Control BuildTabHeader(DockPane pane, IDockable tab, List<Action> stripCleanup)
+    private PaneView ViewFor(FileTabViewModel tab)
     {
-        var active = ReferenceEquals(pane.ActiveTab, tab);
-        var title = new TextBlock
+        if (_panes.TryGetValue(tab, out var existing))
         {
-            Text = tab.Title,
-            VerticalAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(6, 3, 4, 3),
-            FontSize = 12,
-        };
-        // Follow renames without a reflection binding.
-        void OnTitleChanged(object? s, PropertyChangedEventArgs e)
-        {
-            if (e.PropertyName == nameof(IDockable.Title))
-                title.Text = tab.Title;
-        }
-        tab.PropertyChanged += OnTitleChanged;
-        stripCleanup.Add(() => tab.PropertyChanged -= OnTitleChanged);
-
-        var close = new Button
-        {
-            Content = "✕",
-            FontSize = 10,
-            Padding = new Thickness(4, 0),
-            Background = Brushes.Transparent,
-            VerticalAlignment = VerticalAlignment.Center,
-        };
-        close.Click += (_, _) => Layout?.CloseTab(tab);
-
-        var row = new StackPanel { Orientation = Orientation.Horizontal };
-        row.Children.Add(title);
-        row.Children.Add(close);
-
-        var header = new Border
-        {
-            Child = row,
-            CornerRadius = new CornerRadius(4, 4, 0, 0),
-            Background = active
-                ? new SolidColorBrush(Color.FromArgb(40, 128, 128, 128))
-                : Brushes.Transparent,
-            BorderBrush = new SolidColorBrush(Color.FromArgb(40, 128, 128, 128)),
-            BorderThickness = new Thickness(1, 1, 1, 0),
-            Tag = tab,
-        };
-
-        header.PointerPressed += (_, e) =>
-        {
-            Layout?.Activate(tab);
-            if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
-            {
-                _dragTab = tab;
-                _dragStart = e.GetPosition(this);
-            }
-        };
-        return header;
-    }
-
-    // ---- tab dragging (pointer-based; all within this control) ----
-
-    protected override void OnPointerMoved(PointerEventArgs e)
-    {
-        base.OnPointerMoved(e);
-        if (_dragTab is null)
-            return;
-
-        var pos = e.GetPosition(this);
-        if (!_dragging)
-        {
-            if (Math.Abs(pos.X - _dragStart.X) < 6 && Math.Abs(pos.Y - _dragStart.Y) < 6)
-                return;
-            _dragging = true;
-            e.Pointer.Capture(this);
+            // A rebuild re-parents the cached view; the previous parent still lists it until removed.
+            existing.Parent?.Controls.Remove(existing);
+            return existing;
         }
 
-        UpdateDropTarget(pos);
+        var view = new PaneView(_vm, tab) { RowHeight = _rowHeight };
+        _panes[tab] = view;
+        return view;
     }
-
-    protected override void OnPointerReleased(PointerReleasedEventArgs e)
-    {
-        base.OnPointerReleased(e);
-        if (_dragging && _dragTab is { } tab && _dropPane is { } pane)
-        {
-            if (_dropSide == DockSide.Center)
-                Layout?.MoveTab(tab, pane, _dropIndex);
-            else
-                Layout?.Split(tab, pane, _dropSide);
-        }
-
-        _dragTab = null;
-        _dragging = false;
-        _dropPane = null;
-        _highlight.IsVisible = false;
-        e.Pointer.Capture(null);
-    }
-
-    private void UpdateDropTarget(Point pos)
-    {
-        var paneGrid = PaneControlAt(pos);
-        if (paneGrid?.Tag is not DockPane pane)
-        {
-            _dropPane = null;
-            _highlight.IsVisible = false;
-            return;
-        }
-        _dropPane = pane;
-
-        var origin = paneGrid.TranslatePoint(default, this) ?? default;
-        var bounds = new Rect(origin, paneGrid.Bounds.Size);
-        var strip = (paneGrid as Grid)?.Children.OfType<StackPanel>().FirstOrDefault();
-
-        // Over the (visible) tab strip → move/reorder into this pane at the hovered index.
-        if (strip is { IsVisible: true } && strip.TranslatePoint(default, this) is { } stripOrigin
-            && new Rect(stripOrigin, strip.Bounds.Size).Contains(pos))
-        {
-            _dropSide = DockSide.Center;
-            _dropIndex = InsertIndex(strip, stripOrigin, pos);
-            ShowHighlight(new Rect(stripOrigin, strip.Bounds.Size));
-            return;
-        }
-
-        // Otherwise the pane body: edges split, the middle moves in (as a tab).
-        var rx = bounds.Width > 0 ? (pos.X - bounds.X) / bounds.Width : 0.5;
-        var ry = bounds.Height > 0 ? (pos.Y - bounds.Y) / bounds.Height : 0.5;
-        (_dropSide, var zone) = rx < 0.25 ? (DockSide.Left, LeftHalf(bounds))
-            : rx > 0.75 ? (DockSide.Right, RightHalf(bounds))
-            : ry < 0.25 ? (DockSide.Top, TopHalf(bounds))
-            : ry > 0.75 ? (DockSide.Bottom, BottomHalf(bounds))
-            : (DockSide.Center, bounds);
-        _dropIndex = pane.Tabs.Count;
-        ShowHighlight(zone);
-    }
-
-    private Grid? PaneControlAt(Point pos)
-    {
-        var hit = this.InputHitTest(pos) as Visual;
-        while (hit is not null)
-        {
-            if (hit is Grid g && g.Tag is DockPane)
-                return g;
-            hit = hit.GetVisualParent();
-        }
-        return null;
-    }
-
-    private static int InsertIndex(StackPanel strip, Point stripOrigin, Point posInView)
-    {
-        var localX = posInView.X - stripOrigin.X; // pointer in strip-local coordinates
-        var index = 0;
-        foreach (var child in strip.Children.OfType<Control>())
-        {
-            if (localX < child.Bounds.X + child.Bounds.Width / 2)
-                break;
-            index++;
-        }
-        return index;
-    }
-
-    private void ShowHighlight(Rect rect)
-    {
-        Canvas.SetLeft(_highlight, rect.X);
-        Canvas.SetTop(_highlight, rect.Y);
-        _highlight.Width = rect.Width;
-        _highlight.Height = rect.Height;
-        _highlight.IsVisible = true;
-    }
-
-    private static Rect LeftHalf(Rect b) => new(b.X, b.Y, b.Width / 2, b.Height);
-    private static Rect RightHalf(Rect b) => new(b.X + b.Width / 2, b.Y, b.Width / 2, b.Height);
-    private static Rect TopHalf(Rect b) => new(b.X, b.Y, b.Width, b.Height / 2);
-    private static Rect BottomHalf(Rect b) => new(b.X, b.Y + b.Height / 2, b.Width, b.Height / 2);
 }

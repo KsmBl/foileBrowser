@@ -6,8 +6,8 @@ namespace FoileBrowser.Docking;
 
 /// <summary>
 /// A tab's content, as seen by the docking layout. Deliberately toolkit-agnostic — it only needs a
-/// title (observable so the tab strip can follow renames) — so the same <see cref="DockLayout"/> can
-/// drive an Avalonia front-end today and a different UI toolkit later.
+/// title (observable so the tab strip can follow renames) — so the same <see cref="DockLayout"/>
+/// outlives whichever UI toolkit renders it, as the move to NativeForms showed.
 /// </summary>
 public interface IDockable : INotifyPropertyChanged
 {

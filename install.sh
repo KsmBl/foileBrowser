@@ -66,8 +66,8 @@ dotnet publish "$REPO_DIR/src/FoileBrowser.csproj" "${PUBLISH_ARGS[@]}"
 
 echo "==> Installing launcher: $LAUNCHER"
 mkdir -p "$BIN_DIR"
-# DOTNET_GCConserveMemory keeps the managed heap tight; FOILE_GPU=1 re-enables GPU rendering
-# (smoother, but maps the ~120 MB Mesa/GL stack — off by default to save memory).
+# DOTNET_GCConserveMemory keeps the managed heap tight. There is no renderer to select: the UI is
+# platform widgets plus direct painting, so no GPU stack is ever mapped in.
 if [ "$SELF_CONTAINED" -eq 1 ]; then
   cat > "$LAUNCHER" <<EOF
 #!/usr/bin/env bash
