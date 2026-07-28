@@ -13,8 +13,8 @@ namespace FoileBrowser.Views;
 /// </summary>
 public sealed class FileGridView : DataGridView
 {
-    /// <summary>The leading icon cell, matching the width the tag dot needs.</summary>
-    private const int GlyphColumnWidth = 26;
+    /// <summary>The leading colour stripe that shows an entry's tag (PRD §6.7).</summary>
+    private const int TagColumnWidth = 8;
 
     /// <summary>The grab zone the grid itself uses for a divider — a click inside it resizes, not sorts.</summary>
     private const int DividerZone = 3;
@@ -66,22 +66,14 @@ public sealed class FileGridView : DataGridView
         this.Columns.Clear();
         _specs.Clear();
 
-        // A fixed leading cell: the entry glyph, tinted by the colour tag (PRD §6.7).
+        // A narrow leading stripe carrying the entry's colour tag, blank when it has none.
         this.Columns.Add(new DataGridViewColumn(string.Empty, static _ => null)
         {
-            Width = GlyphColumnWidth,
-            MinimumWidth = GlyphColumnWidth,
+            Width = TagColumnWidth,
+            MinimumWidth = TagColumnWidth,
             Resizable = DataGridViewTriState.False,
-            Alignment = ContentAlignment.MiddleCenter,
-            ImageSelector = static o => Icons.For(((FileEntryViewModel)o!).Entry.Kind),
-            ImageSize = new Size(Icons.Size, Icons.Size),
             CellStyleSelector = static o =>
-            {
-                var entry = (FileEntryViewModel)o!;
-                return new DataGridViewCellStyle(
-                    foreColor: entry.IsHidden ? Color.Gray : null,
-                    backColor: Ui.ParseColor(entry.TagColor));
-            },
+                new DataGridViewCellStyle(backColor: Ui.ParseColor(((FileEntryViewModel)o!).TagColor)),
         });
 
         foreach (var spec in _shell.Columns)
@@ -89,6 +81,8 @@ public sealed class FileGridView : DataGridView
             var id = spec.Id;
             var column = new DataGridViewColumn(spec.Header, o => ((FileEntryViewModel)o!).GetCellText(id))
             {
+                // The name column leads with the entry's icon, the way a file list is read.
+                ImageSelector = id == "name" ? static o => Icons.For(((FileEntryViewModel)o!).Entry.Kind) : null,
                 Width = Math.Max(40, (int)spec.Width),
                 MinimumWidth = 40,
                 Alignment = spec.RightAligned ? ContentAlignment.MiddleRight : ContentAlignment.MiddleLeft,
