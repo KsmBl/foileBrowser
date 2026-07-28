@@ -17,13 +17,11 @@ public sealed class SettingsDialog : Form
     private readonly List<ToolbarOption> _toolbarOptions = [];
     private readonly List<ToolbarOption> _filesystemOptions = [];
 
-    private readonly ComboBox _theme = new() { Bounds = new(150, 16, 200, 26) };
-    private readonly TextBox _accent = new() { Bounds = new(150, 50, 200, 26) };
-    private readonly NumericUpDown _fontSize = new() { Bounds = new(150, 84, 90, 26), Minimum = 8, Maximum = 32 };
-    private readonly NumericUpDown _rowHeight = new() { Bounds = new(150, 118, 90, 26), Minimum = 16, Maximum = 64 };
-    private readonly CheckBox _searchBar = new() { Text = "Show the search bar by default", Bounds = new(16, 152, 340, 24) };
-    private readonly TextBox _terminal = new() { Bounds = new(150, 186, 220, 26) };
-    private readonly ComboBox _terminalPicker = new() { Bounds = new(376, 186, 130, 26), PlaceholderText = "detected…" };
+    private readonly NumericUpDown _fontSize = new() { Bounds = new(150, 16, 90, 26), Minimum = 8, Maximum = 32 };
+    private readonly NumericUpDown _rowHeight = new() { Bounds = new(150, 50, 90, 26), Minimum = 16, Maximum = 64 };
+    private readonly CheckBox _searchBar = new() { Text = "Show the search bar by default", Bounds = new(16, 84, 340, 24) };
+    private readonly TextBox _terminal = new() { Bounds = new(150, 118, 220, 26) };
+    private readonly ComboBox _terminalPicker = new() { Bounds = new(376, 118, 130, 26), PlaceholderText = "detected…" };
 
     private readonly CheckedListBox _toolbarList = new() { Bounds = new(16, 16, 500, 380), CheckOnClick = true };
 
@@ -90,8 +88,6 @@ public sealed class SettingsDialog : Form
     private TabPage BuildAppearanceTab()
     {
         var page = new TabPage("Appearance");
-        foreach (var name in new[] { "System", "Light", "Dark", "WindowsXP" })
-            _theme.Items.Add(name);
         foreach (var name in new[] { "Home and drives", "Root", "Current folder" })
             _treeRoot.Items.Add(name);
 
@@ -104,22 +100,18 @@ public sealed class SettingsDialog : Form
         };
 
         page.Controls.AddRange(
-            new Label { Text = "Theme", Bounds = new(16, 18, 120, 22) },
-            _theme,
-            new Label { Text = "Accent colour", Bounds = new(16, 52, 120, 22) },
-            _accent,
-            new Label { Text = "Font size", Bounds = new(16, 86, 120, 22) },
+            new Label { Text = "Font size", Bounds = new(16, 18, 120, 22) },
             _fontSize,
-            new Label { Text = "Row height", Bounds = new(16, 120, 120, 22) },
+            new Label { Text = "Row height", Bounds = new(16, 52, 120, 22) },
             _rowHeight,
             _searchBar,
-            new Label { Text = "Terminal command", Bounds = new(16, 188, 130, 22) },
+            new Label { Text = "Terminal command", Bounds = new(16, 120, 130, 22) },
             _terminal,
             _terminalPicker,
             new Label
             {
-                Text = "Theme and accent follow the desktop: this toolkit paints in the host's own colours.",
-                Bounds = new(16, 222, 500, 40),
+                Text = "Colours and styling come from the desktop, so there is no theme to choose here.",
+                Bounds = new(16, 156, 500, 22),
                 ForeColor = Color.Gray,
             });
 
@@ -275,14 +267,6 @@ public sealed class SettingsDialog : Form
 
     private void LoadSettings()
     {
-        _theme.SelectedIndex = _settings.ThemeVariant switch
-        {
-            "Light" => 1,
-            "Dark" => 2,
-            "WindowsXP" => 3,
-            _ => 0,
-        };
-        _accent.Text = _settings.AccentColor;
         _fontSize.Value = (decimal)_settings.FontSize;
         _rowHeight.Value = (decimal)_settings.RowHeight;
         _searchBar.Checked = _settings.SearchBarVisible;
@@ -328,15 +312,6 @@ public sealed class SettingsDialog : Form
             return;
         }
 
-        _settings.ThemeVariant = _theme.SelectedIndex switch
-        {
-            1 => "Light",
-            2 => "Dark",
-            3 => "WindowsXP",
-            _ => "System",
-        };
-        if (!string.IsNullOrWhiteSpace(_accent.Text))
-            _settings.AccentColor = _accent.Text.Trim();
         _settings.FontSize = (double)_fontSize.Value;
         _settings.RowHeight = (double)_rowHeight.Value;
 
