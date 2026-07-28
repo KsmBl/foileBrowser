@@ -37,9 +37,10 @@ public class PreviewImageTests
     }
 
     [Test]
-    public void Decodes_A_Jpeg_Through_Skia()
+    public void Decodes_A_Jpeg()
     {
-        // The toolkit's decoder does not read JPEG; this is the fallback path the inspector needs.
+        // The toolkit decodes JPEG itself now; before that this was the SkiaSharp fallback path.
+        // Either way the inspector has to end up with the right pixels.
         var path = this.Write(SKEncodedImageFormat.Jpeg, 64, 48);
 
         var image = PreviewImage.Load(path, out var failure);

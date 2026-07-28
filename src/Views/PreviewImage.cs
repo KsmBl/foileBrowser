@@ -140,6 +140,54 @@ internal static class PreviewImage
     private static ReadOnlySpan<byte> PngSignature => [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
 
     /// <summary>
+    /// Walks a JPEG's marker segments to its frame header and reads the size from it. Standalone
+    /// markers carry no length, a segment's length covers its own two bytes, and any SOF but the
+    /// arithmetic and lossless ones carries height then width at a fixed offset.
+    /// </summary>
+    private static (int Width, int Height)? JpegSize(ReadOnlySpan<byte> bytes)
+    {
+        var offset = 2;
+        while (offset + 4 <= bytes.Length)
+        {
+            if (bytes[offset] != 0xFF)
+                return null;
+
+            var marker = bytes[offset + 1];
+            offset += 2;
+
+            // Padding fill bytes and the standalone markers (RSTn, SOI, EOI, TEM) carry no segment.
+            if (marker == 0xFF)
+            {
+                --offset;
+                continue;
+            }
+
+            if (marker is 0x01 or 0xD8 or 0xD9 || (marker >= 0xD0 && marker <= 0xD7))
+                continue;
+
+            if (offset + 2 > bytes.Length)
+                return null;
+            var length = BinaryPrimitives.ReadUInt16BigEndian(bytes[offset..]);
+            if (length < 2 || offset + length > bytes.Length)
+                return null;
+
+            // SOF0..SOF15, excluding the DHT/JPG/DAC markers interleaved in that range.
+            if (marker >= 0xC0 && marker <= 0xCF && marker is not (0xC4 or 0xC8 or 0xCC))
+            {
+                if (length < 7)
+                    return null;
+                return (
+                    BinaryPrimitives.ReadUInt16BigEndian(bytes[(offset + 5)..]),
+                    BinaryPrimitives.ReadUInt16BigEndian(bytes[(offset + 3)..]));
+            }
+
+            offset += length;
+        }
+
+        return null;
+    }
+
+    /// <summary>
     /// The declared pixel size of a PNG, GIF, BMP, ICO/CUR or PCX, or null when the bytes are not
     /// one of those. Only the header is read — nothing is decoded.
     /// </summary>
@@ -149,6 +197,12 @@ internal static class PreviewImage
             return (
                 (int)BinaryPrimitives.ReadUInt32BigEndian(bytes[16..]),
                 (int)BinaryPrimitives.ReadUInt32BigEndian(bytes[20..]));
+
+        // SOI followed by a marker. Dimensions live in the frame header, which is found by walking
+        // the marker segments — cheap, and it keeps a photo off the SkiaSharp path entirely.
+        if (bytes.Length >= 4 && bytes[0] == 0xFF && bytes[1] == 0xD8 && bytes[2] == 0xFF
+            && JpegSize(bytes) is { } jpeg)
+            return jpeg;
 
         if (bytes.Length >= 10 && bytes[..4].SequenceEqual("GIF8"u8))
             return (
