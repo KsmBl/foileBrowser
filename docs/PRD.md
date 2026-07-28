@@ -86,10 +86,10 @@ Check off items as they're completed; delete lines you decide not to build.
 ### 6.2 Layout & Views
 
 - [x] Application menu bar (File / Edit / View / Go / Tools / Help) with accelerators and gesture hints
-- [x] Toolbar with captioned buttons; can be hidden via View ▸ Toolbar (persisted). The buttons carry
-  words rather than icons because the toolkit's strip items are not controls and so have no tooltips
-  of their own — the caption says what the emoji used to only hint at, and the bar's right-click menu
-  carries the full description plus the reorder commands (see §6.8).
+- [x] Toolbar with drawn icons; can be hidden via View ▸ Toolbar (persisted). The icons are painted
+  from pixel masks rather than typed as emoji (§6.12); the two buttons that show a live value ("KiB",
+  "Ago") keep their word instead. A strip item has no tooltip of its own, so the bar's right-click
+  menu carries each button's full description plus the reorder commands (see §6.8).
   It holds file/view operations only — back/forward/up/refresh live in each pane's own nav bar next to
   the path bar, so they aren't duplicated on the global toolbar
 - [x] Tabs are the dockable documents: every folder tab has a tab strip and can be dragged within its
@@ -111,7 +111,12 @@ Check off items as they're completed; delete lines you decide not to build.
   model survived the move from Avalonia to NativeForms untouched, which is what it was built for.
   (Tear-off floating windows are not provided; neither is dragging a tab between panes — the
   toolkit's tab control has no tear-off gesture, so splitting and moving are menu commands.)
-- [x] Single-pane mode toggle
+- [x] Opens with a single pane. A saved session is restored exactly as it was; a profile with
+  nothing saved gets one pane rather than two empty ones, and splitting is one command away.
+- [x] The pane's tab strip appears only once there is something to switch between — a second pane,
+  or a second tab. One pane holding one tab is just a folder view and carries no header.
+- [x] The navigation sidebar is on a splitter, so it can be dragged to any width (down to 90 px) or
+  collapsed entirely from the pane's own toggle. The width is not yet persisted across restarts.
 - [x] Tabs per pane, restored across restart
 - [x] Details (list) view mode
 - [ ] Grid view mode with thumbnails (generated with https://github.com/Hawkynt/PNGCrushCS)

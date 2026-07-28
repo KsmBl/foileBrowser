@@ -6,15 +6,15 @@ A fast, keyboard-first, cross-platform (Windows / Linux / macOS) file browser, i
 
 ## Screenshots
 
-Dual-pane browsing with per-pane tabs, an inspector panel, and a sidebar of favorites, drives
-and removable devices:
+A single pane on first run — a resizable sidebar of favorites, drives and removable devices, the
+file list, and the inspector. Split it, tab it and arrange it from there:
 
-![Dual-pane browsing](docs/screenshots/dual-pane.png)
+![The main window](docs/screenshots/main-window.png)
 
 The app photographs itself, so this can be regenerated anywhere:
 
 ```sh
-dotnet run --project src/FoileBrowser.csproj -- --screenshot docs/screenshots/dual-pane.png
+dotnet run --project src/FoileBrowser.csproj -- --screenshot docs/screenshots/main-window.png
 ```
 
 It composites the window through the toolkit's own draw pipeline rather than asking the desktop for
