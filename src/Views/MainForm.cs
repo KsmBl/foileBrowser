@@ -82,6 +82,12 @@ public sealed partial class MainForm : Form
         await _vm.InitializeAsync();
         // The pane tree only exists once the session restored, so its splitters are placed after it.
         _dock.ApplyProportions();
+
+        if (_pendingPath is { } startup && _vm.ActiveTab is { } tab)
+        {
+            _pendingPath = null;
+            await tab.NavigateToAsync(startup);
+        }
     }
 
     private async void OnFormClosing(object? sender, FormClosingEventArgs e)
@@ -175,6 +181,31 @@ public sealed partial class MainForm : Form
         // and a modal keeps the same "type, arrow, Enter" flow the palette had as an overlay.
         _paletteDialog ??= new CommandPaletteDialog(_vm.CommandPalette);
         _paletteDialog.ShowDialog(this);
+    }
+
+    /// <summary>The folder a launch asked for, opened once the shell has finished starting up.</summary>
+    public void OpenAtStartup(string path) => _pendingPath = path;
+
+    private string? _pendingPath;
+
+    /// <summary>
+    /// Opens a folder in this window on behalf of another launch (PRD §6.12). It arrives as a tab
+    /// rather than a second window because the message loop is anchored to this form — closing it
+    /// would take any sibling window down with it — and a tab shares even more than a window would.
+    /// </summary>
+    public async void OpenPath(string path)
+    {
+        if (!Directory.Exists(path))
+            return;
+
+        await _vm.AddTabCommand.ExecuteAsync(null);
+        if (_vm.ActiveTab is { } tab)
+            await tab.NavigateToAsync(path);
+
+        // Bring the window forward: the user just asked for this folder from somewhere else.
+        if (this.WindowState == FormWindowState.Minimized)
+            this.WindowState = FormWindowState.Normal;
+        this.Focus();
     }
 
     /// <summary>Opens the spacebar quick-preview window for the current inspector preview (PRD §6.5).</summary>

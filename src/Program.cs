@@ -1,3 +1,4 @@
+using FoileBrowser.Services;
 using FoileBrowser.Views;
 using Hawkynt.NativeForms;
 using Hawkynt.NativeForms.Backends;
@@ -18,12 +19,61 @@ internal sealed class Program
     [STAThread]
     public static void Main(string[] args)
     {
+        var requested = FolderArgument(args);
+
+        // One process serves every window. A second launch hands its folder to the copy already
+        // running and exits, so it costs a socket round-trip instead of a whole second runtime
+        // (PRD §6.12). --standalone opts out, which is what the screenshot runs use.
+        var single = Array.IndexOf(args, "--standalone") < 0;
+        InstanceServer? server = null;
+        if (single)
+        {
+            server = InstanceServer.Claim(requested, out var handedOver);
+            if (handedOver)
+                return;
+        }
+
         BackendRegistry.Register(new Win32Backend());
         BackendRegistry.Register(new GtkBackend());
 
         var shell = App.CreateShell();
+        if (requested is not null)
+            shell.OpenAtStartup(requested);
+
+        if (server is not null)
+        {
+            // The accept loop runs off the UI thread, so the request is marshalled back onto it.
+            server.OpenRequested += (_, path) => shell.BeginInvoke(() => shell.OpenPath(path));
+            server.Start();
+        }
+
         ArmScreenshot(shell, args);
-        Application.Run(shell);
+        try
+        {
+            Application.Run(shell);
+        }
+        finally
+        {
+            server?.Dispose();
+        }
+    }
+
+    /// <summary>The folder to open, taken from the first argument that is not a switch.</summary>
+    private static string? FolderArgument(string[] args)
+    {
+        for (var i = 0; i < args.Length; ++i)
+        {
+            if (args[i].StartsWith("--", StringComparison.Ordinal))
+            {
+                if (args[i] is "--screenshot" or "--screenshot-delay")
+                    ++i; // skip that switch's value
+                continue;
+            }
+
+            return Directory.Exists(args[i]) ? Path.GetFullPath(args[i]) : null;
+        }
+
+        return null;
     }
 
     /// <summary>
