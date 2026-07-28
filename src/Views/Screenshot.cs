@@ -91,9 +91,11 @@ internal static partial class Screenshot
             if (frame.Width <= 0 || frame.Height <= 0 || frame.Width > MaxExtent || frame.Height > MaxExtent)
                 return false;
 
-            // Let each toplevel finish the frame it owes before its pixels are read.
-            foreach (var layer in layers)
-                gtk_test_widget_wait_for_draw(layer.Widget);
+            // Let the anchor window finish the frame it owes before its pixels are read. Only the
+            // first: a modal dialog stacked over it is mid-realization often enough that asking it
+            // to settle trips a GTK assertion, and it is about to be drawn synchronously anyway.
+            if (layers.Count > 0)
+                gtk_test_widget_wait_for_draw(layers[0].Widget);
 
             var surface = cairo_image_surface_create(CairoFormatRgb24, frame.Width, frame.Height);
             var cr = cairo_create(surface);
