@@ -22,6 +22,10 @@ public sealed class GalleryView : ListView
     private readonly TypeAhead _typeAhead = new();
 
     private bool _suppressSelection;
+    private System.Drawing.Point _dragFrom = new(-1, -1);
+
+    /// <summary>How far the pointer travels before a press on a selected cell becomes a drag.</summary>
+    private const int DragThreshold = 5;
 
     public GalleryView(MainWindowViewModel shell, FileTabViewModel tab, ThumbnailService thumbnails)
     {
@@ -134,6 +138,39 @@ public sealed class GalleryView : ListView
     }
 
     // ---- keyboard, matching the details view ----
+
+    /// <inheritdoc/>
+    protected override void OnMouseDown(MouseEventArgs e)
+    {
+        _dragFrom = e.Button == MouseButtons.Left && !e.Control && !e.Shift && this.SelectedItems.Count > 0
+            ? new System.Drawing.Point(e.X, e.Y)
+            : new System.Drawing.Point(-1, -1);
+        base.OnMouseDown(e);
+    }
+
+    /// <inheritdoc/>
+    protected override void OnMouseMove(MouseEventArgs e)
+    {
+        if (_dragFrom.X >= 0
+            && (Math.Abs(e.X - _dragFrom.X) > DragThreshold || Math.Abs(e.Y - _dragFrom.Y) > DragThreshold))
+        {
+            var paths = this.SelectedItems.Select(item => item.Tag).OfType<FileEntryViewModel>()
+                .Select(entry => entry.FullPath).ToList();
+            _dragFrom = new System.Drawing.Point(-1, -1);
+            if (paths.Count > 0)
+                this.DoDragDrop(new FileDrag(paths, _tab.CurrentPath), DragDropEffects.Copy | DragDropEffects.Move);
+            return;
+        }
+
+        base.OnMouseMove(e);
+    }
+
+    /// <inheritdoc/>
+    protected override void OnMouseUp(MouseEventArgs e)
+    {
+        _dragFrom = new System.Drawing.Point(-1, -1);
+        base.OnMouseUp(e);
+    }
 
     /// <inheritdoc/>
     protected override void OnKeyDown(KeyEventArgs e)

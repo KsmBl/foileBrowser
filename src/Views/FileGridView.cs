@@ -19,6 +19,9 @@ public sealed class FileGridView : DataGridView
     /// <summary>The grab zone the grid itself uses for a divider — a click inside it resizes, not sorts.</summary>
     private const int DividerZone = 3;
 
+    /// <summary>How far the pointer travels before a press on a selected row becomes a drag.</summary>
+    private const int DragThreshold = 5;
+
     private readonly MainWindowViewModel _shell;
     private readonly FileTabViewModel _tab;
     private readonly List<Action> _cleanup = [];
@@ -30,6 +33,7 @@ public sealed class FileGridView : DataGridView
 
     private bool _suppressSelection;
     private Point _pressed = new(-1, -1);
+    private Point _dragFrom = new(-1, -1);
 
     public FileGridView(MainWindowViewModel shell, FileTabViewModel tab)
     {
@@ -153,7 +157,42 @@ public sealed class FileGridView : DataGridView
     protected override void OnMouseDown(MouseEventArgs e)
     {
         _pressed = new Point(e.X, e.Y);
+        _dragFrom = new Point(-1, -1);
+
+        // A press on a row that is already selected arms a drag instead of a rubber band — pressing
+        // anywhere else still bands, and Ctrl/Shift always mean "change the selection".
+        if (e.Button == MouseButtons.Left && !e.Control && !e.Shift
+            && e.Y >= this.ColumnHeaderHeight && this.SelectedItems.Any()
+            && this.RowAt(e.Y) is { } row && this.SelectedItems.Contains(row))
+        {
+            _dragFrom = new Point(e.X, e.Y);
+            return;
+        }
+
         base.OnMouseDown(e);
+    }
+
+    /// <inheritdoc/>
+    protected override void OnMouseMove(MouseEventArgs e)
+    {
+        if (_dragFrom.X >= 0
+            && (Math.Abs(e.X - _dragFrom.X) > DragThreshold || Math.Abs(e.Y - _dragFrom.Y) > DragThreshold))
+        {
+            var paths = this.SelectedItems.OfType<FileEntryViewModel>().Select(entry => entry.FullPath).ToList();
+            _dragFrom = new Point(-1, -1);
+            if (paths.Count > 0)
+                this.DoDragDrop(new FileDrag(paths, _tab.CurrentPath), DragDropEffects.Copy | DragDropEffects.Move);
+            return;
+        }
+
+        base.OnMouseMove(e);
+    }
+
+    /// <summary>The row item under a y-coordinate, or null past the last row.</summary>
+    private object? RowAt(int y)
+    {
+        var row = this.TopRow + ((y - this.ColumnHeaderHeight) / Math.Max(1, this.RowHeight));
+        return row >= 0 && row < this.Items.Count ? this.Items[row] : null;
     }
 
     /// <summary>
@@ -166,6 +205,7 @@ public sealed class FileGridView : DataGridView
     {
         var pressed = _pressed;
         _pressed = new Point(-1, -1);
+        _dragFrom = new Point(-1, -1);
         base.OnMouseUp(e);
 
         this.SyncColumnGeometry();

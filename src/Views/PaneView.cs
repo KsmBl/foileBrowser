@@ -99,6 +99,10 @@ public sealed class PaneView : Panel
         this.Controls.Add(_searchRow);
         this.Controls.Add(_nav);
 
+        // Files dragged from another pane (or the same one's other listing) land in this folder.
+        FileDrop.Accept(_grid, shell, () => _tab.CurrentPath);
+        FileDrop.Accept(_gallery, shell, () => _tab.CurrentPath);
+
         this.Wire();
 
         // Any interaction inside this pane makes it the active tab, so shell-level operations

@@ -148,6 +148,9 @@ public sealed class SidebarView : Panel
         tile.Click += (_, _) => _tab.OpenSidebarItemCommand.Execute(item);
         tile.ContextMenuStrip = BuildRowMenu(item);
 
+        // A favorite, drive or device is a folder like any other, so it takes a drop too.
+        if (item.Path.Length > 0)
+            FileDrop.Accept(tile, _shell, () => item.Path);
 
         return tile;
     }
