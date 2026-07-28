@@ -277,7 +277,10 @@ public sealed class FileGridView : DataGridView
 
     private ContextMenuStrip BuildContextMenu()
     {
-        var menu = new ContextMenuStrip();
+        // Type to narrow the actions, Enter to run what is left (PRD §6.6). A searchable menu gives
+        // up its mnemonics to the filter, which is the trade this menu is worth making and the
+        // reason it is opt-in.
+        var menu = new ContextMenuStrip { ShowSearchBox = true };
 
         var openWith = new ToolStripMenuItem("Open with");
         var tag = new ToolStripMenuItem("Tag");
