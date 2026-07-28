@@ -254,7 +254,7 @@ internal static class Icons
             var half = 6 - Math.Abs(y - 6);
             for (var x = 0; x < half; ++x)
             {
-                var column = pointingLeft ? 5 + x : 10 - x;
+                var column = pointingLeft ? 10 - x : 5 + x;
                 pixels[((y + 2) * Size) + column] = colour;
             }
         }
