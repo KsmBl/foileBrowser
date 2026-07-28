@@ -99,7 +99,9 @@ internal sealed class Program
         timer.Tick += (_, _) =>
         {
             timer.Stop();
-            Console.WriteLine(Screenshot.TryCapture(path) ? $"wrote {path}" : $"could not capture to {path}");
+            Console.WriteLine(Screenshot.TryCapture(path, out var windows)
+                ? $"wrote {path} ({windows} window(s))"
+                : $"could not capture to {path}");
             shell.Close();
         };
         shell.Load += (_, _) => timer.Start();

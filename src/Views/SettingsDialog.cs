@@ -22,6 +22,7 @@ public sealed class SettingsDialog : Form
     private readonly CheckBox _searchBar = new() { Text = "Show the search bar by default", Bounds = new(16, 84, 340, 24) };
     private readonly TextBox _terminal = new() { Bounds = new(150, 118, 220, 26) };
     private readonly ComboBox _terminalPicker = new() { Bounds = new(376, 118, 130, 26), PlaceholderText = "detected…" };
+    private readonly ComboBox _handoff = new() { Bounds = new(150, 152, 220, 26) };
 
     private readonly CheckedListBox _toolbarList = new() { Bounds = new(16, 16, 500, 380), CheckOnClick = true };
 
@@ -91,6 +92,9 @@ public sealed class SettingsDialog : Form
         foreach (var name in new[] { "Home and drives", "Root", "Current folder" })
             _treeRoot.Items.Add(name);
 
+        foreach (var name in new[] { "a tab in this window", "a pane beside the current one", "its own window" })
+            _handoff.Items.Add(name);
+
         foreach (var terminal in ShellService.DetectTerminals())
             _terminalPicker.Items.Add(terminal);
         _terminalPicker.SelectedIndexChanged += (_, _) =>
@@ -108,10 +112,18 @@ public sealed class SettingsDialog : Form
             new Label { Text = "Terminal command", Bounds = new(16, 120, 130, 22) },
             _terminal,
             _terminalPicker,
+            new Label { Text = "Open a folder in", Bounds = new(16, 154, 130, 22) },
+            _handoff,
+            new Label
+            {
+                Text = "…when another program or a second launch asks this one to open one.",
+                Bounds = new(16, 182, 500, 22),
+                ForeColor = Color.Gray,
+            },
             new Label
             {
                 Text = "Colours and styling come from the desktop, so there is no theme to choose here.",
-                Bounds = new(16, 156, 500, 22),
+                Bounds = new(16, 210, 500, 22),
                 ForeColor = Color.Gray,
             });
 
@@ -271,6 +283,7 @@ public sealed class SettingsDialog : Form
         _rowHeight.Value = (decimal)_settings.RowHeight;
         _searchBar.Checked = _settings.SearchBarVisible;
         _terminal.Text = _settings.TerminalCommand;
+        _handoff.SelectedIndex = _settings.OpenHandoffIn switch { "Pane" => 1, "Window" => 2, _ => 0 };
 
         foreach (var (id, label) in ToolbarButtons.All)
             _toolbarOptions.Add(new ToolbarOption(id, label, enabled: !_settings.HiddenToolbarButtons.Contains(id)));
@@ -321,6 +334,7 @@ public sealed class SettingsDialog : Form
             .ToList();
         _settings.SearchBarVisible = _searchBar.Checked;
         _settings.TerminalCommand = _terminal.Text.Trim();
+        _settings.OpenHandoffIn = _handoff.SelectedIndex switch { 1 => "Pane", 2 => "Window", _ => "Tab" };
 
         _settings.SidebarShowFavorites = _showFavorites.Checked;
         _settings.SidebarShowDrives = _showDrives.Checked;

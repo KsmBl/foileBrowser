@@ -32,6 +32,13 @@ public sealed class AppSettings
     public bool SearchBarVisible { get; set; } = true;
 
     /// <summary>
+    /// Where a folder handed over by a second launch is opened (PRD §6.12): <c>Tab</c> in the active
+    /// pane's tab strip, <c>Pane</c> split beside it through the docking layout, or <c>Window</c> as
+    /// its own top-level window sharing this process.
+    /// </summary>
+    public string OpenHandoffIn { get; set; } = "Tab";
+
+    /// <summary>
     /// Terminal launched by "Open terminal here" (PRD §6.9). Empty auto-detects. May be a bare
     /// executable ("kitty") or a full command line, where <c>{dir}</c> is replaced by the folder.
     /// </summary>

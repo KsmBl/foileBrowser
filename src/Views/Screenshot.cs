@@ -22,12 +22,20 @@ internal static partial class Screenshot
     private const int MaxExtent = 8192;
 
     /// <summary>Writes a PNG of every window this process has on screen; false when nothing was drawn.</summary>
-    public static bool TryCapture(string path)
+    public static bool TryCapture(string path) => TryCapture(path, out _);
+
+    /// <summary>
+    /// As above, also reporting how many top-level windows went into the shot. A compositor may
+    /// refuse to place windows where an application asks, so several can land on the same spot and
+    /// photograph as one — the count is the only way to tell from the outside.
+    /// </summary>
+    public static bool TryCapture(string path, out int windows)
     {
+        windows = 0;
         try
         {
             Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(path)) ?? ".");
-            return OperatingSystem.IsWindows() ? Win32.Capture(path) : Gtk.Capture(path);
+            return OperatingSystem.IsWindows() ? Win32.Capture(path) : Gtk.Capture(path, out windows);
         }
         catch (Exception ex) when (ex is DllNotFoundException or EntryPointNotFoundException or IOException)
         {
@@ -78,9 +86,10 @@ internal static partial class Screenshot
         [LibraryImport(Cairo, StringMarshalling = StringMarshalling.Utf8)]
         private static partial int cairo_surface_write_to_png(nint surface, string filename);
 
-        public static bool Capture(string path)
+        public static bool Capture(string path, out int windows)
         {
             var layers = MappedLayers();
+            windows = layers.Count;
             if (layers.Count == 0)
                 return false;
 

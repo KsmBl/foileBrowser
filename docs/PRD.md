@@ -395,12 +395,26 @@ Check off items as they're completed; delete lines you decide not to build.
     than measured, so none is given.
   - **One process, every window.** A second launch hands its folder to the copy already running
     over a Unix socket in `$XDG_RUNTIME_DIR` and exits, instead of paying for another whole runtime.
-    Measured: the first window is 73 MB RSS, a second folder opened this way adds **1 MB**. It
-    arrives as a tab rather than a second top-level window, because the toolkit's message loop is
-    anchored to the main form — a sibling window would die with it — and a tab shares more than a
-    window would anyway. `--standalone` opts out, which is what an isolated run (a screenshot, a
-    test) uses. A socket left behind by a killed process is detected by connecting to it and taken
-    over when nothing answers.
+    `--standalone` opts out, which is what an isolated run (a screenshot, a test) uses. A socket
+    left behind by a killed process is detected by connecting to it and taken over when nothing
+    answers. Services — settings, tags, the directory-size cache — are built once and shared by
+    every window, so a window costs a view-model and its controls rather than a second of each.
+  - [x] **Where a handed-over folder lands is a preference** (Settings ▸ Appearance), because the
+    three answers suit different habits. Measured on the AOT build, first window 73 MB RSS:
+
+    | `OpenHandoffIn` | Lands as | Added |
+    |---|---|---:|
+    | `Tab` (default) | a tab in the active pane's strip | 1 MB |
+    | `Pane` | a pane split beside the current one, through the docking layout | ~1 MB |
+    | `Window` | its own top-level window in the same process | ~21 MB |
+
+    A window costs more than a tab because it brings a second GDK surface and a second control tree;
+    it is still a fraction of the ~73 MB another process would cost. No window ends the loop by
+    itself — `Form.QuitsOnClose` is cleared on all of them and the process exits when its last
+    window closes, so closing any one closes only that one. Only the window the loop started on
+    persists the session. A new window is asked to cascade off its parent, which a Wayland
+    compositor ignores: an application there does not place its own windows, so two windows can land
+    on the same spot.
   - **What is left to give up.** The floor is now the .NET runtime plus the desktop's own toolkit —
     there is no framework layer left to trade away, and RSS has halved from the Avalonia build.
     Lower still would mean a smaller runtime or fewer GTK dependencies, not a different UI stack.

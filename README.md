@@ -61,8 +61,10 @@ fps, duration, channels, bitrate, codec. Without it those columns stay blank; im
 (dimensions, megapixels, channels, depth, colour count) need no extra tools.
 
 **One process, every window.** Launching `foilebrowser <folder>` while it is already running hands
-the folder to the copy already up — as a new tab — and exits, rather than paying for a second
-runtime. Measured: the first window is 73 MB, the second folder adds **1 MB**. `--standalone` opts
+the folder to the copy already up and exits, rather than paying for a second runtime. Where it lands
+is up to you (Settings ▸ Appearance): a **tab** in the current pane (default, +1 MB), a **pane** split
+beside it, or its **own window** (+21 MB — still a fraction of the ~73 MB another process costs).
+Closing any window closes only that window; the process ends with the last one. `--standalone` opts
 out.
 
 **Memory:** there is no renderer to choose — the window and the text-bearing controls are real

@@ -19,6 +19,9 @@ public sealed partial class MainForm : Form
     private const int InspectorWidth = 280;
     private const int OperationRowHeight = 24;
 
+    /// <summary>How far a new window is offset from the one that opened it.</summary>
+    private const int CascadeStep = 36;
+
     private readonly MainWindowViewModel _vm;
     private readonly MenuStrip _menu = new() { Dock = DockStyle.Top, Bounds = new(0, 0, 0, MenuHeight) };
     private readonly ToolStrip _toolbar = new() { Dock = DockStyle.Top, Bounds = new(0, 0, 0, ToolbarHeight) };
@@ -26,12 +29,23 @@ public sealed partial class MainForm : Form
     private readonly OperationsView _operations;
     private readonly DockLayoutView _dock;
 
+    /// <summary>Every shell window this process has open, so the last one out can end the loop.</summary>
+    private static readonly List<MainForm> Windows = [];
+
+    private readonly bool _primary;
+
     private CommandPaletteDialog? _paletteDialog;
     private bool _sessionSaved;
 
-    public MainForm(MainWindowViewModel viewModel)
+    public MainForm(MainWindowViewModel viewModel, bool primary)
     {
         _vm = viewModel;
+        _primary = primary;
+
+        // No window ends the loop by itself: the process lives until its last window is gone, so
+        // closing any one of several closes only that one.
+        this.QuitsOnClose = false;
+        Windows.Add(this);
 
         this.Text = "foileBrowser";
         // Wide enough for two panes, their sidebars and the inspector to all show real content;
@@ -67,6 +81,7 @@ public sealed partial class MainForm : Form
 
         this.Load += this.OnLoad;
         this.FormClosing += this.OnFormClosing;
+        this.FormClosed += this.OnFormClosed;
         // Splitter positions are proportions in the model but pixels in the toolkit, so they are
         // re-derived whenever the window changes size (Form is the only control that reports one).
         this.Resize += (_, _) => _dock.ApplyProportions();
@@ -92,14 +107,23 @@ public sealed partial class MainForm : Form
 
     private async void OnFormClosing(object? sender, FormClosingEventArgs e)
     {
-        // The session write is asynchronous, so the first close is vetoed, awaited, then repeated.
-        if (_sessionSaved)
+        // Only the window the loop started on owns the saved session; a second window's tabs are
+        // this run's, not the layout to come back to.
+        if (_sessionSaved || !_primary)
             return;
 
+        // The session write is asynchronous, so the first close is vetoed, awaited, then repeated.
         e.Cancel = true;
         await _vm.SaveSessionAsync();
         _sessionSaved = true;
         this.Close();
+    }
+
+    private void OnFormClosed(object? sender, EventArgs e)
+    {
+        Windows.Remove(this);
+        if (Windows.Count == 0)
+            Application.Exit();
     }
 
     /// <summary>Loads the embedded PNG through the toolkit's own decoder — no image pipeline needed.</summary>
@@ -189,16 +213,37 @@ public sealed partial class MainForm : Form
     private string? _pendingPath;
 
     /// <summary>
-    /// Opens a folder in this window on behalf of another launch (PRD §6.12). It arrives as a tab
-    /// rather than a second window because the message loop is anchored to this form — closing it
-    /// would take any sibling window down with it — and a tab shares even more than a window would.
+    /// Opens a folder handed over by another launch (PRD §6.12), where the settings say it should
+    /// go: a tab in this window, a pane split beside the current one, or a window of its own. All
+    /// three share this process and its services — only the controls are new.
     /// </summary>
     public async void OpenPath(string path)
     {
         if (!Directory.Exists(path))
             return;
 
-        await _vm.AddTabCommand.ExecuteAsync(null);
+        switch (_vm.Settings.OpenHandoffIn)
+        {
+            case "Window":
+                var window = App.CreateWindow();
+                window.OpenAtStartup(path);
+                // Cascade off this one rather than landing exactly on top of it, which would look
+                // like nothing happened.
+                window.StartPosition = FormStartPosition.Manual;
+                window.Bounds = new Rectangle(
+                    this.Left + CascadeStep, this.Top + CascadeStep, this.Width, this.Height);
+                window.Show();
+                return;
+
+            case "Pane":
+                await _vm.AddPaneCommand.ExecuteAsync(null);
+                break;
+
+            default:
+                await _vm.AddTabCommand.ExecuteAsync(null);
+                break;
+        }
+
         if (_vm.ActiveTab is { } tab)
             await tab.NavigateToAsync(path);
 
