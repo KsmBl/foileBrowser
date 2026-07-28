@@ -163,7 +163,11 @@ public partial class MainWindowViewModel : ViewModelBase
         _activeTab = first;
 
         OperationQueue = new OperationQueueViewModel(operations);
-        OperationQueue.OperationCompleted += (_, _) => RefreshPanes();
+        OperationQueue.OperationCompleted += (_, operation) =>
+        {
+            RefreshPanes();
+            RecordMoveUndo(operation);
+        };
 
         _commands = BuildCommands().ToList();
         CommandPalette = new CommandPaletteViewModel(_commands);
@@ -177,6 +181,50 @@ public partial class MainWindowViewModel : ViewModelBase
     /// <summary>Every registered command (palette, menus, hotkeys).</summary>
     /// <summary>The undo/redo history for the reversible operations (PRD §6.3).</summary>
     public UndoService Undo { get; } = new();
+
+    /// <summary>
+    /// Puts a completed move on the history (PRD §6.3). A copy is not recorded: undoing one would
+    /// mean deleting what was just written, which is a destructive act dressed up as an undo.
+    ///
+    /// The engine reports no final names, so the reverse targets the name each source had. Anything
+    /// not found there — a collision that was renamed, a file touched since — is skipped rather than
+    /// guessed at, so an undo moves back what it can identify and leaves the rest alone.
+    /// </summary>
+    private void RecordMoveUndo(FileOperationViewModel operation)
+    {
+        if (operation.Kind != FileOperationKind.Move || operation.Status != OperationStatus.Completed)
+            return;
+
+        var moved = operation.Sources
+            .Select(source => (
+                Landed: Path.Combine(operation.DestinationDir, Path.GetFileName(source.TrimEnd(Path.DirectorySeparatorChar))),
+                HomeDir: Path.GetDirectoryName(source.TrimEnd(Path.DirectorySeparatorChar))))
+            .Where(pair => pair.HomeDir is { Length: > 0 })
+            .ToList();
+        if (moved.Count == 0)
+            return;
+
+        var what = operation.Sources.Count == 1
+            ? Path.GetFileName(operation.Sources[0].TrimEnd(Path.DirectorySeparatorChar))
+            : $"{operation.Sources.Count} items";
+
+        Undo.Record(new UndoStep(
+            $"Move {what}",
+            () => MoveBackAsync(moved.Select(pair => (pair.Landed, pair.HomeDir!))),
+            () => MoveBackAsync(moved.Select(pair =>
+                (Path.Combine(pair.HomeDir!, Path.GetFileName(pair.Landed)), operation.DestinationDir)))));
+    }
+
+    /// <summary>Moves each path that is still where we left it into the given folder.</summary>
+    private async Task MoveBackAsync(IEnumerable<(string From, string ToDir)> items)
+    {
+        foreach (var group in items.Where(i => File.Exists(i.From) || Directory.Exists(i.From)).GroupBy(i => i.ToDir))
+            await _operations.TransferAsync(
+                group.Select(i => i.From).ToList(), group.Key, FileOperationKind.Move,
+                progress: null, conflictResolver: _ => ConflictResolution.Rename);
+
+        RefreshPanes();
+    }
 
     [RelayCommand]
     private async Task UndoLast()

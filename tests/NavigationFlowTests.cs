@@ -221,6 +221,44 @@ public class NavigationFlowTests
         Assert.That(File.Exists(Path.Combine(_root, "Documents", "renamed.txt")), Is.True, "redo repeats it");
     }
 
+    [Test]
+    public async Task Moving_Real_Files_To_The_Other_Pane_Can_Be_Undone()
+    {
+        var shell = NewShell();
+        await shell.InitializeAsync();
+        await shell.AddPaneCommand.ExecuteAsync(null);              // a destination pane
+        await shell.ActiveTab!.NavigateToAsync(Path.Combine(_root, "Pictures"));
+        shell.ActivateTab(shell.Tabs[0]);
+        await shell.ActiveTab!.NavigateToAsync(Path.Combine(_root, "Documents"));
+        shell.ActiveTab.SelectedEntry = shell.ActiveTab.Entries.First(e => e.Name == "notes.txt");
+        shell.ActiveTab.SetSelection([shell.ActiveTab.SelectedEntry]);
+
+        shell.MoveToOtherCommand.Execute(null);
+        var moved = Path.Combine(_root, "Pictures", "notes.txt");
+        Assert.That(await WaitUntilAsync(() => File.Exists(moved)), Is.True, "the move completed");
+        Assert.That(await WaitUntilAsync(() => shell.Undo.CanUndo), Is.True, "and was recorded");
+
+        await shell.UndoLastCommand.ExecuteAsync(null);
+
+        Assert.That(
+            await WaitUntilAsync(() => File.Exists(Path.Combine(_root, "Documents", "notes.txt"))),
+            Is.True, "undo moved it home");
+        Assert.That(File.Exists(moved), Is.False);
+    }
+
+    private static async Task<bool> WaitUntilAsync(Func<bool> condition, int timeoutMs = 4000)
+    {
+        var deadline = DateTime.UtcNow.AddMilliseconds(timeoutMs);
+        while (DateTime.UtcNow < deadline)
+        {
+            if (condition())
+                return true;
+            await Task.Delay(20);
+        }
+
+        return condition();
+    }
+
     // ---- a folder that is not there any more ----
 
     [Test]

@@ -171,12 +171,15 @@ Check off items as they're completed; delete lines you decide not to build.
   a text box (path bar, filter, dialogs)
 - [x] Batch rename with RegEx, counters, and file-date tokens (OneCommander File Automator style)
 - [x] New file / new folder
-- [x] Multi-level undo / redo for renaming — Ctrl+Z / Ctrl+Y, in the Edit menu and the palette, 50
-  steps deep, and a step that can no longer be reversed is dropped rather than left to fail again
-  (`UndoServiceTests`)
-- [ ] Undo for move and delete-to-trash — a move is reversible and is the next step; **trashing is
-  deliberately not undoable**, because no platform here exposes a supported "restore that item" and
-  an undo that silently half-worked would be worse than none
+- [x] Multi-level undo / redo for renames and moves — Ctrl+Z / Ctrl+Y, in the Edit menu and the
+  palette, 50 steps deep; a step that can no longer be reversed is dropped rather than left to fail
+  again (`UndoServiceTests`, and both a real rename and a real cross-pane move are undone against
+  the disk in `NavigationFlowTests`). The engine reports no final names, so a move's reverse targets
+  the name each source had and skips anything not found there — a collision that was renamed, a file
+  touched since — rather than guessing. A **copy is not recorded**: undoing one would mean deleting
+  what was just written, which is a destructive act dressed up as an undo
+- [ ] Undo for delete-to-trash — **deliberately not offered**: no platform here exposes a supported
+  "restore that item", and an undo that silently half-worked would be worse than none
 - [ ] Drag & drop within the app (pane ↔ pane, into sidebar)
 - [ ] Drag & drop to/from other OS applications
 - [x] Copy path / copy name to clipboard
