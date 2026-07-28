@@ -70,7 +70,9 @@ internal sealed class Program
                 continue;
             }
 
-            return Directory.Exists(args[i]) ? Path.GetFullPath(args[i]) : null;
+            // A file is accepted too: an archive opens as a folder, anything else selects in its
+            // parent, which is what a desktop hands over when you ask it to "show" a file.
+            return Directory.Exists(args[i]) || File.Exists(args[i]) ? Path.GetFullPath(args[i]) : null;
         }
 
         return null;

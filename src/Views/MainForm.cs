@@ -101,7 +101,7 @@ public sealed partial class MainForm : Form
         if (_pendingPath is { } startup && _vm.ActiveTab is { } tab)
         {
             _pendingPath = null;
-            await tab.NavigateToAsync(startup);
+            await GoTo(tab, startup);
         }
     }
 
@@ -219,7 +219,7 @@ public sealed partial class MainForm : Form
     /// </summary>
     public async void OpenPath(string path)
     {
-        if (!Directory.Exists(path))
+        if (!Directory.Exists(path) && !File.Exists(path))
             return;
 
         switch (_vm.Settings.OpenHandoffIn)
@@ -245,12 +245,33 @@ public sealed partial class MainForm : Form
         }
 
         if (_vm.ActiveTab is { } tab)
-            await tab.NavigateToAsync(path);
+            await GoTo(tab, path);
 
         // Bring the window forward: the user just asked for this folder from somewhere else.
         if (this.WindowState == FormWindowState.Minimized)
             this.WindowState = FormWindowState.Normal;
         this.Focus();
+    }
+
+    /// <summary>
+    /// Goes to whatever was asked for: a folder is browsed, an archive is entered as one, and any
+    /// other file lands in its parent folder so it can be seen in context.
+    /// </summary>
+    private static async Task GoTo(FileTabViewModel tab, string path)
+    {
+        if (Directory.Exists(path))
+        {
+            await tab.NavigateToAsync(path);
+            return;
+        }
+
+        var parent = Path.GetDirectoryName(path);
+        if (parent is null)
+            return;
+
+        await tab.NavigateToAsync(parent);
+        if (tab.Entries.FirstOrDefault(e => e.FullPath == path) is { } entry)
+            await tab.OpenCommand.ExecuteAsync(entry);
     }
 
     /// <summary>Opens the spacebar quick-preview window for the current inspector preview (PRD §6.5).</summary>
