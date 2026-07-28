@@ -180,6 +180,12 @@ Check off items as they're completed; delete lines you decide not to build.
 
 - [x] Spacebar quick-preview popup (images, plain text)
 - [x] Inspector side panel: persistent preview of the selected item (File Pilot style)
+- [x] Image previews across formats — PNG, BMP, GIF (animated), ICO/CUR and PCX decode through the
+  toolkit itself; everything else (JPEG, WebP, TIFF, …) falls back to SkiaSharp, which is already
+  linked for the metadata columns. Both paths hand the picture box the same 32-bit ARGB, so no
+  intermediate bitmap is written. Dimensions are read from the header first and an image too big to
+  decode at full size is scaled on the way in (2048 px longest edge), which also stops a
+  decompression bomb from being allocated — `PreviewImageTests` pins that.
 - [x] Preview of files inside an opened archive — selecting an entry while browsing an archive streams
   just that entry out to a temp file so the inspector and spacebar quick-preview work there too (entries
   above 16 MB are skipped rather than extracted on a whim)
@@ -299,8 +305,10 @@ Check off items as they're completed; delete lines you decide not to build.
 - [x] Directory change detection via file-system watchers (auto-refresh)
 - [x] Low memory footprint via layered options:
   - No renderer to choose and nothing to composite: the window, buttons and text fields are real
-    platform widgets and every other control is painted onto them, so no GPU/Mesa stack, no Skia and
-    no bundled font are mapped in. `FOILE_GPU` is gone — there is no GPU path to switch on.
+    platform widgets and every other control is painted onto them, so no GPU/Mesa stack, no
+    rendering engine and no bundled font are mapped in. `FOILE_GPU` is gone — there is no GPU path
+    to switch on. SkiaSharp is still linked, but only as a decoder: it loads the first time a
+    metadata column or an image preview needs a format the toolkit does not read itself.
     InvariantGlobalization (drops ICU), workstation GC + ConserveMemory still apply.
   - **Where the memory actually goes.** Measured on a framework-dependent Release run, idle, on one
     Linux/GTK (Wayland) desktop: **131 MB RSS / 68 MB PSS / 47 MB private-dirty**. By mapping:

@@ -55,7 +55,8 @@ public sealed class InspectorView : Panel
 
         _placeholder.Visible = false;
 
-        if (preview.HasImage && LoadImage(preview.ImagePath!) is { } image)
+        var failure = PreviewImage.Failure.None;
+        if (preview.HasImage && PreviewImage.Load(preview.ImagePath!, out failure) is { } image)
         {
             _current = image;
             _picture.Image = image;
@@ -66,23 +67,15 @@ public sealed class InspectorView : Panel
 
         _picture.Image = null;
         _picture.Visible = false;
-        // An image the toolkit's decoder does not read still gets its details, with a note in place
-        // of the pixels rather than an empty panel.
-        _text.Text = preview.HasText
-            ? preview.Text!
-            : preview.HasImage ? "(no preview: unsupported image format)" : string.Empty;
+        // An image that would not decode still gets its details, with a note in place of the pixels
+        // rather than an empty panel.
+        _text.Text = preview.HasText ? preview.Text!
+            : !preview.HasImage ? string.Empty
+            : failure switch
+            {
+                PreviewImage.Failure.TooLarge => "(no preview: the image is too large to decode)",
+                _ => "(no preview: the image could not be read)",
+            };
         _text.Visible = true;
-    }
-
-    private static IImage? LoadImage(string path)
-    {
-        try
-        {
-            return AnimatedImage.Decode(File.ReadAllBytes(path));
-        }
-        catch (Exception)
-        {
-            return null; // unreadable or a format the decoder does not cover — the caller shows text
-        }
     }
 }

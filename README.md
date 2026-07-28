@@ -58,12 +58,14 @@ fps, duration, channels, bitrate, codec. Without it those columns stay blank; im
 
 **Memory:** there is no renderer to choose — the window and the text-bearing controls are real
 platform widgets and everything else is painted straight onto them, so no GPU stack and no bundled
-font are ever mapped in. Measured idle on one Linux/GTK (Wayland) desktop, published Release:
-**131 MB RSS / 68 MB PSS / 47 MB private-dirty**, against 149 MB / 107 MB for the previous Avalonia
-build on the same machine. PSS is the honest figure here — most of what remains is GTK and system
-fonts the desktop already has resident. For the smallest footprint, build with `./install.sh --aot` (NativeAOT; needs `clang`) —
-archive support is preserved via a compile-time source generator, so no runtime reflection is used.
-See [docs/PRD.md](docs/PRD.md) §6.12 for the breakdown.
+font are ever mapped in. SkiaSharp is still linked as an image decoder and loads only when a
+metadata column or a preview meets a format the toolkit does not read itself. Measured idle on one
+Linux/GTK (Wayland) desktop, published Release: **131 MB RSS / 68 MB PSS / 47 MB private-dirty**,
+against 149 MB / 107 MB for the previous Avalonia build on the same machine. PSS is the honest
+figure here — most of what remains is GTK and system fonts the desktop already has resident. For the
+smallest footprint, build with `./install.sh --aot` (NativeAOT; needs `clang`) — archive support is
+preserved via a compile-time source generator, so no runtime reflection is used. See
+[docs/PRD.md](docs/PRD.md) §6.12 for the breakdown.
 
 ## Status
 
