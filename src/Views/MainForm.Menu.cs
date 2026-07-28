@@ -114,10 +114,9 @@ public sealed partial class MainForm
     }
 
     /// <summary>
-    /// The caption a toolbar button carries. The view-model offers an emoji here, but emoji as
-    /// iconography pull a colour-emoji font (and usually a CJK fallback) into the process for a
-    /// handful of pictures — see <see cref="Icons"/> — so the buttons are captioned instead. Words
-    /// also restore what a strip button cannot otherwise show: what the button actually does.
+    /// The caption for the two buttons that have no icon, because what they show is their current
+    /// value ("KiB", "Ago") rather than a picture. Everything else carries a drawn icon; the bar's
+    /// right-click menu spells out what each one does, since a strip item has no tooltip of its own.
     /// </summary>
     private static string Caption(ToolbarItemViewModel item) => item.Id switch
     {
@@ -185,8 +184,10 @@ public sealed partial class MainForm
 
         foreach (var item in _vm.ToolbarItems)
         {
-            var button = new ToolStripButton(Caption(item))
+            var icon = Icons.ForToolbar(item.Id);
+            var button = new ToolStripButton(icon is null ? Caption(item) : string.Empty)
             {
+                Image = icon,
                 Command = item.Command,
                 Visible = item.IsVisible,
                 Tag = item.Id,
@@ -194,7 +195,8 @@ public sealed partial class MainForm
             // The size/date buttons relabel themselves live, and Settings can hide any of them.
             Ui.Watch(item, () =>
             {
-                button.Text = Caption(item);
+                if (icon is null)
+                    button.Text = Caption(item);
                 button.Visible = item.IsVisible;
             }, nameof(ToolbarItemViewModel.Content), nameof(ToolbarItemViewModel.IsVisible));
             _toolbar.Items.Add(button);
