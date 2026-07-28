@@ -68,11 +68,25 @@ meets a format the toolkit does not read itself.
 
 Measured idle on one Linux/GTK (Wayland) desktop, published Release:
 
-| Build | RSS | PSS | private-dirty |
-|---|---:|---:|---:|
-| Avalonia (previous UI) | 149 MB | 107 MB | — |
-| NativeForms | 103 MB | 49 MB | 35 MB |
-| NativeForms + NativeAOT (`./install.sh --aot`) | **75 MB** | **44 MB** | **31 MB** |
+| Build | RSS | PSS |
+|---|---:|---:|
+| Avalonia (the previous UI) | 149 MB | 107 MB |
+| NativeForms | 96 MB | 42 MB |
+| NativeForms + NativeAOT (`./install.sh --aot`) | **73 MB** | 41–48 MB |
+
+Against the neighbours, measured identically on the same folder and session:
+
+| File manager | RSS | PSS |
+|---|---:|---:|
+| Thunar (GTK, C) | 59 MB | 29 MB |
+| **foileBrowser (AOT)** | **73 MB** | 41–48 MB |
+| Dolphin (Qt/KDE) | 153 MB | 51 MB |
+
+So: under half of Dolphin's RSS and about level on PSS; Thunar is leaner than both. The ~14 MB
+between us and Thunar is the .NET runtime itself — `ConserveMemory`, gen0 tuning and size-optimised
+codegen were each measured and none moved it — so closing that gap means not having a managed
+runtime. Windows Explorer isn't in the table because it can't be measured here; Wine ships its own
+reimplementation, which would tell you nothing about Microsoft's.
 
 PSS is the honest figure — most of what remains is GTK the desktop already has resident. What is
 left in the AOT build is mostly the window's own surface buffer (11 MB) and the binary itself

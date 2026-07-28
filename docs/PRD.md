@@ -365,6 +365,32 @@ Check off items as they're completed; delete lines you decide not to build.
     the whole app stays trim/AOT-safe. **Trimmed self-contained**
     (`install.sh --self-contained`) also still builds; its footprint has not been re-measured since
     the toolkit change and sits between the two rows above.
+  - **Against other file managers**, measured the same way on the same machine, same folder, same
+    KDE/Wayland session, idle after ~17 s (the toolkit's own build is the AOT one):
+
+    | File manager | RSS | PSS | private-dirty |
+    |---|---:|---:|---:|
+    | Thunar (GTK, C) | 59 MB | 29 MB | 19 MB |
+    | **foileBrowser, NativeAOT** | **73 MB** | 41–48 MB | 26–41 MB |
+    | foileBrowser, framework-dependent | 96 MB | 42 MB | 29 MB |
+    | Dolphin (Qt/KDE) | 153 MB | 51 MB | 16–18 MB |
+
+    RSS is the stable figure across runs; PSS and private-dirty swing about 15 MB between runs on
+    our build, bimodally (26 or 41, nothing between) whether the folder is full or empty — a GC
+    segment that has or has not been released by the time of the sample, not anything the workload
+    drives.
+
+    Read honestly: **we use less than half Dolphin's RSS and about the same PSS**, and Thunar beats
+    us on every column. Dolphin's private-dirty is *lower* than ours despite its RSS being twice as
+    large, because Qt and the KDE libraries are already resident for the whole session while our
+    managed heap is ours alone. The ~14 MB of RSS between us and Thunar is the .NET runtime, and no
+    amount of tuning reaches it: `ConserveMemory`, a smaller gen0 budget and size-optimised codegen
+    were each measured and each changed nothing outside the noise. Going below Thunar means not
+    having a managed runtime, which is the rewrite this project is not doing.
+  - **Windows Explorer is not compared** because it cannot be measured here. Wine ships its own
+    `explorer.exe` reimplementation, which would say nothing about Microsoft's, and Windows 95's
+    shell is a different machine and a different era. Any number for either would be recalled rather
+    than measured, so none is given.
   - **What is left to give up.** The floor is now the .NET runtime plus the desktop's own toolkit —
     there is no framework layer left to trade away, and RSS has halved from the Avalonia build.
     Lower still would mean a smaller runtime or fewer GTK dependencies, not a different UI stack.
