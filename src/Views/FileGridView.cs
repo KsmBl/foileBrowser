@@ -26,6 +26,8 @@ public sealed class FileGridView : DataGridView
     /// <summary>Which shared column spec each grid column renders (the toolkit's column has no tag slot).</summary>
     private readonly Dictionary<DataGridViewColumn, ColumnSpec> _specs = [];
 
+    private readonly TypeAhead _typeAhead = new();
+
     private bool _suppressSelection;
     private Point _pressed = new(-1, -1);
 
@@ -48,7 +50,11 @@ public sealed class FileGridView : DataGridView
         this.CellDoubleClick += (_, _) => this.ActivateSelected();
 
         _cleanup.Add(Ui.WatchList(_shell.Columns, this.RebuildColumns));
-        _cleanup.Add(Ui.WatchList(_tab.Entries, this.RebuildRows));
+        _cleanup.Add(Ui.WatchList(_tab.Entries, () =>
+        {
+            _typeAhead.Reset(); // a new listing is a new search
+            this.RebuildRows();
+        }));
         _cleanup.Add(Ui.Watch(_tab, this.SyncSelection, nameof(FileTabViewModel.SelectedEntry)));
     }
 
@@ -271,6 +277,31 @@ public sealed class FileGridView : DataGridView
         }
 
         base.OnKeyDown(e);
+    }
+
+    /// <summary>
+    /// Type-to-select (PRD §6.6): a typed letter jumps to the next entry starting with it. Only
+    /// plain typing — a chord belongs to the menu bar, and Space is the quick-preview key.
+    /// </summary>
+    protected override void OnKeyPress(KeyPressEventArgs e)
+    {
+        if (char.IsControl(e.KeyChar) || e.KeyChar == ' ')
+        {
+            base.OnKeyPress(e);
+            return;
+        }
+
+        var names = _tab.Entries.Select(entry => entry.Name).ToList();
+        var index = _typeAhead.Next(e.KeyChar, names, this.SelectedRowIndex, DateTime.UtcNow);
+        if (index < 0)
+        {
+            base.OnKeyPress(e);
+            return;
+        }
+
+        this.SelectedRowIndex = index;
+        this.EnsureVisible(index);
+        e.Handled = true;
     }
 
     // ---- context menu (PRD §6.3/§6.7/§6.9) ----
