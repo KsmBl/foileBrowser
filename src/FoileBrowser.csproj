@@ -5,6 +5,8 @@
     <RootNamespace>FoileBrowser</RootNamespace>
     <AssemblyName>FoileBrowser</AssemblyName>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <!-- The in-process screenshot path takes a native callback as a function pointer (src/Views/Screenshot.cs). -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
   <!-- Memory-footprint tuning (see docs/PRD §6.12) -->

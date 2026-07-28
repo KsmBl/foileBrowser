@@ -180,6 +180,23 @@ Check off items as they're completed; delete lines you decide not to build.
   demand with Ctrl+F, which reveals and focuses it; Escape dismisses a revealed bar and returns focus
   to the file list
 
+### 6.4a Verification
+
+- [x] The app photographs itself: `--screenshot <path> [--screenshot-delay <ms>]` writes a PNG of
+  every window it has on screen and quits (`src/Views/Screenshot.cs`). It composites through the
+  toolkit's own draw pipeline rather than asking the desktop for a grab, because a grab is not
+  dependable — ImageMagick's `import` built without its X11 delegate exits zero having written
+  nothing, and a rootless Xwayland hands the pixels to the compositor rather than to any X client.
+  This is how the README image is regenerated and how a UI change gets checked without a person at
+  the screen; it caught three real bugs the moment it was first used (grid icons never drawn,
+  mirrored back/forward arrows, clipped sidebar rows).
+- [x] **Runs on the Win32 backend** as well as GTK — verified under Wine, where the shell realizes
+  its full control tree (64 child windows), pumps its message loop and exits cleanly. The *visual*
+  check could not be done there: Wine's `PrintWindow` does not descend into owner-drawn child
+  windows, and the display it was tested on cannot be grabbed at all, so the Windows-side capture
+  falls back through screen-read → `PrintWindow` → per-child print and still comes out mostly blank.
+  Confirming how it *looks* on Windows needs a real Windows session.
+
 ### 6.5 Preview
 
 - [x] Spacebar quick-preview popup (images, plain text)
