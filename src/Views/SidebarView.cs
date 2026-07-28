@@ -12,9 +12,11 @@ namespace FoileBrowser.Views;
 /// </summary>
 public sealed class SidebarView : Panel
 {
-    private const int HeaderHeight = 22;
-    private const int RowHeight = 34;
-    private const int CapacityRowHeight = 78;
+    private const int HeaderHeight = 20;
+    private const int RowHeight = 30;
+    // A compact tile stacks its caption straight over the usage bar, which is the dense drive row
+    // the previous UI had; the free-space line goes underneath in the secondary caption.
+    private const int CapacityRowHeight = 44;
     private const int TreeHeight = 260;
 
     private readonly MainWindowViewModel _shell;
@@ -125,6 +127,7 @@ public sealed class SidebarView : Panel
 
         if (item.HasCapacity)
         {
+            tile.Compact = true;
             // The bar is drawn in percent so the byte counts never overflow an int.
             tile.Maximum = 100;
             tile.Value = (int)Math.Round(item.UsedFraction * 100);
