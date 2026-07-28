@@ -183,6 +183,9 @@ public sealed class DockLayoutView : Panel
             if (extent > 0)
                 split.SplitterDistance = (int)(extent * proportion);
         }
+
+        foreach (var pane in _panes.Values)
+            pane.ApplyInitialLayout();
     }
 
     private Control BuildPane(DockPane pane)

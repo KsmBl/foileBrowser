@@ -57,24 +57,41 @@ public sealed class PaneView : Panel
 
     private readonly SidebarView _sidebar;
     private readonly FileGridView _grid;
+    private readonly SplitContainer _body;
 
     private bool _suppress;
+    private bool _sidebarSized;
 
     public PaneView(MainWindowViewModel shell, FileTabViewModel tab)
     {
         _shell = shell;
         _tab = tab;
 
-        _sidebar = new SidebarView(shell, tab) { Dock = DockStyle.Left, Bounds = new(0, 0, SidebarWidth, 0) };
+        _sidebar = new SidebarView(shell, tab) { Dock = DockStyle.Fill };
         _grid = new FileGridView(shell, tab) { Dock = DockStyle.Fill };
+
+        // The sidebar and the file list share a splitter so the navigation pane can be dragged to
+        // whatever width the user wants, rather than being pinned to one the view picked.
+        _body = new SplitContainer
+        {
+            Dock = DockStyle.Fill,
+            Orientation = Orientation.Vertical,
+            // The sidebar keeps its width when the pane resizes; without this both panels scale
+            // proportionally and the navigation pane creeps wider every time the window grows.
+            FixedPanel = FixedPanel.Panel1,
+            SplitterDistance = SidebarWidth,
+            Panel1MinSize = 90,
+            Panel2MinSize = 160,
+        };
+        _body.Panel1.Controls.Add(_sidebar);
+        _body.Panel2.Controls.Add(_grid);
 
         this.BuildNav();
         this.BuildSearchRow();
         this.BuildStatus();
 
         // Reverse order: the last child added claims its edge first (see Control.OnLayout).
-        this.Controls.Add(_grid);
-        this.Controls.Add(_sidebar);
+        this.Controls.Add(_body);
         this.Controls.Add(_status);
         this.Controls.Add(_searchRow);
         this.Controls.Add(_nav);
@@ -84,6 +101,21 @@ public sealed class PaneView : Panel
         // Any interaction inside this pane makes it the active tab, so shell-level operations
         // (copy/move, inspector, properties) target it.
         this.Enter += (_, _) => _shell.ActivateTab(_tab);
+    }
+
+    /// <summary>
+    /// Gives the sidebar its starting width the first time the pane actually has one. The splitter
+    /// clamps a distance set before realization to whatever size the container had then — which is
+    /// nothing — so it has to be applied once the layout is real. Only once: after that the width
+    /// is the user's, dragged or not.
+    /// </summary>
+    public void ApplyInitialLayout()
+    {
+        if (_sidebarSized || _body.Width <= SidebarWidth + _body.Panel2MinSize)
+            return;
+
+        _sidebarSized = true;
+        _body.SplitterDistance = SidebarWidth;
     }
 
     /// <summary>Row density for the file list (PRD §6.8).</summary>
@@ -220,7 +252,7 @@ public sealed class PaneView : Panel
             _statusLabel.Text = _tab.StatusLine;
             _loadingLabel.Text = _tab.IsLoading ? "Loading…" : string.Empty;
             _stopSearch.Enabled = _tab.IsSearching;
-            Ui.SetDockedExtent(_sidebar, _tab.IsSidebarVisible, SidebarWidth);
+            _body.Panel1Collapsed = !_tab.IsSidebarVisible;
         }));
 
         _cleanup.Add(Ui.Watch(_tab, () =>
