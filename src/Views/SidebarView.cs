@@ -13,8 +13,8 @@ namespace FoileBrowser.Views;
 public sealed class SidebarView : Panel
 {
     private const int HeaderHeight = 22;
-    private const int RowHeight = 24;
-    private const int CapacityRowHeight = 62;
+    private const int RowHeight = 34;
+    private const int CapacityRowHeight = 78;
     private const int TreeHeight = 260;
 
     private readonly MainWindowViewModel _shell;
