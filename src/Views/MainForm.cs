@@ -16,7 +16,7 @@ public sealed partial class MainForm : Form
 {
     private const int MenuHeight = 26;
     private const int ToolbarHeight = 30;
-    private const int InspectorWidth = 300;
+    private const int InspectorWidth = 280;
     private const int OperationRowHeight = 24;
 
     private readonly MainWindowViewModel _vm;
@@ -34,7 +34,9 @@ public sealed partial class MainForm : Form
         _vm = viewModel;
 
         this.Text = "foileBrowser";
-        this.Bounds = new(0, 0, 1100, 680);
+        // Wide enough for two panes, their sidebars and the inspector to all show real content;
+        // below about this the file list is squeezed down to its first column.
+        this.Bounds = new(0, 0, 1360, 820);
         this.StartPosition = FormStartPosition.CenterScreen;
         this.MinimumSize = new Size(720, 420);
         this.ApplyIcon();

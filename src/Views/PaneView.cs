@@ -16,7 +16,7 @@ public sealed class PaneView : Panel
     private const int NavButtonWidth = 38;
     private const int SearchHeight = 30;
     private const int StatusHeight = 22;
-    private const int SidebarWidth = 190;
+    private const int SidebarWidth = 165;
 
     private readonly MainWindowViewModel _shell;
     private readonly FileTabViewModel _tab;
