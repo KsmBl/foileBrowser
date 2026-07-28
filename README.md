@@ -57,15 +57,24 @@ fps, duration, channels, bitrate, codec. Without it those columns stay blank; im
 (dimensions, megapixels, channels, depth, colour count) need no extra tools.
 
 **Memory:** there is no renderer to choose — the window and the text-bearing controls are real
-platform widgets and everything else is painted straight onto them, so no GPU stack and no bundled
-font are ever mapped in. SkiaSharp is still linked as an image decoder and loads only when a
-metadata column or a preview meets a format the toolkit does not read itself. Measured idle on one
-Linux/GTK (Wayland) desktop, published Release: **131 MB RSS / 68 MB PSS / 47 MB private-dirty**,
-against 149 MB / 107 MB for the previous Avalonia build on the same machine. PSS is the honest
-figure here — most of what remains is GTK and system fonts the desktop already has resident. For the
-smallest footprint, build with `./install.sh --aot` (NativeAOT; needs `clang`) — archive support is
-preserved via a compile-time source generator, so no runtime reflection is used. See
-[docs/PRD.md](docs/PRD.md) §6.12 for the breakdown.
+platform widgets and everything else is painted straight onto them, so no GPU stack, no rendering
+engine and no bundled font are mapped in. Icons are drawn in code rather than typed as emoji, which
+keeps the colour-emoji and CJK fallback fonts (20 MB between them) out of the process entirely.
+SkiaSharp is still linked as an image decoder and loads only when a metadata column or a preview
+meets a format the toolkit does not read itself.
+
+Measured idle on one Linux/GTK (Wayland) desktop, published Release:
+
+| Build | RSS | PSS | private-dirty |
+|---|---:|---:|---:|
+| Avalonia (previous UI) | 149 MB | 107 MB | — |
+| NativeForms | 103 MB | 49 MB | 35 MB |
+| NativeForms + NativeAOT (`./install.sh --aot`) | **75 MB** | **44 MB** | **31 MB** |
+
+PSS is the honest figure — most of what remains is GTK the desktop already has resident. What is
+left in the AOT build is mostly the window's own surface buffer (11 MB) and the binary itself
+(9 MB). AOT needs `clang` to build; archive support survives it via a compile-time source generator,
+so no runtime reflection is used. See [docs/PRD.md](docs/PRD.md) §6.12 for the breakdown.
 
 ## Status
 
@@ -90,7 +99,8 @@ preserved via a compile-time source generator, so no runtime reflection is used.
 - **M7 — Native UI** ✅ — the whole view layer rebuilt on [NativeForms](../NativeForms): real
   platform windows, buttons and text fields, everything else painted in the desktop's own theme.
   The view-models, services and docking model were untouched. Theme variant and accent colour are
-  gone as settings — the toolkit takes both from the desktop.
+  gone as settings — the toolkit takes both from the desktop. Icons are drawn in code instead of
+  typed as emoji, and idle RSS is halved (149 MB → 75 MB with NativeAOT).
 
 See [docs/PRD.md](docs/PRD.md) for the checkboxed feature list and milestones — check off what's
 built, delete what's not wanted.

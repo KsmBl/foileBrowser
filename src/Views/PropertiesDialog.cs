@@ -34,13 +34,6 @@ public sealed class PropertiesDialog : Form
         this.Bounds = new(0, 0, 500, 470);
         this.StartPosition = FormStartPosition.CenterParent;
 
-        var glyph = entry.Kind switch
-        {
-            FileSystemEntryKind.Drive => "\U0001F5B4",
-            FileSystemEntryKind.Directory => "\U0001F4C1",
-            _ => "\U0001F4C4",
-        };
-
         var type = entry.Kind switch
         {
             FileSystemEntryKind.Drive => "Drive",
@@ -48,10 +41,16 @@ public sealed class PropertiesDialog : Form
             _ => string.IsNullOrEmpty(entry.Extension) ? "File" : $"{entry.Extension.ToUpperInvariant()} file",
         };
 
+        this.Controls.Add(new PictureBox
+        {
+            Image = Icons.For(entry.Kind),
+            Bounds = new(16, 14, Icons.Size, Icons.Size),
+            SizeMode = PictureBoxSizeMode.CenterImage,
+        });
         this.Controls.Add(new Label
         {
-            Text = $"{glyph}  {entry.Name}",
-            Bounds = new(16, 14, 460, 26),
+            Text = entry.Name,
+            Bounds = new(16 + Icons.Size + 8, 14, 430, 26),
         });
 
         var y = 50;

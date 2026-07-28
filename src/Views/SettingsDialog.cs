@@ -196,7 +196,7 @@ public sealed class SettingsDialog : Form
     }
 
     private static string Describe(KeybindRow row) =>
-        $"{row.Title}   —   {row.Display}{(row.HasConflict ? $"   ⚠ {row.Conflict}" : string.Empty)}";
+        $"{row.Title}   —   {row.Display}{(row.HasConflict ? $"   (!) {row.Conflict}" : string.Empty)}";
 
     // ---- hotkey capture (PRD §6.6) ----
 

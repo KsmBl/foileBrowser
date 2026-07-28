@@ -67,12 +67,14 @@ public sealed class FileGridView : DataGridView
         _specs.Clear();
 
         // A fixed leading cell: the entry glyph, tinted by the colour tag (PRD §6.7).
-        this.Columns.Add(new DataGridViewColumn(string.Empty, static o => ((FileEntryViewModel)o!).Glyph)
+        this.Columns.Add(new DataGridViewColumn(string.Empty, static _ => null)
         {
             Width = GlyphColumnWidth,
             MinimumWidth = GlyphColumnWidth,
             Resizable = DataGridViewTriState.False,
             Alignment = ContentAlignment.MiddleCenter,
+            ImageSelector = static o => Icons.For(((FileEntryViewModel)o!).Entry.Kind),
+            ImageSize = new Size(Icons.Size, Icons.Size),
             CellStyleSelector = static o =>
             {
                 var entry = (FileEntryViewModel)o!;

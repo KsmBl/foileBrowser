@@ -10,7 +10,7 @@
 #   ./install.sh [--prefix DIR] [--self-contained] [--aot]
 #
 #   --self-contained  trimmed, runtime-free build (smaller footprint; no .NET needed to run)
-#   --aot             NativeAOT build (smallest memory, ~80 MB RSS; requires 'clang' to build,
+#   --aot             NativeAOT build (smallest memory, ~75 MB RSS; requires 'clang' to build,
 #                     and implies --self-contained). Publish is slower.
 #
 set -euo pipefail

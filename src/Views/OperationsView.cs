@@ -59,7 +59,7 @@ public sealed class OperationsView : Panel
         };
         var bar = new ProgressBar { Margin = new(2, 7, 2, 7), Minimum = 0, Maximum = 100 };
         var status = new Label { Margin = new(4, 2, 4, 2), ForeColor = Color.Gray, TextAlign = ContentAlignment.MiddleLeft };
-        var cancel = new Button { Text = "✕", Margin = new(2), Command = operation.CancelCommand };
+        var cancel = new Button { Image = Icons.CloseIcon, Margin = new(2), Command = operation.CancelCommand };
 
         _cleanup.Add(Ui.Watch(operation, () =>
         {

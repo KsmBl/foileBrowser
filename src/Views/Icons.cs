@@ -1,0 +1,360 @@
+using System.Drawing;
+using FoileBrowser.Models;
+using FoileBrowser.ViewModels;
+using Hawkynt.NativeForms.Drawing;
+
+namespace FoileBrowser.Views;
+
+/// <summary>
+/// The icon set, drawn in code rather than typed as characters.
+///
+/// The UI used emoji and symbol characters as iconography, which looks fine but costs real memory:
+/// the text stack has to find a font covering them, and on a typical desktop that maps Noto Color
+/// Emoji (8 MB) plus a CJK fallback (12 MB) into the process for the sake of a few pictures. These
+/// are 16×16 ARGB bitmaps built from pixel masks — a few kilobytes, no font lookup, and they render
+/// identically on every machine instead of depending on which emoji font happens to be installed.
+///
+/// Colours are deliberately mid-tone so they read against both a light and a dark desktop theme.
+/// </summary>
+internal static class Icons
+{
+    public const int Size = 16;
+
+    private static readonly Color Folder = Color.FromArgb(0xD9, 0xA4, 0x41);
+    private static readonly Color Document = Color.FromArgb(0x89, 0x94, 0xA5);
+    private static readonly Color Disk = Color.FromArgb(0x7C, 0x8C, 0xA0);
+    private static readonly Color Slice = Color.FromArgb(0x5F, 0x9E, 0xA0);
+    private static readonly Color Portable = Color.FromArgb(0x9B, 0x7B, 0xC8);
+    private static readonly Color Star = Color.FromArgb(0xE0, 0xB3, 0x41);
+    private static readonly Color Chrome = Color.FromArgb(0x80, 0x8A, 0x96);
+
+    // '#' is the outline, '+' the lighter fill, '.' transparent.
+
+    private const string FolderMask = """
+        ................
+        ................
+        ..#####.........
+        .#+++++#........
+        .#+++++#######..
+        .#++++++++++++#.
+        .#++++++++++++#.
+        .#++++++++++++#.
+        .#++++++++++++#.
+        .#++++++++++++#.
+        .#++++++++++++#.
+        .#++++++++++++#.
+        ..############..
+        ................
+        ................
+        ................
+        """;
+
+    private const string FileMask = """
+        ................
+        ...########.....
+        ...#++++++#.....
+        ...#+++++++#....
+        ...#++++++++#...
+        ...#++++++++#...
+        ...#++++++++#...
+        ...#++++++++#...
+        ...#++++++++#...
+        ...#++++++++#...
+        ...#++++++++#...
+        ...#++++++++#...
+        ...#++++++++#...
+        ...##########...
+        ................
+        ................
+        """;
+
+    private const string DriveMask = """
+        ................
+        ................
+        ................
+        ..############..
+        .#++++++++++++#.
+        .#++++++++++++#.
+        .#++++++++++++#.
+        .#++++++++++++#.
+        .#++++++++++++#.
+        .#+++++++++##+#.
+        ..############..
+        ................
+        ................
+        ................
+        ................
+        ................
+        """;
+
+    private const string PartitionMask = """
+        ................
+        ................
+        ................
+        ....#########...
+        ...#+++++++++#..
+        ...#+++++++++#..
+        ...#+++++++++#..
+        ...#+++++++++#..
+        ...#+++++++++#..
+        ...#+++++++++#..
+        ....#########...
+        ................
+        ................
+        ................
+        ................
+        ................
+        """;
+
+    private const string DeviceMask = """
+        ................
+        ....########....
+        ....#++++++#....
+        ....#++++++#....
+        ....#++++++#....
+        ....#++++++#....
+        ....#++++++#....
+        ....#++++++#....
+        ....#++++++#....
+        ....#++++++#....
+        ....#++++++#....
+        ....#++++++#....
+        ....#++##++#....
+        ....########....
+        ................
+        ................
+        """;
+
+    private const string FavoriteMask = """
+        ................
+        ................
+        .......##.......
+        .......##.......
+        ......####......
+        ..############..
+        ...##++++++##...
+        ....########....
+        ....########....
+        ...###++++###...
+        ..###......###..
+        ..##........##..
+        ................
+        ................
+        ................
+        ................
+        """;
+
+    public static IImage FolderIcon => field ??= FromMask(FolderMask, Folder);
+
+    public static IImage FileIcon => field ??= FromMask(FileMask, Document);
+
+    public static IImage DriveIcon => field ??= FromMask(DriveMask, Disk);
+
+    public static IImage PartitionIcon => field ??= FromMask(PartitionMask, Slice);
+
+    public static IImage DeviceIcon => field ??= FromMask(DeviceMask, Portable);
+
+    public static IImage FavoriteIcon => field ??= FromMask(FavoriteMask, Star);
+
+    public static IImage BackIcon => field ??= Triangle(pointingLeft: true);
+
+    public static IImage ForwardIcon => field ??= Triangle(pointingLeft: false);
+
+    public static IImage UpIcon => field ??= UpTriangle();
+
+    public static IImage RefreshIcon => field ??= Ring();
+
+    public static IImage MenuIcon => field ??= Bars();
+
+    public static IImage CloseIcon => field ??= Cross();
+
+    /// <summary>The icon for a directory entry's kind, as shown in the file list.</summary>
+    public static IImage For(FileSystemEntryKind kind) => kind switch
+    {
+        FileSystemEntryKind.Drive => DriveIcon,
+        FileSystemEntryKind.Directory => FolderIcon,
+        _ => FileIcon,
+    };
+
+    /// <summary>The icon for a sidebar row's kind (PRD §6.2/§6.10).</summary>
+    public static IImage? For(SidebarItemKind kind) => kind switch
+    {
+        SidebarItemKind.Disk or SidebarItemKind.Drive => DriveIcon,
+        SidebarItemKind.Partition => PartitionIcon,
+        SidebarItemKind.Device => DeviceIcon,
+        SidebarItemKind.Favorite => FavoriteIcon,
+        _ => null,
+    };
+
+    /// <summary>
+    /// Every icon's raw pixels, rebuilt from scratch. Nothing in the app calls this — it exists so
+    /// the tests can look at what was drawn, which is otherwise invisible once the pixels are inside
+    /// a platform bitmap.
+    /// </summary>
+    internal static IReadOnlyList<(string Name, int[] Pixels)> Render() =>
+    [
+        ("folder", MaskPixels(FolderMask, Folder)),
+        ("file", MaskPixels(FileMask, Document)),
+        ("drive", MaskPixels(DriveMask, Disk)),
+        ("partition", MaskPixels(PartitionMask, Slice)),
+        ("device", MaskPixels(DeviceMask, Portable)),
+        ("favorite", MaskPixels(FavoriteMask, Star)),
+        ("back", TrianglePixels(pointingLeft: true)),
+        ("forward", TrianglePixels(pointingLeft: false)),
+        ("up", UpTrianglePixels()),
+        ("refresh", RingPixels()),
+        ("menu", BarsPixels()),
+        ("close", CrossPixels()),
+    ];
+
+    // ---- mask painting ----
+
+    private static IImage FromMask(string mask, Color color) => Image(MaskPixels(mask, color));
+
+    /// <summary>Builds an icon from a pixel mask, shading '#' darker than '+'.</summary>
+    private static int[] MaskPixels(string mask, Color color)
+    {
+        var pixels = new int[Size * Size];
+        var outline = Argb(Shade(color, 0.65f));
+        var fill = Argb(color);
+
+        var row = 0;
+        foreach (var line in mask.Split('\n'))
+        {
+            var text = line.Trim();
+            if (text.Length == 0)
+                continue;
+
+            for (var column = 0; column < Math.Min(Size, text.Length); ++column)
+                pixels[(row * Size) + column] = text[column] switch
+                {
+                    '#' => outline,
+                    '+' => fill,
+                    _ => 0,
+                };
+
+            if (++row == Size)
+                break;
+        }
+
+        return pixels;
+    }
+
+    // ---- geometric chrome, drawn rather than masked ----
+
+    private static IImage Triangle(bool pointingLeft) => Image(TrianglePixels(pointingLeft));
+
+    private static int[] TrianglePixels(bool pointingLeft)
+    {
+        var pixels = new int[Size * Size];
+        var colour = Argb(Chrome);
+
+        for (var y = 0; y < 12; ++y)
+        {
+            var half = 6 - Math.Abs(y - 6);
+            for (var x = 0; x < half; ++x)
+            {
+                var column = pointingLeft ? 5 + x : 10 - x;
+                pixels[((y + 2) * Size) + column] = colour;
+            }
+        }
+
+        return pixels;
+    }
+
+    private static IImage UpTriangle() => Image(UpTrianglePixels());
+
+    private static int[] UpTrianglePixels()
+    {
+        var pixels = new int[Size * Size];
+        var colour = Argb(Chrome);
+
+        for (var y = 0; y < 7; ++y)
+            for (var x = -y; x <= y; ++x)
+                pixels[((y + 4) * Size) + 8 + x] = colour;
+
+        return pixels;
+    }
+
+    /// <summary>An open ring with a tick at its end — the reload affordance.</summary>
+    private static IImage Ring() => Image(RingPixels());
+
+    private static int[] RingPixels()
+    {
+        var pixels = new int[Size * Size];
+        var colour = Argb(Chrome);
+
+        for (var angle = 40; angle < 350; angle += 4)
+        {
+            var radians = angle * Math.PI / 180;
+            var x = (int)Math.Round(8 + (5 * Math.Cos(radians)));
+            var y = (int)Math.Round(8 + (5 * Math.Sin(radians)));
+            Plot(pixels, x, y, colour);
+            Plot(pixels, x, y - 1, colour);
+        }
+
+        for (var i = 0; i < 4; ++i)
+        {
+            Plot(pixels, 12 + i - 2, 2 + i, colour);
+            Plot(pixels, 12 - i + 2, 2 + i, colour);
+        }
+
+        return pixels;
+    }
+
+    private static IImage Bars() => Image(BarsPixels());
+
+    private static int[] BarsPixels()
+    {
+        var pixels = new int[Size * Size];
+        var colour = Argb(Chrome);
+
+        foreach (var y in (int[])[4, 8, 12])
+            for (var x = 3; x < 13; ++x)
+            {
+                Plot(pixels, x, y, colour);
+                Plot(pixels, x, y - 1, colour);
+            }
+
+        return pixels;
+    }
+
+    private static IImage Cross() => Image(CrossPixels());
+
+    private static int[] CrossPixels()
+    {
+        var pixels = new int[Size * Size];
+        var colour = Argb(Chrome);
+
+        for (var i = 0; i < 9; ++i)
+        {
+            Plot(pixels, 4 + i, 4 + i, colour);
+            Plot(pixels, 5 + i, 4 + i, colour);
+            Plot(pixels, 12 - i, 4 + i, colour);
+            Plot(pixels, 11 - i, 4 + i, colour);
+        }
+
+        return pixels;
+    }
+
+    // ---- helpers ----
+
+    private static void Plot(int[] pixels, int x, int y, int colour)
+    {
+        if ((uint)x < Size && (uint)y < Size)
+            pixels[(y * Size) + x] = colour;
+    }
+
+    private static Color Shade(Color color, float factor) => Color.FromArgb(
+        color.A,
+        (int)(color.R * factor),
+        (int)(color.G * factor),
+        (int)(color.B * factor));
+
+    /// <summary>The toolkit packs a pixel as <c>(a &lt;&lt; 24) | (r &lt;&lt; 16) | (g &lt;&lt; 8) | b</c>.</summary>
+    private static int Argb(Color color) =>
+        (0xFF << 24) | (color.R << 16) | (color.G << 8) | color.B;
+
+    private static IImage Image(int[] pixels) =>
+        new AnimatedImage(new DecodedImage(Size, Size, [new ImageFrame(pixels, 0)]));
+}

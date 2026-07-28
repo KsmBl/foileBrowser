@@ -54,8 +54,8 @@ Check off items as they're completed; delete lines you decide not to build.
 - [x] Directory listing with name, size, type, and modified date
 - [x] Configurable columns: the file list is data-driven from one shared, ordered column set that
   drives both the header and every row, so header and cells always line up. Columns are **resizable**
-  (drag a header's right grip), **reorderable** (drag a header onto another), and **add/removable** via
-  the header's right-click menu; the visible set, order and widths persist. Clicking a header sorts by
+  (drag a column divider), **reorderable** (drag a header past its neighbour), and **add/removable**
+  via the list's right-click menu; the visible set, order and widths persist. Clicking a header sorts by
   it (▲/▼ on the active column). The header sits above the file list only (right of the navigation pane).
   Header and cell text share the same box to the pixel: the list contributes no border or padding of its
   own, and the resize grip overlays the header's right edge rather than consuming layout width
@@ -66,9 +66,10 @@ Check off items as they're completed; delete lines you decide not to build.
   provider interface
 - [x] Hidden/system file visibility toggle
 - [x] Navigation history: back / forward / up
-- [x] Multiple selection (click, Ctrl/Shift-click, and rubber-band: drag a rectangle over the list to
-  select the rows it covers): when a selection is present the status bar shows the count and total size
-  of the selected items, and copy/move/delete act on the whole selection
+- [x] Multiple selection (click, Ctrl/Shift-click): when a selection is present the status bar shows
+  the count and total size of the selected items, and copy/move/delete act on the whole selection
+- [ ] Rubber-band selection — dragging a rectangle over the list. Was available on the Avalonia
+  front-end; the toolkit's grid owns its own mouse handling, so it needs support there first
 - [x] Clicking the empty area below the file list clears the current selection
 - [x] Properties window (Alt+Enter): shows the selected item's type, location, full path, size (folders
   are measured in the background), created/modified times and Unix permissions
@@ -85,7 +86,10 @@ Check off items as they're completed; delete lines you decide not to build.
 ### 6.2 Layout & Views
 
 - [x] Application menu bar (File / Edit / View / Go / Tools / Help) with accelerators and gesture hints
-- [x] Toolbar with emoji icons and descriptive tooltips; can be hidden via View ▸ Toolbar (persisted).
+- [x] Toolbar with captioned buttons; can be hidden via View ▸ Toolbar (persisted). The buttons carry
+  words rather than icons because the toolkit's strip items are not controls and so have no tooltips
+  of their own — the caption says what the emoji used to only hint at, and the bar's right-click menu
+  carries the full description plus the reorder commands (see §6.8).
   It holds file/view operations only — back/forward/up/refresh live in each pane's own nav bar next to
   the path bar, so they aren't duplicated on the global toolbar
 - [x] Tabs are the dockable documents: every folder tab has a tab strip and can be dragged within its
@@ -310,29 +314,41 @@ Check off items as they're completed; delete lines you decide not to build.
     to switch on. SkiaSharp is still linked, but only as a decoder: it loads the first time a
     metadata column or an image preview needs a format the toolkit does not read itself.
     InvariantGlobalization (drops ICU), workstation GC + ConserveMemory still apply.
-  - **Where the memory actually goes.** Measured on a framework-dependent Release run, idle, on one
-    Linux/GTK (Wayland) desktop: **131 MB RSS / 68 MB PSS / 47 MB private-dirty**. By mapping:
-    system fonts ≈ 20 MB (meiryo + NotoColorEmoji, mapped by fontconfig and shared desktop-wide),
-    the .NET runtime (CoreLib, coreclr, clrjit) ≈ 20 MB, the GDK window buffer ≈ 11 MB, the managed
-    heap ≈ 11 MB, JIT code ≈ 7 MB, the GTK stack (gtk/gio/glib/harfbuzz/glycin) ≈ 13 MB. Almost all
-    of the remainder is shared library text the desktop already has resident, which is why PSS is
-    half of RSS and private-dirty is a third of it.
-  - **Against the previous Avalonia build**, same machine and method: 149 MB RSS / 107 MB PSS. The
-    RSS win is modest; the PSS win is not, because Avalonia's Skia and managed assemblies were
-    private to the process whereas GTK is shared with everything else on the desktop.
-  - **NativeAOT** (`install.sh --aot`, needs clang) and **trimmed self-contained**
-    (`install.sh --self-contained`) still build, with full archive support: the reflective format
-    discovery is a compile-time **source generator** (`src/Generators`) that statically registers
-    every CompressionWorkbench descriptor, and the view layer subscribes to properties directly
-    rather than through reflection string-path bindings, so the whole app stays trim/AOT-safe.
-    Their footprints have **not been re-measured since the toolkit change** — the pre-port figures
-    (~103 MB self-contained, ~77 MB AOT) no longer apply and are recorded here only as history.
+  - **Icons are drawn, not typed** (`src/Views/Icons.cs`). The UI used emoji and symbol characters
+    as iconography; that reads fine but makes the text stack go looking for fonts covering them, and
+    on a stock desktop it maps **Noto Color Emoji (8 MB) plus a CJK fallback (12 MB)** into the
+    process for a dozen little pictures. Replacing them with 16×16 ARGB bitmaps built from pixel
+    masks cost a few kilobytes and took **28 MB off RSS and 19 MB off PSS** — the single largest
+    saving of the whole port, and the one that was entirely self-inflicted. It also makes the icons
+    look the same everywhere instead of depending on which emoji font is installed. `IconsTests`
+    pins that each one is actually drawn, since nothing else can see them.
+  - **Measured idle**, framework-dependent Release on one Linux/GTK (Wayland) desktop:
+
+    | Build | RSS | PSS | private-dirty |
+    |---|---:|---:|---:|
+    | Avalonia (the previous UI) | 149 MB | 107 MB | — |
+    | NativeForms, emoji icons | 131 MB | 68 MB | 47 MB |
+    | NativeForms, drawn icons | 103 MB | 49 MB | 35 MB |
+    | NativeForms, drawn icons, **NativeAOT** | **75 MB** | **44 MB** | **31 MB** |
+
+  - **Where the AOT build's memory goes**: the window's own GDK surface buffer ≈ 11 MB, the binary
+    itself ≈ 9 MB, the GTK stack (gtk/gio/glib/harfbuzz) ≈ 10 MB shared with the rest of the
+    desktop, the malloc arena ≈ 5 MB, and glibc's locale archive plus GTK's ICU ≈ 4 MB, which are
+    the toolkit's dependencies rather than ours. Roughly half of RSS is shared library text, which
+    is why PSS is a little over half of it.
+  - **NativeAOT** (`install.sh --aot`, needs clang) produces a single 19 MB binary with full archive
+    support: the reflective format discovery is a compile-time **source generator**
+    (`src/Generators`) that statically registers every CompressionWorkbench descriptor, and the view
+    layer subscribes to properties directly rather than through reflection string-path bindings, so
+    the whole app stays trim/AOT-safe. **Trimmed self-contained**
+    (`install.sh --self-contained`) also still builds; its footprint has not been re-measured since
+    the toolkit change and sits between the two rows above.
   - **What is left to give up.** The floor is now the .NET runtime plus the desktop's own toolkit —
-    there is no framework layer left to trade away. Meaningfully lower means a smaller runtime
-    (AOT, once re-measured) or fewer fonts, not a different UI stack. The earlier note that a
-    materially smaller footprint "would require leaving the Avalonia/Skia stack entirely" is what
-    this port did; the toolkit-agnostic docking model that was called "a first step towards that
-    portability" carried over without a single change.
+    there is no framework layer left to trade away, and RSS has halved from the Avalonia build.
+    Lower still would mean a smaller runtime or fewer GTK dependencies, not a different UI stack.
+    The earlier note that a materially smaller footprint "would require leaving the Avalonia/Skia
+    stack entirely" is what this port did; the toolkit-agnostic docking model that was called "a
+    first step towards that portability" carried over without a single change.
 
 ## 7. Milestones
 

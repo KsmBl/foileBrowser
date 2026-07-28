@@ -43,17 +43,17 @@ public sealed class PaneView : Panel
     private readonly ToolStripStatusLabel _loadingLabel = new();
 
     private readonly Breadcrumb _breadcrumb = new() { Editable = true, TrimOnClick = false, Margin = new(2) };
-    private readonly Button _back = new() { Text = "←", Margin = new(1) };
-    private readonly Button _forward = new() { Text = "→", Margin = new(1) };
-    private readonly Button _up = new() { Text = "↑", Margin = new(1) };
-    private readonly Button _refresh = new() { Text = "⟳", Margin = new(1) };
+    private readonly Button _back = new() { Image = Icons.BackIcon, Margin = new(1) };
+    private readonly Button _forward = new() { Image = Icons.ForwardIcon, Margin = new(1) };
+    private readonly Button _up = new() { Image = Icons.UpIcon, Margin = new(1) };
+    private readonly Button _refresh = new() { Image = Icons.RefreshIcon, Margin = new(1) };
     private readonly CheckBox _hidden = new() { Text = "Hidden", Margin = new(2) };
-    private readonly CheckBox _sidebarToggle = new() { Text = "☰", Margin = new(2) };
+    private readonly CheckBox _sidebarToggle = new() { Image = Icons.MenuIcon, Margin = new(2) };
 
     private readonly TextBox _filter = new() { PlaceholderText = "Filter this folder…", Margin = new(2) };
     private readonly TextBox _search = new() { PlaceholderText = "Search subtree (Enter, Esc to dismiss)…", Margin = new(2) };
     private readonly TextBox _extensions = new() { PlaceholderText = "ext,ext", Margin = new(2) };
-    private readonly Button _stopSearch = new() { Text = "✕", Margin = new(2) };
+    private readonly Button _stopSearch = new() { Image = Icons.CloseIcon, Margin = new(2) };
 
     private readonly SidebarView _sidebar;
     private readonly FileGridView _grid;

@@ -84,7 +84,7 @@ public sealed class SidebarView : Panel
 
     private Control BuildHeader(SidebarSectionViewModel section, int index)
     {
-        var header = Place(new IconLabel { Text = "⠿  " + section.Title, ForeColor = Color.Gray }, HeaderHeight);
+        var header = Place(new IconLabel { Text = section.Title, ForeColor = Color.Gray }, HeaderHeight);
 
         // Sections used to be reordered by dragging their headers; the toolkit's owner-drawn rows
         // have no drag affordance of their own, so the same move lives on the header's menu.
@@ -117,7 +117,8 @@ public sealed class SidebarView : Panel
         var tile = Place(
             new ProgressTile
             {
-                Text = indent + $"{item.Glyph} {item.Name}".TrimStart(),
+                Text = indent + item.Name,
+                Image = Icons.For(item.Kind),
                 Clickable = item.IsNavigable,
             },
             item.HasCapacity ? CapacityRowHeight : RowHeight);

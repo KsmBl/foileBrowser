@@ -113,6 +113,32 @@ public sealed partial class MainForm
         return item;
     }
 
+    /// <summary>
+    /// The caption a toolbar button carries. The view-model offers an emoji here, but emoji as
+    /// iconography pull a colour-emoji font (and usually a CJK fallback) into the process for a
+    /// handful of pictures — see <see cref="Icons"/> — so the buttons are captioned instead. Words
+    /// also restore what a strip button cannot otherwise show: what the button actually does.
+    /// </summary>
+    private static string Caption(ToolbarItemViewModel item) => item.Id switch
+    {
+        "newFolder" => "New folder",
+        "newFile" => "New file",
+        "rename" => "Rename",
+        "delete" => "Delete",
+        "copyToOther" => "Copy to pane",
+        "moveToOther" => "Move to pane",
+        "copyPath" => "Copy path",
+        "copyName" => "Copy name",
+        "batchRename" => "Batch rename",
+        "terminal" => "Terminal",
+        "pin" => "Pin",
+        "newTab" => "New tab",
+        "inspector" => "Inspector",
+        "settings" => "Settings",
+        // The size/date buttons already carry a live word ("KiB", "Ago") rather than a picture.
+        _ => item.Content,
+    };
+
     private static ToolStripMenuItem Action(string text, Action action)
     {
         var item = new ToolStripMenuItem(text);
@@ -159,7 +185,7 @@ public sealed partial class MainForm
 
         foreach (var item in _vm.ToolbarItems)
         {
-            var button = new ToolStripButton(item.Content)
+            var button = new ToolStripButton(Caption(item))
             {
                 Command = item.Command,
                 Visible = item.IsVisible,
@@ -168,7 +194,7 @@ public sealed partial class MainForm
             // The size/date buttons relabel themselves live, and Settings can hide any of them.
             Ui.Watch(item, () =>
             {
-                button.Text = item.Content;
+                button.Text = Caption(item);
                 button.Visible = item.IsVisible;
             }, nameof(ToolbarItemViewModel.Content), nameof(ToolbarItemViewModel.IsVisible));
             _toolbar.Items.Add(button);
@@ -189,7 +215,7 @@ public sealed partial class MainForm
         for (var index = 0; index < _vm.ToolbarItems.Count; ++index)
         {
             var item = _vm.ToolbarItems[index];
-            var entry = new ToolStripMenuItem($"{item.Content}  {item.Tooltip}");
+            var entry = new ToolStripMenuItem(item.Tooltip);
 
             var position = index;
             if (position > 0)

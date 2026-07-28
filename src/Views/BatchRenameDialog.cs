@@ -33,7 +33,7 @@ public sealed class BatchRenameDialog : Form
         _preview.DisplaySelector = static o =>
         {
             var proposal = (RenameProposal)o!;
-            return $"{proposal.OriginalName}   →   {proposal.ProposedName}{(proposal.Changed ? string.Empty : "   (unchanged)")}";
+            return $"{proposal.OriginalName}   ->   {proposal.ProposedName}{(proposal.Changed ? string.Empty : "   (unchanged)")}";
         };
 
         var apply = new Button { Text = "Apply", Bounds = new(526, 486, 90, 30), DialogResult = DialogResult.OK };
