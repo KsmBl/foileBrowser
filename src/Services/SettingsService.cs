@@ -43,8 +43,22 @@ public sealed class SettingsService : ISettingsService
         }
     }
 
+    /// <summary>
+    /// Lets one write finish before the next starts. Every settings change saves and several do not
+    /// await it, so two writes could overlap — and since they shared one "settings.json.tmp", the
+    /// second truncated what the first was still serializing. Whichever moved last published a
+    /// half-written file, or lost its own write outright: a move whose source another had already
+    /// moved throws, and that is swallowed below as a read-only location would be. A file that will
+    /// not parse loads as a fresh <see cref="AppSettings"/>, so the visible result was every setting
+    /// quietly back to its default — a pinned favourite, the recent folders, the saved session.
+    /// </summary>
+    private readonly SemaphoreSlim _writeGate = new(1, 1);
+
     public async Task SaveAsync()
     {
+        await _writeGate.WaitAsync().ConfigureAwait(false);
+        // A name per write, because the gate only covers this instance and the file is not owned by it.
+        var tmp = $"{FilePath}.{Guid.NewGuid():N}.tmp";
         try
         {
             var dir = Path.GetDirectoryName(FilePath);
@@ -52,7 +66,6 @@ public sealed class SettingsService : ISettingsService
                 Directory.CreateDirectory(dir);
 
             // Write to a temp file then move, so a crash mid-write can't corrupt the settings.
-            var tmp = FilePath + ".tmp";
             await using (var stream = File.Create(tmp))
                 await JsonSerializer.SerializeAsync(stream, Current, SettingsJsonContext.Default.AppSettings);
             File.Move(tmp, FilePath, overwrite: true);
@@ -60,6 +73,11 @@ public sealed class SettingsService : ISettingsService
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             // Best-effort persistence; ignore failures (e.g. read-only location).
+            try { File.Delete(tmp); } catch (IOException) { } catch (UnauthorizedAccessException) { }
+        }
+        finally
+        {
+            _writeGate.Release();
         }
     }
 
