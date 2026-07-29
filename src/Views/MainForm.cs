@@ -62,7 +62,7 @@ public sealed partial class MainForm : Form
             Bounds = new(0, 0, InspectorWidth, 0),
             BorderStyle = BorderStyle.FixedSingle,
         };
-        _operations = new OperationsView(_vm.OperationQueue)
+        _operations = new OperationsView(_vm.OperationQueue, _vm.Display)
         {
             Dock = DockStyle.Bottom,
             Bounds = new(0, 0, 0, 0),

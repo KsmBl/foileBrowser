@@ -1,4 +1,5 @@
 using System.Drawing;
+using FoileBrowser.Models;
 using FoileBrowser.ViewModels;
 using Hawkynt.NativeForms;
 using Hawkynt.NativeForms.Drawing;
@@ -15,11 +16,13 @@ public sealed class OperationsView : Panel
     private const int RowHeight = 24;
 
     private readonly OperationQueueViewModel _queue;
+    private readonly DisplayOptions _display;
     private readonly List<Action> _cleanup = [];
 
-    public OperationsView(OperationQueueViewModel queue)
+    public OperationsView(OperationQueueViewModel queue, DisplayOptions display)
     {
         _queue = queue;
+        _display = display;
         this.AutoScroll = true;
     }
 
@@ -46,9 +49,11 @@ public sealed class OperationsView : Panel
             ColumnCount = 4,
             RowCount = 1,
         };
+        row.ColumnCount = 5;
         row.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         row.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 170));
-        row.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 110));
+        row.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 150));
+        row.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 78));
         row.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 40));
 
         var description = new Label
@@ -59,16 +64,26 @@ public sealed class OperationsView : Panel
         };
         var bar = new ProgressBar { Margin = new(2, 7, 2, 7), Minimum = 0, Maximum = 100 };
         var status = new Label { Margin = new(4, 2, 4, 2), ForeColor = Color.Gray, TextAlign = ContentAlignment.MiddleLeft };
+
+        // The strip is a glance, so it carries the two numbers worth glancing at; everything else
+        // about the transfer is behind Details.
+        var details = new Button { Text = "Details", Margin = new(2, 2, 2, 2) };
+        details.Click += (_, _) => new OperationProgressDialog(operation, _display).Show();
+
         var cancel = new Button { Image = Icons.CloseIcon, Margin = new(2), Command = operation.CancelCommand };
 
         _cleanup.Add(Ui.Watch(operation, () =>
         {
             bar.Value = Math.Clamp((int)Math.Round(operation.Progress * 100), 0, 100);
-            status.Text = operation.ErrorMessage ?? operation.Status.ToString();
+            status.Text = operation.ErrorMessage
+                ?? (operation.Status == OperationStatus.Running && operation.Speed > 0
+                    ? $"{ValueFormat.Size((long)operation.Speed, _display.SizeUnit)}/s"
+                    : operation.Status.ToString());
             cancel.Enabled = operation.IsActive;
+            details.Enabled = operation.Status != OperationStatus.Pending;
         }));
 
-        row.Controls.AddRange(description, bar, status, cancel);
+        row.Controls.AddRange(description, bar, status, details, cancel);
         return row;
     }
 }

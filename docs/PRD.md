@@ -196,7 +196,30 @@ Check off items as they're completed; delete lines you decide not to build.
 
 ### 6.3 File Operations
 
-- [x] Copy / move with progress dialog and background operation queue
+- [x] Copy / move with progress dialog and background operation queue. Transfers have always run in
+  the background — browsing, opening tabs and starting more work carry on while they do — and the
+  strip at the bottom is the glance: description, bar, live speed, cancel
+- [x] **A progress window per transfer**, opened from the strip's Details button and deliberately not
+  modal: it watches the operation, it does not own it, so closing it leaves the transfer running and
+  reopening picks it back up. It carries both progress scales at once — the overall one ("how long
+  until I get my machine back") and the current file's ("is it stuck on this one huge file, or is
+  nothing happening at all"), which a single bar cannot say together. Alongside them: the current
+  speed over a short trailing window, the average since the start, the estimate, and the recent rate
+  drawn as a filled graph with the average across it as a dashed line. Two speeds because they
+  disagree in exactly the interesting cases — the current figure drops the moment a transfer hits a
+  slow device or a wall of small files, while the average keeps its head; the shape is what says
+  which of those happened. The estimate divides by the average rather than the current rate, because
+  one that jumps every time a big file gives way to a hundred small ones is not something to plan
+  around (`TransferRateTests`)
+- [x] **Operations run in parallel when they touch different physical disks, and queue when they
+  share one.** Two transfers on one spindle do not go twice as fast — they interleave and both go
+  slower, which is the same reason the copy engine picks a sequential strategy for a single
+  mechanical disk. The scheduler asks for the *physical* device, so two partitions of one disk count
+  as one: separate mount points, one set of heads. A transfer between two disks holds both. A device
+  that cannot be identified is assumed to clash, because guessing wrong that way costs some
+  parallelism while guessing the other way thrashes the hardware the rule exists to protect. A later
+  operation on a free disk is not made to wait behind a blocked one, and a ceiling (4) stops a drop
+  of fifty folders across many mounts from starting fifty transfers (`OperationSchedulingTests`)
 - [x] Blazing-fast transfers: overlapped async read/write with configurable buffers, and an adaptive
   strategy that profiles the drives — overlapped read+write for SSD/cross-device, large sequential
   slurp for a single mechanical/optical spindle (avoids head-seek thrashing). Drive profiling works on

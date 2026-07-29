@@ -31,6 +31,10 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly IMetadataService _metadata;
     private readonly DisplayOptions _display = new();
 
+    /// <summary>The size/date formatting the whole window shares, so a byte count reads the same
+    /// in the file list, the status bar and a transfer's progress window.</summary>
+    public DisplayOptions Display => _display;
+
     private CancellationTokenSource? _previewCts;
     private readonly SynchronizationContext? _sync = SynchronizationContext.Current;
     private Timer? _devicePoll;

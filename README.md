@@ -176,7 +176,12 @@ so no runtime reflection is used. See [docs/PRD.md](docs/PRD.md) §6.12 for the 
   The view-models, services and docking model were untouched. Theme variant and accent colour are
   gone as settings — the toolkit takes both from the desktop. Icons are drawn in code instead of
   typed as emoji, and idle RSS is halved (149 MB → 75 MB with NativeAOT).
-- **M8 — The vision's remainder** 🚧 — heat maps done: tint any column by its own values, switched
+- **M8 — The vision's remainder** 🚧 — **transfers**: a per-operation progress window (opened from
+  the queue strip, not modal — closing it leaves the transfer running) showing overall *and*
+  current-file progress, current and average speed, an ETA, and the recent rate as a graph. Copies
+  and moves now run **in parallel when they touch different physical disks and queue when they share
+  one** — two partitions of one disk count as one set of heads, and a transfer between two disks
+  holds both. Also heat maps: tint any column by its own values, switched
   on per column from the list's right-click menu. Measurements (size, date, image width, duration,
   bitrate) rank between the folder's smallest and largest as a cold-to-hot gradient; names (type,
   extension, codec) each get a stable colour, the same one in every folder and on every launch.
