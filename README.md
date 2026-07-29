@@ -86,18 +86,26 @@ as the default file manager). No root required — it installs under `~/.local` 
 
 ```sh
 # Linux
-./install.sh                 # or: ./install.sh --prefix /usr/local --self-contained
+./install.sh                 # or: ./install.sh --prefix /usr/local --no-aot
 ./uninstall.sh
 ```
 
 ```powershell
 # Windows (PowerShell)
-./install.ps1                # or: ./install.ps1 -SelfContained
+./install.ps1                # or: ./install.ps1 -NoAot
 ./uninstall.ps1
 ```
 
-Without `--self-contained` the launcher runs on the installed .NET 10 runtime; with it, a
-standalone **trimmed** build is published that needs no runtime and has the smallest footprint.
+**NativeAOT is the default** — one binary, no .NET runtime to install, and the lightest of the
+three to run. It is what the footprint figures below are measured on. It needs a native
+toolchain to compile (`clang` + zlib on Linux, the Visual Studio C++ build tools on Windows)
+and the publish takes a few minutes.
+
+| Flag                              | What you get                                                  |
+| --------------------------------- | ------------------------------------------------------------- |
+| *(none)*                          | NativeAOT — smallest footprint, no runtime needed              |
+| `--no-aot` / `-NoAot`             | trimmed self-contained — no runtime needed, larger, builds fast |
+| `--framework-dependent`           | smallest download; needs .NET 10 installed to run              |
 
 **Optional:** install `ffprobe` (from FFmpeg) to get the audio/video metadata columns — resolution,
 fps, duration, channels, bitrate, codec. Without it those columns stay blank; image metadata columns
@@ -122,7 +130,7 @@ Measured idle on one Linux/GTK (Wayland) desktop, published Release:
 | Build                                          |       RSS |      PSS |
 | ---------------------------------------------- | --------: | -------: |
 | NativeForms                                    |     96 MB |    42 MB |
-| NativeForms + NativeAOT (`./install.sh --aot`) | **73 MB** | 41–48 MB |
+| NativeForms + NativeAOT (the default install)  | **73 MB** | 41–48 MB |
 
 Against the neighbours, measured identically on the same folder and session:
 

@@ -404,13 +404,15 @@ Check off items as they're completed; delete lines you decide not to build.
     desktop, the malloc arena ≈ 5 MB, and glibc's locale archive plus GTK's ICU ≈ 4 MB, which are
     the toolkit's dependencies rather than ours. Roughly half of RSS is shared library text, which
     is why PSS is a little over half of it.
-  - **NativeAOT** (`install.sh --aot`, needs clang) produces a single 19 MB binary with full archive
-    support: the reflective format discovery is a compile-time **source generator**
-    (`src/Generators`) that statically registers every CompressionWorkbench descriptor, and the view
-    layer subscribes to properties directly rather than through reflection string-path bindings, so
-    the whole app stays trim/AOT-safe. **Trimmed self-contained**
-    (`install.sh --self-contained`) also still builds; its footprint has not been re-measured since
-    the toolkit change and sits between the two rows above.
+  - **NativeAOT is what the installer builds by default** (needs clang on Linux, the MSVC C++ build
+    tools on Windows). It produces a single 19 MB binary with full archive support: the reflective
+    format discovery is a compile-time **source generator** (`src/Generators`) that statically
+    registers every CompressionWorkbench descriptor, and the view layer subscribes to properties
+    directly rather than through reflection string-path bindings, so the whole app stays
+    trim/AOT-safe. **Trimmed self-contained** (`install.sh --no-aot`) remains the fallback for hosts
+    with no native toolchain; its footprint has not been re-measured since the toolkit change and
+    sits between the two rows above. `--framework-dependent` is the third option, for anyone who
+    would rather share the installed runtime than ship one.
   - **Against other file managers**, measured the same way on the same machine, same folder, same
     KDE/Wayland session, idle after ~17 s (the toolkit's own build is the AOT one):
 
