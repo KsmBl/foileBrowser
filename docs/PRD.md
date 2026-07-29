@@ -31,7 +31,10 @@ The guiding principle: **every interaction feels instantaneous, and everything i
 
 - Windows 10+ (x64/ARM64)
 - Linux with X11 or Wayland (mainstream distros)
-- macOS 12+
+- ~~macOS 12+~~ — **not currently reachable.** The toolkit's Cocoa backend is a stub whose every
+  member throws, so nothing renders there; it is on NativeForms' roadmap (its PRD §10, M9) rather
+  than on ours. The code is platform-neutral and the test suite runs on macOS in CI, so the day that
+  backend lands this is a build, not a port.
 
 ## 5. Tech Stack
 

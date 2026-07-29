@@ -1,10 +1,30 @@
 # foileBrowser
 
-A fast, keyboard-first, cross-platform (Windows / Linux / macOS) file browser, inspired by [OneCommander](https://onecommander.com/) and [File Pilot](https://filepilot.tech/).
+[![License](https://img.shields.io/github/license/Hawkynt/foileBrowser)](https://github.com/Hawkynt/foileBrowser/blob/main/LICENSE)
+[![Language](https://img.shields.io/github/languages/top/Hawkynt/foileBrowser?color=8957D5)](https://github.com/Hawkynt/foileBrowser)
 
-**Stack:** C# 14 · .NET 10 · [NativeForms](../NativeForms) (Win32/GTK via P/Invoke) · MVVM (CommunityToolkit.Mvvm) · NUnit
+[![CI](https://github.com/Hawkynt/foileBrowser/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Hawkynt/foileBrowser/actions/workflows/ci.yml)
+![Last Commit](https://img.shields.io/github/last-commit/Hawkynt/foileBrowser?branch=main)
+![Activity](https://img.shields.io/github/commit-activity/m/Hawkynt/foileBrowser)
 
-## Screenshots
+[![Stars](https://img.shields.io/github/stars/Hawkynt/foileBrowser?color=FFD700)](https://github.com/Hawkynt/foileBrowser/stargazers)
+[![Forks](https://img.shields.io/github/forks/Hawkynt/foileBrowser?color=008080)](https://github.com/Hawkynt/foileBrowser/network/members)
+[![Issues](https://img.shields.io/github/issues/Hawkynt/foileBrowser)](https://github.com/Hawkynt/foileBrowser/issues)
+![Code Size](https://img.shields.io/github/languages/code-size/Hawkynt/foileBrowser?color=4CAF50)
+![Repo Size](https://img.shields.io/github/repo-size/Hawkynt/foileBrowser?color=FF9800)
+
+[![Release](https://img.shields.io/github/v/release/Hawkynt/foileBrowser)](https://github.com/Hawkynt/foileBrowser/releases/latest)
+[![Nightly](https://img.shields.io/github/v/release/Hawkynt/foileBrowser?include_prereleases&sort=date&filter=nightly-*&label=nightly&color=FF9800)](https://github.com/Hawkynt/foileBrowser/releases)
+[![Downloads](https://img.shields.io/github/downloads/Hawkynt/foileBrowser/total)](https://github.com/Hawkynt/foileBrowser/releases)
+
+> A fast, keyboard-first file browser for Windows and Linux — dual panes, tabs, a fuzzy command
+> palette, an inspector, colour tags and archives-as-folders — drawn with real platform widgets
+> rather than a rendering engine, so it idles in a fraction of the memory a modern file manager
+> takes. Inspired by [OneCommander](https://onecommander.com/) and [File Pilot](https://filepilot.tech/).
+
+**Stack:** C# 14 · .NET 10 · [NativeForms](https://github.com/Hawkynt/NativeForms) (Win32/GTK via P/Invoke) · MVVM (CommunityToolkit.Mvvm) · NUnit
+
+## 📸 Screenshots
 
 A single pane on first run — a resizable sidebar of favorites, drives and removable devices, the
 file list, and the inspector. Split it, tab it and arrange it from there:
@@ -27,27 +47,45 @@ a grab, which is what makes it work on a headless or Wayland session where a scr
 nothing. Add `--standalone` when an instance is already running, so the launch captures its own
 window instead of handing the request over.
 
-## Layout
+## 🧩 Layout
 
 - `src/` — application code
 - `tests/` — NUnit tests
 - `docs/` — documentation, including the [PRD](docs/PRD.md) and `screenshots/`
 
-## Build & run
+## 🛠️ Build & run
+
+The UI toolkit is a sibling repo consumed by project reference, not a package, so clone it next to
+this one before building:
 
 ```sh
+# Working directory layout the csproj's relative paths expect
+work/
+├─ foileBrowser/   # this repo
+└─ NativeForms/    # the UI toolkit
+
+git clone https://github.com/Hawkynt/foileBrowser.git
+git clone https://github.com/Hawkynt/NativeForms.git
+```
+
+```sh
+cd foileBrowser
+
 dotnet run --project src/FoileBrowser.csproj   # launch the app
-dotnet test                                    # run the NUnit suite
+dotnet test foileBrowser.slnx                  # run the NUnit suite
 dotnet build foileBrowser.slnx                 # build the whole solution
 ```
 
-## Install
+On Linux the app needs GTK 3 at run time (`libgtk-3-0`); on Windows it needs nothing beyond the
+.NET runtime, or nothing at all for a self-contained build.
+
+## 🚀 Install
 
 Installs a `foilebrowser` launcher (plus, on Linux, an icon and a menu entry that can be set
 as the default file manager). No root required — it installs under `~/.local` by default.
 
 ```sh
-# Linux / macOS
+# Linux
 ./install.sh                 # or: ./install.sh --prefix /usr/local --self-contained
 ./uninstall.sh
 ```
@@ -106,7 +144,7 @@ left in the AOT build is mostly the window's own surface buffer (11 MB) and the 
 (9 MB). AOT needs `clang` to build; archive support survives it via a compile-time source generator,
 so no runtime reflection is used. See [docs/PRD.md](docs/PRD.md) §6.12 for the breakdown.
 
-## Status
+## 📋 Status
 
 - **M0 — Scaffold** ✅ — repo layout, PRD, README
 - **M1 — MVP browsing** ✅ — app shell, single virtualized pane, async directory
@@ -134,3 +172,36 @@ so no runtime reflection is used. See [docs/PRD.md](docs/PRD.md) §6.12 for the 
 
 See [docs/PRD.md](docs/PRD.md) for the checkboxed feature list and milestones — check off what's
 built, delete what's not wanted.
+
+## 🤖 CI
+
+GitHub Actions, mirroring the layout every repo here uses:
+
+| Workflow | When | What |
+|---|---|---|
+| `ci.yml` | push / PR to `main` | tests on Linux, Windows and macOS; a GTK screenshot gate; a NativeAOT publish per RID |
+| `nightly.yml` | after a green CI on `main` | builds that exact SHA, publishes a `nightly-yyyyMMdd` prerelease, prunes old ones, and reports idle RSS/PSS |
+| `release.yml` | manual dispatch | runs CI, builds, updates `CHANGELOG.md`, cuts a dated `vyyyyMMdd` release |
+| `_build.yml` | called by the two above | the single place a commit turns into artifacts, so release and nightly cannot diverge |
+
+Both workflows that build check out **NativeForms beside this repo**, because the toolkit is consumed
+by project reference rather than as a package.
+
+The screenshot job is a gate, not decoration. The unit tests only reach view-models and services;
+that job is the first and only place the whole view layer is put on screen, and the first shot taken
+this way found a file list drawing no icons at all, mirrored back/forward arrows, and sidebar rows
+clipping their own captions — none of which any unit test could see.
+
+Version stamping is `.github/workflows/scripts/version.pl --stamp`, which appends the commit count to
+the `<Version>` in `Directory.Build.props`. Versions come from files, never from a git tag.
+
+## ❤️ Support
+
+If this project saves you time or money, consider supporting its development:
+
+[![GitHub Sponsors](https://img.shields.io/badge/GitHub-Sponsor-EA4AAA?logo=githubsponsors)](https://github.com/sponsors/Hawkynt)
+[![PayPal](https://img.shields.io/badge/PayPal-Donate-00457C?logo=paypal)](https://www.paypal.me/hawkynt)
+
+## 📜 License
+
+Licensed under LGPL-3.0-or-later — see [LICENSE](LICENSE).
