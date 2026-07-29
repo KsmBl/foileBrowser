@@ -23,5 +23,11 @@ public sealed record DriveVolume
     /// <summary>Physical disk the volume/partition lives on, e.g. "sda", "nvme0n1". Null where unknown.</summary>
     public string? Disk { get; init; }
 
+    /// <summary>
+    /// Whether the volume is mounted. An unmounted one is listed so it can be mounted with a click
+    /// (PRD §6.10) and has an empty <see cref="RootPath"/> — there is nowhere to browse yet.
+    /// </summary>
+    public bool IsMounted { get; init; } = true;
+
     public bool IsRemovable => Kind is VolumeKind.Removable or VolumeKind.Gvfs;
 }

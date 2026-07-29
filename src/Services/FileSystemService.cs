@@ -113,8 +113,122 @@ public sealed class FileSystemService : IFileSystemService
             if (!OperatingSystem.IsWindows())
                 results.AddRange(EnumerateGvfsMounts(cancellationToken));
 
+            if (OperatingSystem.IsLinux())
+                results.AddRange(EnumerateUnmountedPartitions(mounts, cancellationToken));
+
             return results;
         }, cancellationToken);
+
+    /// <summary>
+    /// Removable partitions that are present but not mounted (PRD §6.10). Without these a stick that
+    /// the desktop did not auto-mount is invisible, and mounting it means a terminal — which is the
+    /// whole thing this is here to avoid.
+    /// </summary>
+    private static IEnumerable<DriveVolume> EnumerateUnmountedPartitions(
+        Dictionary<string, string>? mounts, CancellationToken cancellationToken)
+    {
+        var results = new List<DriveVolume>();
+        var mounted = mounts is null
+            ? []
+            : new HashSet<string>(mounts.Values, StringComparer.Ordinal);
+
+        var labels = ReadDeviceLabels();
+
+        foreach (var diskDir in SafeDirectories("/sys/block"))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var disk = Path.GetFileName(diskDir);
+
+            // Only removable spindles: an unmounted partition of the system disk is somebody's
+            // recovery volume or a foreign filesystem, not something to offer as a click target.
+            if (!ReadFlag($"{diskDir}/removable"))
+                continue;
+
+            foreach (var partitionDir in SafeDirectories(diskDir))
+            {
+                var name = Path.GetFileName(partitionDir);
+                if (!name.StartsWith(disk, StringComparison.Ordinal) || !File.Exists($"{partitionDir}/partition"))
+                    continue;
+
+                var device = "/dev/" + name;
+                if (mounted.Contains(device))
+                    continue;
+
+                results.Add(new DriveVolume
+                {
+                    Label = labels.TryGetValue(device, out var label) ? label : name,
+                    RootPath = string.Empty,
+                    TotalBytes = ReadSectors($"{partitionDir}/size"),
+                    Device = device,
+                    Disk = disk,
+                    Kind = VolumeKind.Removable,
+                    IsMounted = false,
+                });
+            }
+        }
+
+        return results;
+    }
+
+    /// <summary>Filesystem labels by device, from the by-label symlinks udev maintains.</summary>
+    private static Dictionary<string, string> ReadDeviceLabels()
+    {
+        var labels = new Dictionary<string, string>(StringComparer.Ordinal);
+        try
+        {
+            foreach (var link in Directory.EnumerateFiles("/dev/disk/by-label"))
+            {
+                var target = File.ResolveLinkTarget(link, returnFinalTarget: true);
+                if (target is not null)
+                    labels[target.FullName] = Path.GetFileName(link).Replace("\\x20", " ");
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // No by-label directory (no udev, or nothing labelled) — device names will do.
+        }
+
+        return labels;
+    }
+
+    private static IEnumerable<string> SafeDirectories(string path)
+    {
+        try
+        {
+            return Directory.EnumerateDirectories(path);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return [];
+        }
+    }
+
+    private static bool ReadFlag(string path)
+    {
+        try
+        {
+            return File.Exists(path) && File.ReadAllText(path).Trim() == "1";
+        }
+        catch (IOException)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>A /sys size, which counts 512-byte sectors whatever the device's real sector size.</summary>
+    private static long? ReadSectors(string path)
+    {
+        try
+        {
+            return File.Exists(path) && long.TryParse(File.ReadAllText(path).Trim(), out var sectors)
+                ? sectors * 512
+                : null;
+        }
+        catch (IOException)
+        {
+            return null;
+        }
+    }
 
     /// <summary>Maps each mount point to its backing device via /proc/mounts (Linux).</summary>
     private static Dictionary<string, string> ReadMountDevices()

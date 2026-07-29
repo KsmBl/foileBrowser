@@ -38,6 +38,12 @@ public sealed class SidebarItemViewModel
     /// <summary>True for removable/GVfs volumes that can be ejected (PRD §6.10).</summary>
     public bool IsEjectable { get; init; }
 
+    /// <summary>
+    /// True for a removable volume that is present but not mounted (PRD §6.10). It has no path to
+    /// browse yet; opening it mounts it first, so a click does the whole job.
+    /// </summary>
+    public bool NeedsMounting { get; init; }
+
     /// <summary>Set by the shell for user-pinned favorites so they can be unpinned via the context menu.</summary>
     public ICommand? UnpinCommand { get; init; }
 
@@ -57,7 +63,7 @@ public sealed class SidebarItemViewModel
     public bool CanUnpin => UnpinCommand is not null;
 
     /// <summary>True when the sidebar row has any context-menu action below "open" (keeps the separator tidy).</summary>
-    public bool HasActions => IsEjectable || CanUnpin || CanFormat;
+    public bool HasActions => IsEjectable || CanUnpin || CanFormat || NeedsMounting;
 
     public bool IsNavigable =>
         Kind is SidebarItemKind.Favorite or SidebarItemKind.Drive or SidebarItemKind.Device or SidebarItemKind.Partition;
@@ -70,7 +76,9 @@ public sealed class SidebarItemViewModel
     /// <summary>Left indent (partitions sit under their disk).</summary>
     public double Indent => Kind is SidebarItemKind.Partition ? 14 : 0;
 
-    public bool HasCapacity => TotalBytes is > 0;
+    /// <summary>Whether a free-space bar can be drawn. An unmounted device has a size but no free
+    /// figure to fill the bar with, so it says "not mounted" instead.</summary>
+    public bool HasCapacity => TotalBytes is > 0 && !NeedsMounting;
 
     public bool HasFileSystem => !string.IsNullOrEmpty(FileSystem);
 

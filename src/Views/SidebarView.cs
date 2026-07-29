@@ -134,6 +134,12 @@ public sealed class SidebarView : Panel
             tile.WarningThreshold = 90;
             tile.SecondaryText = item.FreeSpaceDisplay;
         }
+        else if (item.NeedsMounting)
+        {
+            // It has a size but nowhere to browse yet, so it says what it is rather than showing a
+            // free-space bar it cannot fill.
+            tile.Text += "  (not mounted)";
+        }
         else if (item.HasFileSystem)
         {
             tile.Text += $"  ({item.FileSystem})";
@@ -164,6 +170,8 @@ public sealed class SidebarView : Panel
 
         if (item.HasActions)
             menu.Items.Add(new ToolStripSeparator());
+        if (item.NeedsMounting)
+            menu.Items.Add(Bound("Mount", item.OpenCommand, item));
         if (item.IsEjectable)
             menu.Items.Add(Bound("Eject / Unmount", item.EjectCommand, item));
         if (item.CanFormat)
