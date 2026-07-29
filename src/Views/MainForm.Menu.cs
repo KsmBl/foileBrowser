@@ -74,7 +74,9 @@ public sealed partial class MainForm
             this.CommandItem("&Refresh", "nav.refresh"),
             new ToolStripSeparator(),
             this.CommandItem("&Edit Path", "nav.editPath"),
-            this.CommandItem("Find in Folder", "search.focus"));
+            this.CommandItem("Find in Folder", "search.focus"),
+            new ToolStripSeparator(),
+            this.BuildRecentFoldersMenu());
 
         var tools = new ToolStripMenuItem("&Tools");
         tools.DropDownItems.AddRange(
@@ -141,6 +143,47 @@ public sealed partial class MainForm
         // The size/date buttons already carry a live word ("KiB", "Ago") rather than a picture.
         _ => item.Content,
     };
+
+    /// <summary>
+    /// The folders visited recently, newest first (PRD §6.1). The path bar offers the same list
+    /// while you type; this is where you find one you cannot remember enough of to type.
+    /// </summary>
+    private ToolStripMenuItem BuildRecentFoldersMenu()
+    {
+        var recent = new ToolStripMenuItem("&Recent Folders");
+
+        // Kept in step with the list rather than rebuilt when the menu opens, because a strip item
+        // has no "about to open" event to hang that on. It costs a rebuild of at most twenty items
+        // per navigation, which is nothing next to listing the folder that caused it.
+        Ui.WatchList(_vm.RecentFolders, () =>
+        {
+            recent.DropDownItems.Clear();
+            foreach (var folder in _vm.RecentFolders.Take(20))
+            {
+                var target = folder;
+                var item = new ToolStripMenuItem(Shorten(target)) { ToolTipText = target };
+                item.Click += (_, _) => _ = _vm.GoToAsync(target);
+                recent.DropDownItems.Add(item);
+            }
+
+            if (!recent.HasDropDownItems)
+                recent.DropDownItems.Add(new ToolStripMenuItem("(nothing yet)") { Enabled = false });
+        });
+
+        return recent;
+    }
+
+    /// <summary>A path short enough for a menu: the last two segments, with the home folder as "~".</summary>
+    private static string Shorten(string path)
+    {
+        var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        var shown = home.Length > 0 && path.StartsWith(home, StringComparison.Ordinal)
+            ? "~" + path[home.Length..]
+            : path;
+
+        var parts = shown.Split(Path.DirectorySeparatorChar, StringSplitOptions.RemoveEmptyEntries);
+        return parts.Length <= 2 ? shown : "…" + Path.DirectorySeparatorChar + string.Join(Path.DirectorySeparatorChar, parts[^2..]);
+    }
 
     private static ToolStripMenuItem Action(string text, Action action)
     {

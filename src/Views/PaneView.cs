@@ -178,6 +178,11 @@ public sealed class PaneView : Panel
             _tab.NavigatePathBarCommand.Execute(null);
         };
 
+        // Typing in that field offers somewhere to go: folders visited recently, matched anywhere in
+        // the path, then whatever the filesystem has for the segment being typed (PRD §6.1). The bar
+        // owns the list, the arrow keys and the picking; all it wanted was somewhere to ask.
+        _breadcrumb.AutoCompleteSource = _shell.CompletePath;
+
         _hidden.CheckedChanged += (_, _) =>
         {
             if (!_suppress)

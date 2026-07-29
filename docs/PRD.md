@@ -105,9 +105,20 @@ Check off items as they're completed; delete lines you decide not to build.
   bar and a "free of total" value beside its filesystem type (see §6.10)
 - [ ] Long-path (>260 chars) support (Windows caveat: `\\?\` prefix handling) — nothing in the app
   handles the prefix today; Linux/macOS have no such limit, so this is Windows-only work
-- [ ] Editable path bar with autocompletion and recent-folder suggestions (File Pilot "GoTo") — combined breadcrumb/entry path bar with Ctrl+L done; autocompletion/suggestions pending
-- [ ] A recent-folders list as a navigation surface of its own (File Pilot): history is per tab and
-  reachable only through back/forward, so a folder visited in another tab cannot be jumped back to
+- [x] **Editable path bar with autocompletion and recent-folder suggestions** (File Pilot "GoTo").
+  Typing in the path field (Ctrl+L, or a click on the bar's empty space) offers somewhere to go,
+  from two sources in that order of usefulness. **Recently visited folders** come first and match
+  *anywhere* in the path, because the folder someone wants is usually one they have been in and they
+  rarely remember which of six levels it hung off — typing "inv" finds
+  `~/work/clients/acme/2026/invoices`. **Then the filesystem**, completing only the segment the caret
+  is in. Case-insensitive, capped at 12, and it never offers back the path already typed. The list,
+  its arrow-key navigation and Enter-to-pick belong to the toolkit's breadcrumb, which had the whole
+  mechanism built and no source wired to it; the ranking is ours (`PathCompletionTests`)
+- [x] **Recent folders as a navigation surface of its own** — Go ▸ Recent Folders, newest first,
+  shown as `…/parent/folder` with `~` for home and the full path on hover. Only folders that
+  actually listed are remembered: a path that failed to open is precisely the one nobody wants
+  offered back. Revisiting one moves it to the front rather than listing it twice, so the order is
+  by when it was last useful. Bounded at 40 and persisted, so it survives a restart
 - [x] **Heat maps on any column** — tint a column's cells by what its own values say, switched on
   per column from the list's right-click menu (Heat map ▸ …) and persisted. Generalised from
   OneCommander's file-age colouring, which is one case of it: a column whose values are
