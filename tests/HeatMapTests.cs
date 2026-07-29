@@ -69,11 +69,14 @@ public class HeatMapTests
     {
         // The colour has to mean the same thing tomorrow, so the hash behind it cannot be the
         // per-process-seeded one.
+        var first = Heat.Category("jpg", Light);
+        var again = Heat.Category("jpg", Light);
+
         Assert.Multiple(() =>
         {
-            Assert.That(Heat.Category("jpg", Light), Is.EqualTo(Heat.Category("jpg", Light)));
-            Assert.That(Heat.Category("jpg", Light), Is.EqualTo(Heat.Category("JPG", Light)), "case is not a category");
-            Assert.That(Heat.Category("jpg", Light), Is.Not.EqualTo(Heat.Category("png", Light)));
+            Assert.That(again, Is.EqualTo(first), "asking twice gives the same answer");
+            Assert.That(Heat.Category("JPG", Light), Is.EqualTo(first), "case is not a category");
+            Assert.That(Heat.Category("png", Light), Is.Not.EqualTo(first));
         });
     }
 
