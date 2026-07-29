@@ -162,7 +162,7 @@ so no runtime reflection is used. See [docs/PRD.md](docs/PRD.md) §6.12 for the 
   (mkfs via pkexec, guarded by type-to-confirm); enter archives (ZIP/TAR/7z/… via CompressionWorkbench)
   as virtual folders, extract, nested descent, identify-format
 - **M6 — Configurability** ✅ — rebindable hotkeys (live key capture + conflict detection), per-button
-  toolbar show/hide, hideable search bar with Ctrl+F reveal — all in a tabbed Settings dialog
+  toolbar show/hide, subtree-search row on Ctrl+F — all in a tabbed Settings dialog
 - **M7 — Native UI** ✅ — the whole view layer rebuilt on [NativeForms](../NativeForms): real
   platform windows, buttons and text fields, everything else painted in the desktop's own theme.
   The view-models, services and docking model were untouched. Theme variant and accent colour are

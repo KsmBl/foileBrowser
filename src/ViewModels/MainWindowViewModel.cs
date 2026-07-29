@@ -92,10 +92,10 @@ public partial class MainWindowViewModel : ViewModelBase
     [ObservableProperty]
     private bool _isToolbarVisible = true;
 
-    /// <summary>Whether every pane's filter/search bar is shown; when off it's revealed on demand by
+    /// <summary>Whether every pane's subtree-search row is shown; when off it's revealed on demand by
     /// Ctrl+F for the session and collapsed again on Escape (PRD §6.4).</summary>
     [ObservableProperty]
-    private bool _isSearchBarVisible = true;
+    private bool _isSearchBarVisible;
 
     /// <summary>Escape from a revealed-on-demand search bar returns it to its configured state.</summary>
     public void CollapseSearchBar() => IsSearchBarVisible = _settings.Current.SearchBarVisible;

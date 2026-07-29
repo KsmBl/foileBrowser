@@ -28,8 +28,13 @@ public sealed class AppSettings
     /// <summary>Custom left-to-right order of toolbar button ids (PRD §6.8). Empty = default order.</summary>
     public List<string> ToolbarOrder { get; set; } = [];
 
-    /// <summary>Whether each pane's filter/search bar is shown by default; when false, Ctrl+F reveals it (PRD §6.4).</summary>
-    public bool SearchBarVisible { get; set; } = true;
+    /// <summary>
+    /// Whether each pane's subtree-search row is shown by default; when false, Ctrl+F reveals it
+    /// (PRD §6.4). Off by default because searching a subtree is occasional and the row costs its
+    /// height in every pane for the whole session — the everyday filter box lives in the nav bar
+    /// and is always there either way. The name predates that split; it is what is on disk.
+    /// </summary>
+    public bool SearchBarVisible { get; set; }
 
     /// <summary>
     /// Where a folder handed over by a second launch is opened (PRD §6.12): <c>Tab</c> in the active

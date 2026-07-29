@@ -272,15 +272,16 @@ public class ShellViewModelTests
         Assert.That(captured, Is.EqualTo("clip.txt"));
     }
 
-    // ---- search bar visibility (PRD §6.4): off means "only show it on Ctrl+F" ----
+    // ---- search row visibility (PRD §6.4): off means "only show it on Ctrl+F" ----
 
     [Test]
-    public async Task Search_Bars_Are_Shown_By_Default()
+    public async Task The_Subtree_Search_Row_Stays_Out_Of_The_Way_Until_It_Is_Asked_For()
     {
         var vm = CreateShell(new FakeFileSystem(), new RecordingTrash());
         await vm.InitializeAsync();
 
-        Assert.That(vm.IsSearchBarVisible, Is.True);
+        Assert.That(vm.IsSearchBarVisible, Is.False,
+            "searching a subtree is occasional, so the row it needs is not part of the default chrome");
     }
 
     [Test]

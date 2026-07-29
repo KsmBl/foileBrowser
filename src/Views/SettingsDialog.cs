@@ -19,7 +19,7 @@ public sealed class SettingsDialog : Form
 
     private readonly NumericUpDown _fontSize = new() { Bounds = new(150, 16, 90, 26), Minimum = 8, Maximum = 32 };
     private readonly NumericUpDown _rowHeight = new() { Bounds = new(150, 50, 90, 26), Minimum = 16, Maximum = 64 };
-    private readonly CheckBox _searchBar = new() { Text = "Show the search bar by default", Bounds = new(16, 84, 340, 24) };
+    private readonly CheckBox _searchBar = new() { Text = "Show the subtree search row by default", Bounds = new(16, 84, 340, 24) };
     private readonly TextBox _terminal = new() { Bounds = new(150, 118, 220, 26) };
     private readonly ComboBox _terminalPicker = new() { Bounds = new(376, 118, 130, 26), PlaceholderText = "detected…" };
     private readonly ComboBox _handoff = new() { Bounds = new(150, 152, 220, 26) };
