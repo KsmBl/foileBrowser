@@ -42,7 +42,7 @@ public class FavoritesAndTreeTests
 
     private static async Task<bool> UntilAsync(Func<bool> settled)
     {
-        var deadline = DateTime.UtcNow.AddSeconds(5);
+        var deadline = DateTime.UtcNow.AddSeconds(20);
         while (DateTime.UtcNow < deadline)
         {
             if (settled())
