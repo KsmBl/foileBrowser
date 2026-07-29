@@ -151,7 +151,16 @@ public sealed class FileOperationService : IFileOperationService
     {
         private long _done;
 
-        public void Skip(long bytes, string item) => Report(bytes, item);
+        /// <summary>
+        /// Counts an item that moved without being read block by block — a skipped collision, or a
+        /// rename that relocated a whole tree in one call. It has no per-file progress to show, so
+        /// the item scale is cleared rather than left reading as the previous file's.
+        /// </summary>
+        public void Skip(long bytes, string item)
+        {
+            BeginItem(0);
+            Report(bytes, item);
+        }
 
         public void ReportDone() => progress?.Report(new OperationProgress(total, total, string.Empty));
 
@@ -185,6 +194,7 @@ public sealed class FileOperationService : IFileOperationService
                 dest, FileMode.Create, FileAccess.Write, FileShare.None, bufferSize, FileOptions.Asynchronous);
 
             var name = Path.GetFileName(source);
+            BeginItem(input.Length);
             if (sequential)
                 await CopySequentialAsync(input, output, bufferSize, name).ConfigureAwait(false);
             else
@@ -226,10 +236,22 @@ public sealed class FileOperationService : IFileOperationService
             }
         }
 
+        /// <summary>The file currently being copied, so each block can report its own share too.</summary>
+        private long _itemTotal;
+        private long _itemDone;
+
+        /// <summary>Starts a new current file: its size is known before the first block moves.</summary>
+        private void BeginItem(long size)
+        {
+            _itemTotal = size;
+            _itemDone = 0;
+        }
+
         private void Report(long bytes, string item)
         {
             _done += bytes;
-            progress?.Report(new OperationProgress(total, _done, item));
+            _itemDone += bytes;
+            progress?.Report(new OperationProgress(total, _done, item, _itemTotal, _itemDone));
         }
     }
 
