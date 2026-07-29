@@ -176,6 +176,14 @@ so no runtime reflection is used. See [docs/PRD.md](docs/PRD.md) §6.12 for the 
   The view-models, services and docking model were untouched. Theme variant and accent colour are
   gone as settings — the toolkit takes both from the desktop. Icons are drawn in code instead of
   typed as emoji, and idle RSS is halved (149 MB → 75 MB with NativeAOT).
+- **M8 — The vision's remainder** 🚧 — heat maps done: tint any column by its own values, switched
+  on per column from the list's right-click menu. Measurements (size, date, image width, duration,
+  bitrate) rank between the folder's smallest and largest as a cold-to-hot gradient; names (type,
+  extension, codec) each get a stable colour, the same one in every folder and on every launch.
+  Several columns at once, each tinting its own cells, and the tint leans the row background rather
+  than replacing it so it reads on a dark desktop and a light one alike. Still open, led by **Miller
+  columns**: batch image conversion, unique-id rename tokens, key sequences, command aliases,
+  pinned menu items.
 
 See [docs/PRD.md](docs/PRD.md) for the checkboxed feature list and milestones — check off what's
 built, delete what's not wanted.

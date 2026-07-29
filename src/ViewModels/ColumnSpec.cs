@@ -12,6 +12,19 @@ public enum ColumnKind
     Video,
 }
 
+/// <summary>How a column's values map to a heat colour (PRD §6.1).</summary>
+public enum HeatKind
+{
+    /// <summary>Nothing useful to rank or group by — the column is never offered a heat map.</summary>
+    None,
+
+    /// <summary>Ranked between the smallest and largest value in the folder: a gradient.</summary>
+    Numeric,
+
+    /// <summary>Grouped by equal values: one stable colour per distinct value.</summary>
+    Category,
+}
+
 /// <summary>
 /// A file-list column: its id (also the metadata key), header text, live width and alignment
 /// (PRD §6.1). One shared, ordered collection of these drives both the header row and every data row,
@@ -24,6 +37,9 @@ public sealed partial class ColumnSpec : ObservableObject
     public ColumnKind Kind { get; init; } = ColumnKind.Builtin;
     public bool RightAligned { get; init; }
     public double DefaultWidth { get; init; } = 120;
+
+    /// <summary>Whether this column can be heat-mapped, and how its values are ranked (PRD §6.1).</summary>
+    public HeatKind Heat { get; init; } = HeatKind.None;
 
     /// <summary>Live column width in px (bound by header + row cells); persisted.</summary>
     [ObservableProperty]
@@ -44,12 +60,14 @@ public static class ColumnCatalog
 
     private static List<ColumnSpec> BuiltIn() =>
     [
+        // Name is the one column with nothing to rank or group by: every value is distinct, so a
+        // heat map over it would be noise with a colour for every row.
         new() { Id = "name", Header = "Name", DefaultWidth = 260, Sort = Models.SortColumn.Name },
-        new() { Id = "size", Header = "Size", DefaultWidth = 110, RightAligned = true, Sort = Models.SortColumn.Size },
-        new() { Id = "type", Header = "Type", DefaultWidth = 110, Sort = Models.SortColumn.Type },
-        new() { Id = "modified", Header = "Modified", DefaultWidth = 150, Sort = Models.SortColumn.Modified },
-        new() { Id = "extension", Header = "Ext", DefaultWidth = 70 },
-        new() { Id = "location", Header = "Location", DefaultWidth = 220 },
+        new() { Id = "size", Header = "Size", DefaultWidth = 110, RightAligned = true, Sort = Models.SortColumn.Size, Heat = HeatKind.Numeric },
+        new() { Id = "type", Header = "Type", DefaultWidth = 110, Sort = Models.SortColumn.Type, Heat = HeatKind.Category },
+        new() { Id = "modified", Header = "Modified", DefaultWidth = 150, Sort = Models.SortColumn.Modified, Heat = HeatKind.Numeric },
+        new() { Id = "extension", Header = "Ext", DefaultWidth = 70, Heat = HeatKind.Category },
+        new() { Id = "location", Header = "Location", DefaultWidth = 220, Heat = HeatKind.Category },
     ];
 
     /// <summary>Registers additional columns (e.g. metadata) into the catalogue, ignoring duplicate ids.</summary>
@@ -71,6 +89,7 @@ public static class ColumnCatalog
             RightAligned = template.RightAligned,
             DefaultWidth = template.DefaultWidth,
             Sort = template.Sort,
+            Heat = template.Heat,
             Width = template.DefaultWidth,
         };
     }

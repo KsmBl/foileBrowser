@@ -154,6 +154,9 @@ public partial class MainWindowViewModel : ViewModelBase
             RightAligned = c.RightAligned,
             DefaultWidth = c.Width,
             Width = c.Width,
+            // A metadata column that right-aligns is a measurement (dimensions, duration, bitrate,
+            // colour count) and ranks; the rest are names of things (codec, format) and group.
+            Heat = c.RightAligned ? HeatKind.Numeric : HeatKind.Category,
         }));
 
         var first = CreateTab();
@@ -791,6 +794,13 @@ public partial class MainWindowViewModel : ViewModelBase
             foreach (var id in ColumnCatalog.DefaultVisible)
                 if (ColumnCatalog.Create(id) is { } column)
                     Columns.Add(column);
+
+        // A heated column that is no longer shown (or no longer exists) is dropped rather than kept
+        // as a setting that quietly does nothing.
+        HeatColumns.Clear();
+        foreach (var id in _settings.Current.HeatColumns)
+            if (Columns.Any(c => c.Id == id) && !HeatColumns.Contains(id))
+                HeatColumns.Add(id);
     }
 
     /// <summary>Header right-click: shows or hides a column (keeps at least one visible).</summary>
@@ -827,6 +837,34 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         _settings.Current.Columns = Columns.Select(c => new ColumnState { Id = c.Id, Width = c.Width }).ToList();
         _ = _settings.SaveAsync();
+    }
+
+    // ---- heat maps (PRD §6.1) ----
+
+    /// <summary>The columns currently drawn as a heat map, by id.</summary>
+    public ObservableCollection<string> HeatColumns { get; } = [];
+
+    /// <summary>Raised when the heated set changes, so each file list can restyle its columns.</summary>
+    public event EventHandler? HeatColumnsChanged;
+
+    /// <summary>Whether <paramref name="id"/> is currently heated.</summary>
+    public bool IsHeated(string id) => HeatColumns.Contains(id);
+
+    /// <summary>Header right-click: turns a column's heat map on or off and remembers it.</summary>
+    public void ToggleHeatColumn(string id)
+    {
+        if (!HeatColumns.Remove(id))
+        {
+            // A column with nothing to rank or group by is never heated, however it is asked for.
+            if (ColumnCatalog.All.FirstOrDefault(c => c.Id == id)?.Heat is not (HeatKind.Numeric or HeatKind.Category))
+                return;
+
+            HeatColumns.Add(id);
+        }
+
+        _settings.Current.HeatColumns = [.. HeatColumns];
+        _ = _settings.SaveAsync();
+        HeatColumnsChanged?.Invoke(this, EventArgs.Empty);
     }
 
     private void RefreshAllDisplays()

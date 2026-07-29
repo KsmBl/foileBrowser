@@ -55,6 +55,60 @@ public sealed partial class FileEntryViewModel(
         _ => Metadata?.Invoke(this, columnId) ?? string.Empty,
     };
 
+    /// <summary>
+    /// The number a heat map ranks this cell by, or null when there is nothing to rank — an
+    /// unmeasured folder, a column that does not apply to this file, a value still computing
+    /// (PRD §6.1).
+    /// </summary>
+    /// <remarks>
+    /// The built-in columns answer from the entry itself, exactly. A metadata column has only ever
+    /// produced display text ("1920×1080", "5.2 Mbps"), so its rank is the first number in that text
+    /// — which is the dimension, the rate, the duration, the count. Reading the leading number is a
+    /// guess, but it is the same guess for every row in the column, so the ordering it produces is
+    /// the ordering the column shows.
+    /// </remarks>
+    public double? GetHeatValue(string columnId) => columnId switch
+    {
+        "size" => IsDirectory ? ComputedSize : Entry.Size,
+        "modified" => Entry.Modified?.Ticks,
+        "name" or "type" or "extension" or "location" => null,
+        _ => LeadingNumber(GetCellText(columnId)),
+    };
+
+    /// <summary>The first number in a piece of display text, or null when it opens with none.</summary>
+    private static double? LeadingNumber(string text)
+    {
+        var start = 0;
+        while (start < text.Length && !char.IsAsciiDigit(text[start]))
+            ++start;
+
+        if (start == text.Length)
+            return null;
+
+        var end = start;
+        var seenPoint = false;
+        while (end < text.Length)
+        {
+            if (char.IsAsciiDigit(text[end]))
+                ++end;
+            else if (text[end] is '.' && !seenPoint && end + 1 < text.Length && char.IsAsciiDigit(text[end + 1]))
+            {
+                seenPoint = true;
+                ++end;
+            }
+            else
+                break;
+        }
+
+        return double.TryParse(
+            text.AsSpan(start, end - start),
+            System.Globalization.NumberStyles.Float,
+            System.Globalization.CultureInfo.InvariantCulture,
+            out var value)
+            ? value
+            : null;
+    }
+
     /// <summary>Set by the owner to resolve metadata columns (image/audio/video) lazily.</summary>
     public Func<FileEntryViewModel, string, string>? Metadata { get; set; }
 

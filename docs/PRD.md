@@ -108,8 +108,21 @@ Check off items as they're completed; delete lines you decide not to build.
 - [ ] Editable path bar with autocompletion and recent-folder suggestions (File Pilot "GoTo") — combined breadcrumb/entry path bar with Ctrl+L done; autocompletion/suggestions pending
 - [ ] A recent-folders list as a navigation surface of its own (File Pilot): history is per tab and
   reachable only through back/forward, so a folder visited in another tab cannot be jumped back to
-- [ ] File-age heat colouring — tint a row by how recently it changed, so a folder's activity reads
-  at a glance (OneCommander)
+- [x] **Heat maps on any column** — tint a column's cells by what its own values say, switched on
+  per column from the list's right-click menu (Heat map ▸ …) and persisted. Generalised from
+  OneCommander's file-age colouring, which is one case of it: a column whose values are
+  *measurements* (size, date, image width, megapixels, duration, bitrate, colour count) ranks
+  between the folder's own smallest and largest and gets a cold-blue-to-hot-red gradient; a column
+  whose values are *names* (type, extension, codec, format, location) gives each distinct value its
+  own stable colour, so the same extension looks the same in every folder and on every launch —
+  the hash behind it is FNV-1a rather than the per-process-seeded `string.GetHashCode()`.
+  Any number of columns can be heated at once, because each tints its own cells with its own scale
+  rather than the whole row: colour tags already own the row-wide colour (§6.7), and per-column
+  tinting is what keeps two scales side by side readable. The tint leans the row background towards
+  a hue instead of replacing it, so one scale serves a light desktop and a dark one and the theme's
+  own text stays legible on top. Name is deliberately never heatable — every value is distinct, so a
+  colour per row says nothing. The scale is the folder's own range, not an absolute nobody set
+  (`HeatMapTests`)
 
 ### 6.2 Layout & Views
 
@@ -523,7 +536,7 @@ Check off items as they're completed; delete lines you decide not to build.
 | **M5 — Devices & archives** ✅ | Removable-media mount/unmount, GVfs/MTP (Android), archive & disk-image browsing via CompressionWorkbench |
 | **M6 — Configurability** ✅ | Rebindable hotkeys with live capture and conflict detection, per-button toolbar show/hide and reordering, tabbed Settings dialog |
 | **M7 — Native UI** ✅ | View layer rebuilt on NativeForms — real platform windows/buttons/fields, everything else painted in the desktop's theme; view-models, services and docking model untouched; idle RSS halved |
-| **M8 — The vision's remainder** ⬜ | What §6 asks for that does not exist yet, led by **Miller columns** (§6.2) — the one thing named in §1 that was never written down as a requirement. Then the smaller borrowings: file-age heat colouring, batch image conversion, unique-id rename tokens, key sequences, command aliases, pinned menu items |
+| **M8 — The vision's remainder** ⬜ | What §6 asks for that does not exist yet, led by **Miller columns** (§6.2) — the one thing named in §1 that was never written down as a requirement. Then the smaller borrowings: batch image conversion, unique-id rename tokens, key sequences, command aliases, pinned menu items. Heat maps are done, and generalised past the file-age colouring they came from (§6.1) |
 
 ## 8. notes:
 

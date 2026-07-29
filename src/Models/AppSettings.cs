@@ -80,6 +80,10 @@ public sealed class AppSettings
     /// <summary>Visible file-list columns, in order, with their widths (PRD §6.1). Empty = defaults.</summary>
     public List<ColumnState> Columns { get; set; } = [];
 
+    /// <summary>Ids of the columns drawn as a heat map (PRD §6.1). Any number of them at once, since
+    /// each carries its own scale in its own cells. Empty = none, which is the default.</summary>
+    public List<string> HeatColumns { get; set; } = [];
+
     // ---- copy engine tunables (PRD §6.3) ----
 
     /// <summary>Overlapped copy chunk size in KiB.</summary>

@@ -32,6 +32,22 @@ public sealed class FileGridView : DataGridView
     /// <summary>Which shared column spec each grid column renders (the toolkit's column has no tag slot).</summary>
     private readonly Dictionary<DataGridViewColumn, ColumnSpec> _specs = [];
 
+    /// <summary>
+    /// The range a heated column ranks against, recomputed for each listing. A class rather than a
+    /// value so the style selector built once per column keeps seeing the current one — the selector
+    /// runs on the paint path, where looking anything up would cost per frame what this costs per
+    /// folder.
+    /// </summary>
+    private sealed class HeatRange
+    {
+        internal bool On;
+        internal double Min;
+        internal double Max;
+    }
+
+    /// <summary>The live range of every heated column, by column id.</summary>
+    private readonly Dictionary<string, HeatRange> _heat = [];
+
     private readonly TypeAhead _typeAhead = new();
 
     private bool _suppressSelection;
@@ -63,7 +79,11 @@ public sealed class FileGridView : DataGridView
         {
             _typeAhead.Reset(); // a new listing is a new search
             this.RebuildRows();
+            this.RecomputeHeat(); // a new folder is a new range to rank against
         }));
+
+        _shell.HeatColumnsChanged += this.OnHeatColumnsChanged;
+        _cleanup.Add(() => _shell.HeatColumnsChanged -= this.OnHeatColumnsChanged);
         _cleanup.Add(Ui.Watch(_tab, this.SyncSelection, nameof(FileTabViewModel.SelectedEntry)));
     }
 
@@ -94,6 +114,10 @@ public sealed class FileGridView : DataGridView
         foreach (var spec in _shell.Columns)
         {
             var id = spec.Id;
+            var heat = this.RangeFor(id);
+            var kind = spec.Heat;
+            var background = this.Theme.FieldBackground;
+
             var column = new DataGridViewColumn(spec.Header, o => ((FileEntryViewModel)o!).GetCellText(id))
             {
                 // The name column leads with the entry's icon, the way a file list is read.
@@ -103,11 +127,71 @@ public sealed class FileGridView : DataGridView
                 Alignment = spec.RightAligned ? ContentAlignment.MiddleRight : ContentAlignment.MiddleLeft,
                 TooltipSelector = static o => ((FileEntryViewModel)o!).FullPath,
                 // Hidden entries stay legible but visibly recede, as the dimmed rows did before.
-                CellStyleSelector = static o =>
-                    new DataGridViewCellStyle(foreColor: ((FileEntryViewModel)o!).IsHidden ? Color.Gray : null),
+                // A heated column additionally tints its own cells by where the value ranks (§6.1).
+                CellStyleSelector = o =>
+                {
+                    var entry = (FileEntryViewModel)o!;
+                    return new DataGridViewCellStyle(
+                        foreColor: entry.IsHidden ? Color.Gray : null,
+                        backColor: !heat.On ? null
+                            : kind == HeatKind.Numeric
+                                ? Heat.Numeric(entry.GetHeatValue(id), heat.Min, heat.Max, background)
+                                : Heat.Category(entry.GetCellText(id), background));
+                },
             };
             _specs[column] = spec;
             this.Columns.Add(column);
+        }
+
+        this.RecomputeHeat();
+        this.Invalidate();
+    }
+
+    // ---- heat maps (PRD §6.1) ----
+
+    /// <summary>The range object for a column, created once and then kept so the style selector that
+    /// captured it keeps seeing the current values.</summary>
+    private void OnHeatColumnsChanged(object? sender, EventArgs e) => this.RecomputeHeat();
+
+    private HeatRange RangeFor(string id)
+    {
+        if (_heat.TryGetValue(id, out var range))
+            return range;
+
+        return _heat[id] = new HeatRange();
+    }
+
+    /// <summary>
+    /// Re-ranks every heated column against the rows now listed. The scale is the folder's own
+    /// smallest and largest value, so the colours say how the entries here compare with each other
+    /// rather than with some absolute the user never set.
+    /// </summary>
+    private void RecomputeHeat()
+    {
+        foreach (var range in _heat.Values)
+            range.On = false;
+
+        foreach (var spec in _shell.Columns)
+        {
+            if (spec.Heat is HeatKind.None || !_shell.IsHeated(spec.Id))
+                continue;
+
+            var range = this.RangeFor(spec.Id);
+            range.On = true;
+            if (spec.Heat is not HeatKind.Numeric)
+                continue;
+
+            var min = double.MaxValue;
+            var max = double.MinValue;
+            foreach (var entry in _tab.Entries)
+                if (entry.GetHeatValue(spec.Id) is { } value && !double.IsNaN(value))
+                {
+                    min = Math.Min(min, value);
+                    max = Math.Max(max, value);
+                }
+
+            range.Min = min;
+            range.Max = max;
         }
 
         this.Invalidate();
@@ -398,7 +482,8 @@ public sealed class FileGridView : DataGridView
             new ToolStripSeparator(),
             Command("Properties", _shell.ShowPropertiesCommand),
             new ToolStripSeparator(),
-            this.BuildColumnsMenu());
+            this.BuildColumnsMenu(),
+            this.BuildHeatMenu());
 
         foreach (var colour in _shell.TagPalette)
         {
@@ -451,6 +536,42 @@ public sealed class FileGridView : DataGridView
         }
 
         return columns;
+    }
+
+    /// <summary>
+    /// The heat-map submenu: any shown column that has something to rank or group by can be tinted
+    /// by its own values, and more than one at a time — each carries its own scale in its own cells
+    /// (PRD §6.1).
+    /// </summary>
+    private ToolStripMenuItem BuildHeatMenu()
+    {
+        var heat = new ToolStripMenuItem("Heat map");
+
+        _cleanup.Add(Ui.WatchList(_shell.Columns, () =>
+        {
+            heat.DropDownItems.Clear();
+            foreach (var spec in _shell.Columns)
+            {
+                if (spec.Heat is HeatKind.None)
+                    continue;
+
+                var id = spec.Id;
+                var item = new ToolStripMenuItem(spec.Header)
+                {
+                    CheckOnClick = true,
+                    Checked = _shell.IsHeated(id),
+                    ToolTipText = spec.Heat is HeatKind.Numeric
+                        ? "Tint by where the value ranks in this folder"
+                        : "Give each distinct value its own colour",
+                };
+                item.Click += (_, _) => _shell.ToggleHeatColumn(id);
+                heat.DropDownItems.Add(item);
+            }
+
+            heat.Enabled = heat.HasDropDownItems;
+        }));
+
+        return heat;
     }
 
     private static ToolStripMenuItem Command(string text, System.Windows.Input.ICommand command)
