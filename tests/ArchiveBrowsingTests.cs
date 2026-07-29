@@ -141,13 +141,17 @@ public class ArchiveBrowsingTests
         await tab.OpenCommand.ExecuteAsync(Entry(zip));
         await tab.OpenCommand.ExecuteAsync(tab.Entries.Single(e => e.Name == "sub"));
 
-        // Joined the way the pane joins them: the toolkit's default separator is "/", which a Windows
-        // drive root turns into "C:\/…".
-        var bar = new Hawkynt.NativeForms.Breadcrumb { PathSeparator = BreadcrumbSegment.Separator };
-        foreach (var segment in tab.Breadcrumbs)
-            bar.Items.Add(new Hawkynt.NativeForms.BreadcrumbItem(segment.Name) { Tag = segment });
-
-        Assert.That(bar.FullPath, Is.EqualTo(tab.CurrentPath));
+        // Not the captions joined back together: inside an archive the path is a filesystem path as
+        // far as the archive file and the archive's own entry names below it, each with its own
+        // convention, so on Windows no single separator reproduces it. The pane seeds the field from
+        // the tab (Breadcrumb.PathComposer), and what has to hold is that the trail reaches the whole
+        // way down — a crumb per level, the deepest carrying exactly the path the tab is showing.
+        Assert.Multiple(() =>
+        {
+            Assert.That(tab.Breadcrumbs, Is.Not.Empty);
+            Assert.That(tab.Breadcrumbs[^1].Path, Is.EqualTo(tab.CurrentPath));
+            Assert.That(tab.Breadcrumbs.Select(c => c.Path), Is.Unique);
+        });
     }
 
     [Test]

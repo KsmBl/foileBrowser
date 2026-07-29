@@ -184,6 +184,12 @@ public sealed class PaneView : Panel
             _tab.NavigatePathBarCommand.Execute(null);
         };
 
+        // What the field starts from. The bar would otherwise join the crumb captions with one
+        // separator, and inside an archive the path is not like that: a filesystem path as far as the
+        // archive file, then the archive's own entry names, which on Windows means a backslash above
+        // and a forward slash within. The tab already knows the path it is showing, so it says so.
+        _breadcrumb.PathComposer = () => _tab.CurrentPath;
+
         // Typing in that field offers somewhere to go: folders visited recently, matched anywhere in
         // the path, then whatever the filesystem has for the segment being typed (PRD §6.1). The bar
         // owns the list, the arrow keys and the picking; all it wanted was somewhere to ask.
