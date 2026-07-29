@@ -73,14 +73,22 @@
                       UndefineProperties="RuntimeIdentifier;PublishAot;PublishTrimmed;SelfContained;PublishSingleFile" />
   </ItemGroup>
 
+  <PropertyGroup>
+    <!-- Where the sibling toolkit checkout lives. Overridable so a build can be pointed at another
+         checkout of it — a git worktree, say — without editing this file:
+         `dotnet build -p:NativeFormsDir=/path/to/NativeForms`. The default is the layout CI lays
+         down and the one an ordinary clone beside this repo already has. -->
+    <NativeFormsDir Condition="'$(NativeFormsDir)' == ''">..\..\NativeForms</NativeFormsDir>
+  </PropertyGroup>
+
   <ItemGroup>
     <!-- UI toolkit: the NativeForms core plus the backends this build ships. Core never calls a
          native API; each backend is one platform's P/Invoke layer and only the one matching the
          running OS is ever realized — so there is no Skia, no GPU stack and no bundled font in the
          process (PRD §6.12). -->
-    <ProjectReference Include="..\..\NativeForms\NativeForms.Core\NativeForms.Core.csproj" />
-    <ProjectReference Include="..\..\NativeForms\NativeForms.Backends.Gtk\NativeForms.Backends.Gtk.csproj" />
-    <ProjectReference Include="..\..\NativeForms\NativeForms.Backends.Windows\NativeForms.Backends.Windows.csproj" />
+    <ProjectReference Include="$(NativeFormsDir)\NativeForms.Core\NativeForms.Core.csproj" />
+    <ProjectReference Include="$(NativeFormsDir)\NativeForms.Backends.Gtk\NativeForms.Backends.Gtk.csproj" />
+    <ProjectReference Include="$(NativeFormsDir)\NativeForms.Backends.Windows\NativeForms.Backends.Windows.csproj" />
   </ItemGroup>
 
   <ItemGroup>
