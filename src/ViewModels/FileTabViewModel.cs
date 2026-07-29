@@ -482,29 +482,65 @@ public partial class FileTabViewModel : ViewModelBase, IDockable, IDisposable
     {
         if (segment is null)
             return Task.CompletedTask;
-        if (_archivePath is not null)
+
+        switch (segment.Kind)
         {
-            _archiveInternal = segment.Path; // "" = archive root
-            ShowArchiveDir();
-            return Task.CompletedTask;
+            // A real folder is a real navigation even from inside an archive — that is how you get
+            // back out of one by clicking, which the trail could not express before.
+            case BreadcrumbKind.Folder:
+                return NavigateToAsync(segment.Path);
+
+            case BreadcrumbKind.Archive:
+                _archiveInternal = string.Empty;
+                ShowArchiveDir();
+                return Task.CompletedTask;
+
+            default:
+                // The segment carries the whole path; the archive only wants the part inside it.
+                _archiveInternal = _archivePath is not null && segment.Path.Length > _archivePath.Length
+                    ? segment.Path[(_archivePath.Length + 1)..]
+                    : string.Empty;
+                ShowArchiveDir();
+                return Task.CompletedTask;
         }
-        return NavigateToAsync(segment.Path);
     }
 
     /// <summary>Rebuilds the breadcrumb trail by walking parents from the current folder to the root.</summary>
     private void RebuildBreadcrumbs()
     {
         Breadcrumbs.Clear();
+
+        // Inside an archive the trail is the real path down to the archive file, then the
+        // directories within it — one continuous path, because that is what it is.
+        var trail = _archivePath is not null
+            ? FilesystemTrail(_archivePath)
+            : string.IsNullOrEmpty(CurrentPath) ? [] : FilesystemTrail(CurrentPath);
+
         if (_archivePath is not null)
         {
-            BuildArchiveBreadcrumbs();
-            return;
-        }
-        if (string.IsNullOrEmpty(CurrentPath))
-            return;
+            if (trail.Count > 0)
+                trail[^1] = trail[^1] with { Kind = BreadcrumbKind.Archive };
 
+            if (_archiveInternal.Length > 0)
+            {
+                var inside = _archivePath;
+                foreach (var part in _archiveInternal.Split('/'))
+                {
+                    inside = $"{inside}/{part}";
+                    trail.Add(new BreadcrumbSegment(part, inside, Kind: BreadcrumbKind.ArchiveEntry));
+                }
+            }
+        }
+
+        for (var i = 0; i < trail.Count; i++)
+            Breadcrumbs.Add(trail[i] with { ShowSeparator = i > 0 });
+    }
+
+    /// <summary>The trail of real directories from the filesystem root down to <paramref name="path"/>.</summary>
+    private List<BreadcrumbSegment> FilesystemTrail(string path)
+    {
         var trail = new List<BreadcrumbSegment>();
-        var cursor = CurrentPath;
+        var cursor = path;
         var guard = 0;
         while (!string.IsNullOrEmpty(cursor) && guard++ < 256)
         {
@@ -517,24 +553,7 @@ public partial class FileTabViewModel : ViewModelBase, IDockable, IDisposable
             cursor = parent;
         }
 
-        for (var i = 0; i < trail.Count; i++)
-            Breadcrumbs.Add(trail[i] with { ShowSeparator = i > 0 });
-    }
-
-    /// <summary>Breadcrumbs for an open archive: the archive file, then the internal directories.</summary>
-    private void BuildArchiveBreadcrumbs()
-    {
-        Breadcrumbs.Add(new BreadcrumbSegment(Path.GetFileName(_archivePath!), string.Empty));
-        if (_archiveInternal.Length == 0)
-            return;
-
-        var parts = _archiveInternal.Split('/');
-        var acc = string.Empty;
-        foreach (var part in parts)
-        {
-            acc = acc.Length == 0 ? part : $"{acc}/{part}";
-            Breadcrumbs.Add(new BreadcrumbSegment(part, acc, ShowSeparator: true));
-        }
+        return trail;
     }
 
     [RelayCommand]
