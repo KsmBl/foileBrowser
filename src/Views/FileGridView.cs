@@ -22,6 +22,9 @@ public sealed class FileGridView : DataGridView
     /// <summary>How far the pointer travels before a press on a selected row becomes a drag.</summary>
     private const int DragThreshold = 5;
 
+    /// <summary>The window two presses on one row count as a double-click, matching the grid's own.</summary>
+    private const long DoubleClickWindow = 500;
+
     private readonly MainWindowViewModel _shell;
     private readonly FileTabViewModel _tab;
     private readonly List<Action> _cleanup = [];
@@ -34,6 +37,8 @@ public sealed class FileGridView : DataGridView
     private bool _suppressSelection;
     private Point _pressed = new(-1, -1);
     private Point _dragFrom = new(-1, -1);
+    private object? _lastClicked;
+    private long _lastClickedAt;
 
     public FileGridView(MainWindowViewModel shell, FileTabViewModel tab)
     {
@@ -165,10 +170,25 @@ public sealed class FileGridView : DataGridView
             && e.Y >= this.ColumnHeaderHeight && this.SelectedItems.Any()
             && this.RowAt(e.Y) is { } row && this.SelectedItems.Contains(row))
         {
+            // Not calling base is what makes the drag possible, and it is also what would swallow
+            // the second half of a double-click: the first click selects the row, so the second one
+            // lands here and the grid never sees it. The gesture is recognised here instead.
+            var now = Environment.TickCount64;
+            if (ReferenceEquals(row, _lastClicked) && now - _lastClickedAt <= DoubleClickWindow)
+            {
+                _lastClicked = null;
+                this.ActivateSelected();
+                return;
+            }
+
+            _lastClicked = row;
+            _lastClickedAt = now;
             _dragFrom = new Point(e.X, e.Y);
             return;
         }
 
+        _lastClicked = this.RowAt(e.Y);
+        _lastClickedAt = Environment.TickCount64;
         base.OnMouseDown(e);
     }
 
