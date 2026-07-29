@@ -46,15 +46,18 @@ public class RemovableMediaTests
     [TearDown]
     public void TearDown()
     {
+        _shells.DisposeAll();
         try { Directory.Delete(_settingsDir, recursive: true); } catch (IOException) { }
     }
+
+    private readonly ShellTracker _shells = new();
 
     private MainWindowViewModel CreateShell(FakeFileSystem fs, IDeviceService device)
     {
         var settings = new SettingsService(_settingsFile);
-        return new MainWindowViewModel(fs, new FileOperationService(), new RecordingTrash(),
+        return _shells.Track(new MainWindowViewModel(fs, new FileOperationService(), new RecordingTrash(),
             new SearchService(), new PreviewService(), settings, new TagService(settings), new ShellService(),
-            device: device);
+            device: device));
     }
 
     private static DriveVolume Unmounted(string device, string label) => new()

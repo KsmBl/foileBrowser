@@ -34,18 +34,21 @@ public class NavigationFlowTests
     [TearDown]
     public void TearDown()
     {
+        _shells.DisposeAll();
         try { Directory.Delete(_root, recursive: true); } catch (IOException) { }
     }
+
+    private readonly ShellTracker _shells = new();
 
     private FileTabViewModel NewTab() => new(new FileSystemService());
 
     private MainWindowViewModel NewShell()
     {
         var settings = new SettingsService(_settingsFile);
-        return new MainWindowViewModel(
+        return _shells.Track(new MainWindowViewModel(
             new FileSystemService(), new FileOperationService(), new TrashService(),
             new SearchService(), new PreviewService(), settings, new TagService(settings),
-            new ShellService(), new ArchiveService());
+            new ShellService(), new ArchiveService()));
     }
 
     // ---- folders ----

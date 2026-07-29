@@ -13,7 +13,7 @@ namespace FoileBrowser.ViewModels;
 /// cross-pane file-operation commands (PRD §6.2, §6.3). Panes/tabs are held by the in-house
 /// <see cref="DockLayout"/>, so any number can be opened and arranged by splitting or tabbing them.
 /// </summary>
-public partial class MainWindowViewModel : ViewModelBase
+public partial class MainWindowViewModel : ViewModelBase, IDisposable
 {
     private readonly IFileSystemService _fileSystem;
     private readonly IFileOperationService _operations;
@@ -1255,6 +1255,20 @@ public partial class MainWindowViewModel : ViewModelBase
                 // transient enumeration error; try again next tick
             }
         }, null, TimeSpan.FromSeconds(4), TimeSpan.FromSeconds(4));
+    }
+
+    /// <summary>
+    /// Stops the device poll. The running app has one shell for its lifetime, so nothing here was ever
+    /// reclaimed; anything that builds a second shell — the tests do, one per case — left the first
+    /// one's timer running, and every four seconds it rebuilt the sidebar of a shell nobody was
+    /// looking at any more. On the UI thread that is merely wasted work, but headless there is no
+    /// context to post to, so the rebuild ran on the timer's own thread and raced whoever was reading
+    /// the sections.
+    /// </summary>
+    public void Dispose()
+    {
+        _devicePoll?.Dispose();
+        _devicePoll = null;
     }
 
     private void Post(Action action)

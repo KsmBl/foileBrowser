@@ -64,7 +64,9 @@ public class EmojiNameTests
 
         await tab.NavigateToAsync(folder);
 
-        var bar = new Breadcrumb();
+        // Joined the way the pane joins them: the toolkit's default separator is "/", which a Windows
+        // drive root turns into "C:\/…".
+        var bar = new Breadcrumb { PathSeparator = BreadcrumbSegment.Separator };
         foreach (var segment in tab.Breadcrumbs)
             bar.Items.Add(new BreadcrumbItem(segment.Name) { Tag = segment });
 

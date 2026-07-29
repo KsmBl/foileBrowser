@@ -27,30 +27,53 @@ public class FavoritesAndTreeTests
     [TearDown]
     public void TearDown()
     {
+        _shells.DisposeAll();
         try { Directory.Delete(_settingsDir, recursive: true); } catch (IOException) { }
     }
+
+    private readonly ShellTracker _shells = new();
 
     private MainWindowViewModel CreateShell()
     {
         var settings = new SettingsService(_settingsFile);
-        return new MainWindowViewModel(new FileSystemService(), new FileOperationService(), new RecordingTrash(),
-            new SearchService(), new PreviewService(), settings, new TagService(settings), new ShellService());
+        return _shells.Track(new MainWindowViewModel(new FileSystemService(), new FileOperationService(),
+            new RecordingTrash(), new SearchService(), new PreviewService(), settings, new TagService(settings),
+            new ShellService()));
     }
 
     private static IEnumerable<SidebarItemViewModel> Favorites(MainWindowViewModel vm)
         => vm.Sections.Where(s => s.Id == "favorites").SelectMany(s => s.Items);
 
+    /// <summary>
+    /// Polls until <paramref name="settled"/> holds. A node fills its children on a worker and hands
+    /// the additions to the synchronization context it was built on; headless there is none, so they
+    /// land on that worker instead and a poll can read the collection halfway through an add. That is
+    /// the harness having no UI thread rather than anything being wrong, so a torn read counts as
+    /// "not settled yet" and the next tick looks again.
+    /// </summary>
     private static async Task<bool> UntilAsync(Func<bool> settled)
     {
         var deadline = DateTime.UtcNow.AddSeconds(20);
         while (DateTime.UtcNow < deadline)
         {
-            if (settled())
+            if (Settled())
                 return true;
             await Task.Delay(15);
         }
 
-        return settled();
+        return Settled();
+
+        bool Settled()
+        {
+            try
+            {
+                return settled();
+            }
+            catch (InvalidOperationException)
+            {
+                return false; // collection changed under the read; look again next tick
+            }
+        }
     }
 
     // ---- favourites ----

@@ -22,15 +22,18 @@ public class ShellViewModelTests
     [TearDown]
     public void TearDown()
     {
+        _shells.DisposeAll();
         try { Directory.Delete(_settingsDir, recursive: true); } catch (IOException) { }
     }
+
+    private readonly ShellTracker _shells = new();
 
     // Isolates settings/tags to a temp file so tests never touch the real user config.
     private MainWindowViewModel CreateShell(IFileSystemService fs, RecordingTrash trash)
     {
         var settings = new SettingsService(_settingsFile);
-        return new MainWindowViewModel(fs, new FileOperationService(), trash,
-            new SearchService(), new PreviewService(), settings, new TagService(settings), new ShellService());
+        return _shells.Track(new MainWindowViewModel(fs, new FileOperationService(), trash,
+            new SearchService(), new PreviewService(), settings, new TagService(settings), new ShellService()));
     }
 
     private static async Task<bool> WaitUntilAsync(Func<bool> condition, int timeoutMs = 2000)
@@ -193,8 +196,8 @@ public class ShellViewModelTests
         fs.Entries.Add(File("doc.txt"));
         var preview = new FakePreview();
         var settings = new SettingsService(_settingsFile);
-        var vm = new MainWindowViewModel(fs, new FileOperationService(), new RecordingTrash(),
-            new SearchService(), preview, settings, new TagService(settings), new ShellService());
+        var vm = _shells.Track(new MainWindowViewModel(fs, new FileOperationService(), new RecordingTrash(),
+            new SearchService(), preview, settings, new TagService(settings), new ShellService()));
         await vm.InitializeAsync();
 
         vm.ActiveTab!.SelectedEntry = vm.ActiveTab.Entries.First();

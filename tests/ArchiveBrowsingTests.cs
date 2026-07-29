@@ -10,6 +10,12 @@ public class ArchiveBrowsingTests
 {
     private string _root = null!;
 
+    /// <summary>
+    /// What the first crumb of a real path is called. "/" on POSIX, but a drive letter on Windows —
+    /// which is what these assertions used to spell out, so they failed on that runner alone.
+    /// </summary>
+    private static string FilesystemRoot => Path.GetPathRoot(Path.GetTempPath())!;
+
     [SetUp]
     public void SetUp()
     {
@@ -84,7 +90,7 @@ public class ArchiveBrowsingTests
         {
             Assert.That(names, Does.Contain("sample.zip"));
             Assert.That(names.IndexOf("sample.zip"), Is.GreaterThan(0), "the folders above it come first");
-            Assert.That(names[0], Is.EqualTo("/"), "the trail reaches the filesystem root");
+            Assert.That(names[0], Is.EqualTo(FilesystemRoot), "the trail reaches the filesystem root");
         });
     }
 
@@ -120,7 +126,7 @@ public class ArchiveBrowsingTests
         {
             Assert.That(names[^1], Is.EqualTo("sub"), "the folder inside the archive");
             Assert.That(names[^2], Is.EqualTo("sample.zip"));
-            Assert.That(names, Does.Contain("/"), "and still the real path above it");
+            Assert.That(names, Does.Contain(FilesystemRoot), "and still the real path above it");
         });
     }
 
@@ -135,7 +141,9 @@ public class ArchiveBrowsingTests
         await tab.OpenCommand.ExecuteAsync(Entry(zip));
         await tab.OpenCommand.ExecuteAsync(tab.Entries.Single(e => e.Name == "sub"));
 
-        var bar = new Hawkynt.NativeForms.Breadcrumb();
+        // Joined the way the pane joins them: the toolkit's default separator is "/", which a Windows
+        // drive root turns into "C:\/…".
+        var bar = new Hawkynt.NativeForms.Breadcrumb { PathSeparator = BreadcrumbSegment.Separator };
         foreach (var segment in tab.Breadcrumbs)
             bar.Items.Add(new Hawkynt.NativeForms.BreadcrumbItem(segment.Name) { Tag = segment });
 
