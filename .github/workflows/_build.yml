@@ -1,0 +1,83 @@
+name: Build artifacts
+
+# Shared build/publish block. Called by release.yml (manual dispatch) and
+# nightly.yml (auto, on CI success). Single place that turns a commit into
+# shippable artifacts so release and nightly never diverge.
+on:
+  workflow_call:
+    inputs:
+      ref:
+        description: Git ref/SHA to build (defaults to caller ref)
+        type: string
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+# Force JavaScript-based actions to run on Node 24 instead of the deprecated Node 20 ahead of
+# the 2026-06-16 hard cutover, until we bump each action to a Node-24-native major version.
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+
+jobs:
+  build:
+    name: build ${{ matrix.rid }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            rid: linux-x64
+          - os: windows-latest
+            rid: win-x64
+    runs-on: ${{ matrix.os }}
+    steps:
+      # The UI toolkit is a sibling repo consumed by ProjectReference, so it has to be beside us.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+          path: foileBrowser
+          fetch-depth: 0                           # version.pl counts commits
+      - uses: actions/checkout@v4
+        with:
+          repository: Hawkynt/NativeForms
+          path: NativeForms
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Install NativeAOT prerequisites (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y clang zlib1g-dev
+      - name: Stamp the version
+        shell: bash
+        run: perl .github/workflows/scripts/version.pl --stamp
+        working-directory: foileBrowser
+      # NativeAOT is what the installer's --aot mode produces and the smallest thing to ship: one
+      # binary, no runtime to install. Archive support survives it through the compile-time source
+      # generator, so there is no reflection to trim away.
+      - name: Publish NativeAOT
+        shell: bash
+        run: >
+          dotnet publish src/FoileBrowser.csproj
+          --configuration Release --runtime ${{ matrix.rid }} --self-contained
+          -p:FoileAot=true -o "stage/${{ matrix.rid }}"
+        working-directory: foileBrowser
+      - name: Package
+        shell: bash
+        run: |
+          mkdir -p dist
+          # The debug companion is the larger half of the output and nobody downloading a file
+          # browser wants it.
+          rm -f "stage/${{ matrix.rid }}"/*.dbg "stage/${{ matrix.rid }}"/*.pdb
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            (cd "stage/${{ matrix.rid }}" && 7z a -tzip "../../dist/foileBrowser-${{ matrix.rid }}.zip" . >/dev/null)
+          else
+            tar czf "dist/foileBrowser-${{ matrix.rid }}.tar.gz" -C "stage/${{ matrix.rid }}" .
+          fi
+        working-directory: foileBrowser
+      - uses: actions/upload-artifact@v4
+        with:
+          name: app-artifacts-${{ matrix.rid }}
+          path: foileBrowser/dist/*
+          if-no-files-found: error

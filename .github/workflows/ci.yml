@@ -1,0 +1,147 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_call: {}
+
+# Force JavaScript-based actions to run on Node 24 instead of the deprecated Node 20 ahead of
+# the 2026-06-16 hard cutover, until we bump each action to a Node-24-native major version.
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+
+jobs:
+  test:
+    name: test ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      # The UI toolkit is a sibling repo consumed by ProjectReference, not a package, so both have
+      # to be on disk in the layout src/FoileBrowser.csproj expects (../../NativeForms).
+      - uses: actions/checkout@v4
+        with:
+          path: foileBrowser
+          fetch-depth: 0                          # version.pl counts commits
+      - uses: actions/checkout@v4
+        with:
+          repository: Hawkynt/NativeForms
+          path: NativeForms
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Restore
+        run: dotnet restore foileBrowser.slnx
+        working-directory: foileBrowser
+      - name: Build
+        run: dotnet build foileBrowser.slnx --configuration Release --no-restore
+        working-directory: foileBrowser
+      - name: Test
+        run: dotnet test foileBrowser.slnx --configuration Release --no-build --logger "trx;LogFileName=tests.trx"
+        working-directory: foileBrowser
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ matrix.os }}
+          path: 'foileBrowser/**/TestResults/*.trx'
+
+  screenshot:
+    name: screenshot (linux/gtk)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: foileBrowser
+      - uses: actions/checkout@v4
+        with:
+          repository: Hawkynt/NativeForms
+          path: NativeForms
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      # GTK itself, and a display to put a window on. Xvfb is enough: the capture composites through
+      # the toolkit's own draw pipeline rather than asking the display server for a grab, so no
+      # compositor and no screenshot tool are involved.
+      - name: Install GTK and a virtual display
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libgtk-3-0 xvfb
+      - name: Build
+        run: dotnet build foileBrowser.slnx --configuration Release
+        working-directory: foileBrowser
+      # A gate, not advisory. Nothing else here can answer "does the window come up and draw": the
+      # unit tests only ever touch view-models and services, and the whole view layer — every control,
+      # every icon, the whole layout — is exercised for the first time on this line. It has already
+      # earned its place: the first shot taken this way found a file list drawing no icons at all,
+      # mirrored back/forward arrows and sidebar rows clipping their own captions, none of which any
+      # unit test could see.
+      #
+      # --standalone keeps the run from handing its folder to another instance and exiting; a scratch
+      # HOME keeps the shot off whatever the runner's home directory happens to contain.
+      - name: Shoot the main window
+        run: |
+          mkdir -p "$RUNNER_TEMP/home/Documents" "$RUNNER_TEMP/shots"
+          echo hello > "$RUNNER_TEMP/home/Documents/notes.txt"
+          xvfb-run -a --server-args="-screen 0 1600x1000x24" \
+            env HOME="$RUNNER_TEMP/home" \
+            dotnet run --project src/FoileBrowser.csproj --configuration Release --no-build -- \
+              --standalone "$RUNNER_TEMP/home" \
+              --screenshot "$RUNNER_TEMP/shots/main-window.png" --screenshot-delay 6000
+          test -s "$RUNNER_TEMP/shots/main-window.png" || { echo "no screenshot was written"; exit 1; }
+        working-directory: foileBrowser
+      - name: Upload screenshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-screenshot
+          path: ${{ runner.temp }}/shots/*.png
+          if-no-files-found: warn
+
+  aot:
+    name: aot ${{ matrix.rid }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            rid: linux-x64
+          - os: windows-latest
+            rid: win-x64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: foileBrowser
+      - uses: actions/checkout@v4
+        with:
+          repository: Hawkynt/NativeForms
+          path: NativeForms
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Install NativeAOT prerequisites (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y clang zlib1g-dev
+      # The smallest build the installer offers, and the one the footprint numbers in the README are
+      # measured on. Archive support survives it through a compile-time source generator, so an AOT
+      # break here means reflection crept back in.
+      - name: Publish with NativeAOT
+        shell: bash
+        run: >
+          dotnet publish src/FoileBrowser.csproj
+          --configuration Release --runtime ${{ matrix.rid }} --self-contained
+          -p:FoileAot=true -o aot-out
+        working-directory: foileBrowser
+      # Footprint is a stated goal (docs/PRD.md §6.12) — surface the binary size on every run.
+      - name: Report native binary size
+        shell: bash
+        run: |
+          echo "### NativeAOT size — ${{ matrix.rid }}" >> "$GITHUB_STEP_SUMMARY"
+          ls -lh aot-out/FoileBrowser aot-out/FoileBrowser.exe 2>/dev/null \
+            | awk '{print $5, $NF}' >> "$GITHUB_STEP_SUMMARY" || true
+        working-directory: foileBrowser
