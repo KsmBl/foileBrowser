@@ -1,7 +1,8 @@
 using System.Buffers.Binary;
 using System.Runtime.InteropServices;
 using Hawkynt.NativeForms.Drawing;
-using SkiaSharp;
+using FileFormat.Core;
+using Hawkynt.FileFormats.Images;
 
 namespace FoileBrowser.Views;
 
@@ -112,7 +113,7 @@ internal static class PreviewImage
         }
 
         var failure = Failure.None;
-        return SkiaPixels(path, wanted, ref failure);
+        return ManagedPixels(path, wanted, ref failure);
     }
 
     /// <summary>Scales into a transparent square by nearest-neighbour sampling — ample for a cell.</summary>
@@ -137,62 +138,82 @@ internal static class PreviewImage
         return square;
     }
 
-    // ---- SkiaSharp: everything else, decoded no larger than we will draw it ----
+    // ---- the managed format library: everything the toolkit's own decoder does not read ----
 
     private static IImage? LoadScaled(string path, ref Failure failure)
     {
-        var pixels = SkiaPixels(path, MaxEdge, ref failure);
+        var pixels = ManagedPixels(path, MaxEdge, ref failure);
         return pixels is { } decoded
             ? new AnimatedImage(new DecodedImage(decoded.Width, decoded.Height, [new ImageFrame(decoded.Pixels, 0)]))
             : null;
     }
 
-    /// <summary>Decodes through SkiaSharp, no larger than <paramref name="maxEdge"/> on its longest side.</summary>
-    private static (int Width, int Height, int[] Pixels)? SkiaPixels(string path, int maxEdge, ref Failure failure)
+    /// <summary>
+    /// Decodes through <c>Hawkynt.FileFormats.Images</c>, no larger than <paramref name="maxEdge"/>
+    /// on its longest side.
+    /// </summary>
+    /// <remarks>
+    /// Pure managed code across ~580 formats, which is what let the SkiaSharp dependency and its
+    /// 9 MB native library go (PRD §6.12). One thing is given up with it: Skia could subsample a
+    /// JPEG while decoding, so an enormous photo never existed at full size in memory. Here the
+    /// decode is full-size and the scaling happens after, which is why the pixel-count guard below
+    /// runs on the *header* before any pixels are allocated — the bound that used to be a nicety is
+    /// now what stops a decompression bomb.
+    /// </remarks>
+    private static (int Width, int Height, int[] Pixels)? ManagedPixels(string path, int maxEdge, ref Failure failure)
     {
         try
         {
-            using var codec = SKCodec.Create(path);
-            if (codec is null)
+            byte[] bytes;
+            try
+            {
+                bytes = File.ReadAllBytes(path);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
             {
                 failure = Failure.Unreadable;
                 return null;
             }
 
-            var source = codec.Info;
-            var scale = Fit(source.Width, source.Height, maxEdge);
+            var format = FormatRegistry.DetectFromBytes(bytes);
+            if (format == ImageFormat.Unknown)
+                format = FormatRegistry.DetectFromExtension(Path.GetExtension(path));
 
-            // Only some formats (JPEG) can subsample while decoding; the rest report full size and
-            // are scaled after the fact, which is why the decoded size is still capped here.
-            var dimensions = scale < 1f ? codec.GetScaledDimensions(scale) : new SKSizeI(source.Width, source.Height);
-            if ((long)dimensions.Width * dimensions.Height > MaxPixels)
+            if (format == ImageFormat.Unknown)
+            {
+                failure = Failure.Unreadable;
+                return null;
+            }
+
+            // Read the dimensions from the header where the format can say, and refuse before
+            // decoding. A 50000×50000 PNG is a few hundred KB on disk and 10 GB in memory.
+            if (FormatRegistry.GetEntry(format)?.ReadImageInfo?.Invoke(bytes) is { } info
+                && (long)info.Width * info.Height > MaxPixels)
             {
                 failure = Failure.TooLarge;
                 return null;
             }
 
-            var info = new SKImageInfo(dimensions.Width, dimensions.Height, SKColorType.Bgra8888, SKAlphaType.Unpremul);
-            using var decoded = new SKBitmap(info);
-            var result = codec.GetPixels(info, decoded.GetPixels());
-            if (result is not (SKCodecResult.Success or SKCodecResult.IncompleteInput))
+            var raw = FormatRegistry.Read(bytes);
+            if (raw is null)
             {
                 failure = Failure.Unreadable;
                 return null;
             }
 
-            var shrink = Fit(decoded.Width, decoded.Height, maxEdge);
-            if (shrink >= 1f)
-                return ToPixels(decoded);
+            if ((long)raw.Width * raw.Height > MaxPixels)
+            {
+                failure = Failure.TooLarge;
+                return null;
+            }
 
-            using var reduced = new SKBitmap(new SKImageInfo(
-                Math.Max(1, (int)(decoded.Width * shrink)),
-                Math.Max(1, (int)(decoded.Height * shrink)),
-                SKColorType.Bgra8888,
-                SKAlphaType.Unpremul));
-            return decoded.ScalePixels(reduced, SKFilterQuality.Medium) ? ToPixels(reduced) : ToPixels(decoded);
+            var decoded = ToPixels(raw);
+            var shrink = Fit(decoded.Width, decoded.Height, maxEdge);
+            return shrink >= 1f ? decoded : Shrink(decoded, shrink);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+        catch (Exception)
         {
+            // A malformed file of a format the library does claim: not a crash, just not a preview.
             failure = Failure.Unreadable;
             return null;
         }
@@ -204,14 +225,35 @@ internal static class PreviewImage
         return longest <= maxEdge ? 1f : (float)maxEdge / longest;
     }
 
+    /// <summary>Nearest-neighbour reduction — the same sampling <see cref="Letterbox"/> uses.</summary>
+    private static (int Width, int Height, int[] Pixels) Shrink(
+        (int Width, int Height, int[] Pixels) source, float scale)
+    {
+        var width = Math.Max(1, (int)(source.Width * scale));
+        var height = Math.Max(1, (int)(source.Height * scale));
+        var pixels = new int[width * height];
+        for (var y = 0; y < height; ++y)
+        {
+            var sourceRow = Math.Min(source.Height - 1, y * source.Height / height) * source.Width;
+            var targetRow = y * width;
+            for (var x = 0; x < width; ++x)
+                pixels[targetRow + x] = source.Pixels[sourceRow + Math.Min(source.Width - 1, x * source.Width / width)];
+        }
+
+        return (width, height, pixels);
+    }
+
     /// <summary>
-    /// Wraps a BGRA8888 bitmap as a toolkit image. The toolkit packs a pixel as
+    /// Wraps a decoded image as toolkit pixels. The toolkit packs a pixel as
     /// <c>(a &lt;&lt; 24) | (r &lt;&lt; 16) | (g &lt;&lt; 8) | b</c>, which is byte-for-byte what
-    /// Skia's BGRA8888 already holds on a little-endian machine, so the pixels are reinterpreted
-    /// rather than converted.
+    /// BGRA32 already holds on a little-endian machine, so the bytes are reinterpreted rather than
+    /// converted once the image is in that layout.
     /// </summary>
-    private static (int Width, int Height, int[] Pixels) ToPixels(SKBitmap bitmap) =>
-        (bitmap.Width, bitmap.Height, MemoryMarshal.Cast<byte, int>(bitmap.GetPixelSpan()).ToArray());
+    private static (int Width, int Height, int[] Pixels) ToPixels(RawImage image)
+    {
+        var bgra = image.Format == PixelFormat.Bgra32 ? image : PixelConverter.Convert(image, PixelFormat.Bgra32);
+        return (bgra.Width, bgra.Height, MemoryMarshal.Cast<byte, int>(bgra.PixelData).ToArray());
+    }
 
     // ---- header sniffing, for the formats the toolkit's own decoder accepts ----
 

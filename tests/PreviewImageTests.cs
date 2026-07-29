@@ -1,5 +1,6 @@
 using FoileBrowser.Views;
-using SkiaSharp;
+using FileFormat.Core;
+using Hawkynt.FileFormats.Images;
 
 namespace FoileBrowser.Tests;
 
@@ -23,7 +24,7 @@ public class PreviewImageTests
     [Test]
     public void Decodes_A_Png_Without_Skia()
     {
-        var path = this.Write(SKEncodedImageFormat.Png, 40, 25);
+        var path = this.Write(".png", 40, 25);
 
         var image = PreviewImage.Load(path, out var failure);
 
@@ -41,7 +42,7 @@ public class PreviewImageTests
     {
         // The toolkit decodes JPEG itself now; before that this was the SkiaSharp fallback path.
         // Either way the inspector has to end up with the right pixels.
-        var path = this.Write(SKEncodedImageFormat.Jpeg, 64, 48);
+        var path = this.Write(".jpg", 64, 48);
 
         var image = PreviewImage.Load(path, out var failure);
 
@@ -57,7 +58,7 @@ public class PreviewImageTests
     [Test]
     public void Scales_An_Oversized_Image_Down_To_The_Preview_Cap()
     {
-        var path = this.Write(SKEncodedImageFormat.Png, 5000, 1000);
+        var path = this.Write(".png", 5000, 1000);
 
         var image = PreviewImage.Load(path, out var failure);
 
@@ -112,19 +113,10 @@ public class PreviewImageTests
         Assert.That(failure, Is.EqualTo(PreviewImage.Failure.Unreadable));
     }
 
-    private string Write(SKEncodedImageFormat format, int width, int height)
+    private string Write(string extension, int width, int height)
     {
-        var extension = format == SKEncodedImageFormat.Png ? ".png" : ".jpg";
         var path = Path.Combine(Path.GetTempPath(), "foile-preview-" + Guid.NewGuid().ToString("N") + extension);
-
-        using (var bitmap = new SKBitmap(width, height))
-        {
-            bitmap.Erase(SKColors.CornflowerBlue);
-            using var image = SKImage.FromBitmap(bitmap);
-            using var data = image.Encode(format, 90);
-            File.WriteAllBytes(path, data.ToArray());
-        }
-
+        File.WriteAllBytes(path, ImageFixture.Encode(extension, width, height));
         _temporary.Add(path);
         return path;
     }

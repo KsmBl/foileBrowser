@@ -44,6 +44,7 @@ The guiding principle: **every interaction feels instantaneous, and everything i
 | UI framework | [NativeForms](https://github.com/Hawkynt/NativeForms) — a Windows-Forms-shaped toolkit over Win32/GTK via P/Invoke |
 | Architecture | MVVM via CommunityToolkit.Mvvm |
 | Archives & filesystem images | [CompressionWorkbench](https://github.com/Hawkynt/CompressionWorkbench) (`Hawkynt.FileFormats.Archives` / `.FileSystems` / `Hawkynt.Compression.Core` NuGet packages, LGPL-3.0) |
+| Image decoding & metadata | [PNGCrushCS](https://github.com/Hawkynt/PNGCrushCS) (`Hawkynt.FileFormats.Images`, ~580 formats, pure managed — replaced SkiaSharp and its native library) |
 | Device mounting (Linux) | GVfs/GIO (MTP, GPhoto2, removable media) |
 | Tests | nUnit in `tests/` |
 | Source layout | App code in `src/`, docs in `docs/` |
@@ -74,7 +75,7 @@ Check off items as they're completed; delete lines you decide not to build.
   own, and the resize grip overlays the header's right edge rather than consuming layout width
 - [x] Arbitrary metadata columns, computed lazily in the background only for shown columns / on-screen
   rows: **image** dimensions, megapixels, channels and bit depth (+ distinct colour count, capped) via
-  SkiaSharp; **audio/video** resolution, fps, duration, audio channels, bitrate and codec via `ffprobe`
+  the format's own header reader; **audio/video** resolution, fps, duration, audio channels, bitrate and codec via `ffprobe`
   when it's installed (blank otherwise). New metadata sources plug in behind an `IMetadataService`
   provider interface
 - [x] Hidden/system file visibility toggle
@@ -264,8 +265,8 @@ Check off items as they're completed; delete lines you decide not to build.
 - [x] Batch rename with RegEx, counters, and file-date tokens (OneCommander File Automator style)
 - [ ] A unique-ID token for batch rename (File Pilot) — counters and date tokens exist; a
   collision-proof id for flattening many folders into one does not
-- [ ] Batch image conversion on a selection (OneCommander) — SkiaSharp is already linked as a
-  decoder, so this is an encode path and a dialog rather than a new dependency
+- [ ] Batch image conversion on a selection (OneCommander) — the image library reads *and writes*
+  ~580 formats, so this is a dialog over an encode call rather than a new dependency
 - [x] New file / new folder
 - [x] Multi-level undo / redo for renames and moves — Ctrl+Z / Ctrl+Y, in the Edit menu and the
   palette, 50 steps deep; a step that can no longer be reversed is dropped rather than left to fail
@@ -337,11 +338,14 @@ Check off items as they're completed; delete lines you decide not to build.
 - [x] Spacebar quick-preview popup (images, plain text)
 - [x] Inspector side panel: persistent preview of the selected item (File Pilot style)
 - [x] Image previews across formats — PNG, BMP, GIF (animated), ICO/CUR and PCX decode through the
-  toolkit itself; everything else (JPEG, WebP, TIFF, …) falls back to SkiaSharp, which is already
-  linked for the metadata columns. Both paths hand the picture box the same 32-bit ARGB, so no
-  intermediate bitmap is written. Dimensions are read from the header first and an image too big to
-  decode at full size is scaled on the way in (2048 px longest edge), which also stops a
-  decompression bomb from being allocated — `PreviewImageTests` pins that.
+  toolkit itself; everything else (JPEG, WebP, TIFF, AVIF, HEIF, JPEG 2000/XL/XR, …) goes to
+  `Hawkynt.FileFormats.Images`, ~580 formats of pure managed code shared with the metadata columns.
+  Both paths hand the picture box the same 32-bit ARGB, so no intermediate bitmap is written.
+  Dimensions are read from the header first and an image too big to decode at full size is refused
+  (2048 px longest edge, 40 Mpx cap) — `PreviewImageTests` pins that. The header check matters more
+  than it used to: SkiaSharp could subsample a JPEG *while* decoding, so an enormous photo never
+  existed at full size; the managed decode is full-size and scales afterwards, which makes the
+  pre-decode bound the thing that stops a decompression bomb rather than merely a nicety.
 - [x] Preview of files inside an opened archive — selecting an entry while browsing an archive streams
   just that entry out to a temp file so the inspector and spacebar quick-preview work there too (entries
   above 16 MB are skipped rather than extracted on a whim)
@@ -503,7 +507,7 @@ Check off items as they're completed; delete lines you decide not to build.
   - No renderer to choose and nothing to composite: the window, buttons and text fields are real
     platform widgets and every other control is painted onto them, so no GPU/Mesa stack, no
     rendering engine and no bundled font are mapped in. `FOILE_GPU` is gone — there is no GPU path
-    to switch on. SkiaSharp is still linked, but only as a decoder: it loads the first time a
+    to switch on. The image library is managed code, so nothing native loads at all: it decodes the first time a
     metadata column or an image preview needs a format the toolkit does not read itself.
     InvariantGlobalization (drops ICU), workstation GC + ConserveMemory still apply.
   - **Icons are drawn, not typed** (`src/Views/Icons.cs`). The UI used emoji and symbol characters

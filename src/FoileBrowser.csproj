@@ -97,11 +97,11 @@
     <!-- Archive & filesystem-image formats (LGPL-3.0), PRD §5/§6.11 -->
     <PackageReference Include="Hawkynt.FileFormats.Archives" Version="1.0.0.696" />
     <PackageReference Include="Hawkynt.FileFormats.FileSystems" Version="1.0.0.696" />
-    <!-- Image metadata for the file-list columns; audio/video columns use ffprobe when installed.
-         SkiaSharp ships Windows/macOS native binaries itself but not the Linux one — Avalonia used to
-         pull that in transitively, so it is referenced explicitly now. -->
-    <PackageReference Include="SkiaSharp" Version="2.88.9" />
-    <PackageReference Include="SkiaSharp.NativeAssets.Linux" Version="2.88.9" />
+    <!-- Image decoding + metadata for previews, thumbnails and the file-list columns: ~580 formats
+         in pure managed code (PRD §6.5/§6.12). This replaced SkiaSharp, which was the last native
+         dependency outside the platform toolkits and shipped a 9 MB .so on Linux. Audio/video
+         columns still shell out to ffprobe when it is installed. -->
+    <PackageReference Include="Hawkynt.FileFormats.Images" Version="$(HawkyntImagesVersion)" />
   </ItemGroup>
 
 </Project>

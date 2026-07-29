@@ -1,5 +1,6 @@
 using FoileBrowser.Services;
-using SkiaSharp;
+using FileFormat.Core;
+using Hawkynt.FileFormats.Images;
 
 namespace FoileBrowser.Tests;
 
@@ -23,14 +24,11 @@ public class MetadataServiceTests
     }
 
     [Test]
-    public void Reads_Image_Dimensions_Via_Skia()
+    public void Reads_Image_Dimensions_From_The_Header()
     {
         var svc = new MetadataService();
         var path = Path.Combine(Path.GetTempPath(), "foile-meta-" + Guid.NewGuid().ToString("N") + ".png");
-        using (var bitmap = new SKBitmap(7, 3))
-        using (var image = SKImage.FromBitmap(bitmap))
-        using (var data = image.Encode(SKEncodedImageFormat.Png, 100))
-            File.WriteAllBytes(path, data.ToArray());
+        File.WriteAllBytes(path, ImageFixture.Encode(".png", 7, 3));
 
         try
         {

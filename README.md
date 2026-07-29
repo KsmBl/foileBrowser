@@ -122,8 +122,9 @@ out.
 platform widgets and everything else is painted straight onto them, so no GPU stack, no rendering
 engine and no bundled font are mapped in. Icons are drawn in code rather than typed as emoji, which
 keeps the colour-emoji and CJK fallback fonts (20 MB between them) out of the process entirely.
-SkiaSharp is still linked as an image decoder and loads only when a metadata column or a preview
-meets a format the toolkit does not read itself.
+Image decoding is [Hawkynt.FileFormats.Images](https://www.nuget.org/packages/Hawkynt.FileFormats.Images/) —
+~580 formats in pure managed code. It replaced SkiaSharp, which was the last native dependency
+outside the platform toolkits and shipped a 9 MB `.so` on Linux.
 
 Measured idle on one Linux/GTK (Wayland) desktop, published Release:
 
