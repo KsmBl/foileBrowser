@@ -176,7 +176,13 @@ so no runtime reflection is used. See [docs/PRD.md](docs/PRD.md) §6.12 for the 
   The view-models, services and docking model were untouched. Theme variant and accent colour are
   gone as settings — the toolkit takes both from the desktop. Icons are drawn in code instead of
   typed as emoji, and idle RSS is halved (149 MB → 75 MB with NativeAOT).
-- **M8 — The vision's remainder** 🚧 — **getting somewhere**: the path bar (Ctrl+L) completes as you
+- **M8 — The vision's remainder** 🚧 — **removable media without a terminal**: a stick the desktop
+  did not auto-mount now *appears* in the sidebar marked "not mounted", and opening it mounts it
+  (via udisksctl/polkit, no password) and browses where it landed. **Archives show where you really
+  are**: the path bar's trail runs from the filesystem root through the archive file into the
+  directories inside it, so clicking a folder crumb gets you back out. **Pin any folder** from the
+  file list's right-click menu, not just the one you are standing in. **Getting somewhere**: the
+  path bar (Ctrl+L) completes as you
   type — recently visited folders first, matched anywhere in the path so "inv" finds
   `~/work/clients/acme/2026/invoices`, then the filesystem for the segment you are in; and Go ▸
   Recent Folders lists where you have been, newest first. **Transfers**: a per-operation progress

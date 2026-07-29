@@ -203,6 +203,14 @@ Check off items as they're completed; delete lines you decide not to build.
   expands on demand and navigates the pane it lives in on selection. Its root is settable
   (Settings ▸ Sidebar): Home & drives, the filesystem root (/), or the current folder (which re-roots
   the tree to the active pane as you navigate)
+- [x] **Any folder can be pinned, not only the one being looked at** — "Pin folder to favorites" in
+  the file list's right-click menu pins the folder under the pointer, so a set of favourites is built
+  up while browsing rather than by walking into each one first. Pinning something already pinned is a
+  no-op rather than a second row, a file or a folder that is not there is refused, and unpinning is
+  the sidebar's own right-click. Favourites persist (`FavoritesAndTreeTests`)
+- [x] The sidebar's folder tree opens branch by branch: expanding a node lists its sub-folders from
+  disk, each of those expands in turn however deep it goes, and a branch with nothing in it collapses
+  to nothing rather than hanging on a placeholder (`FavoritesAndTreeTests`)
 - [ ] Drag-and-drop reordering of sidebar favorites
 
 ### 6.3 File Operations
@@ -422,7 +430,16 @@ Check off items as they're completed; delete lines you decide not to build.
 ### 6.10 Devices & Removable Media
 
 - [x] Detect removable drives (USB sticks, SD cards, external disks) and show them in sidebar/volume list as they appear
-- [x] One-click mount/unmount (Linux: UDisks2/GIO; Windows: drive letters + safe-eject; macOS: `diskutil`/NSWorkspace eject) — eject/unmount done; mounting an unmounted device pending
+- [x] **One-click mount/unmount** (Linux: UDisks2/GIO; Windows: drive letters + safe-eject; macOS:
+  `diskutil`/NSWorkspace eject). Mounting needed two halves that were both missing: a device that is
+  not mounted was never *listed*, so there was nothing to click at all. Removable partitions that
+  are present but unmounted now appear in the sidebar marked "not mounted", with their label from
+  udev's by-label links and their size from `/sys`; opening one mounts it through `udisksctl` — which
+  goes via polkit and so needs no password, let alone a terminal — and then browses where it landed.
+  Where it landed is read back from `/proc/mounts` rather than scraped out of the tool's message,
+  which differs between versions and is translated. A device that refuses says so instead of quietly
+  doing nothing (`RemovableMediaTests`). Only removable spindles are offered: an unmounted partition
+  of the system disk is somebody's recovery volume, not a click target
 - [ ] Safe-removal feedback (flush pending writes, warn if device is busy, show which process blocks unmount where possible) — eject invoked via gio/udisks; busy-warning UI pending
 - [x] Android phones & cameras via GVfs on Linux (MTP `mtp://` and GPhoto2 `gphoto2://` mounts through GIO) — existing GVfs MTP/GPhoto2 mounts are listed & browsable; initiating the mount pending
 - [x] Browse existing GVfs/GIO mounts generally (`/run/user/<uid>/gvfs`), not just phones
@@ -446,6 +463,13 @@ Check off items as they're completed; delete lines you decide not to build.
 
 - [x] Enter archives (ZIP, TAR, 7z, RAR, CAB, CPIO, …) as virtual folders — navigate the archive
   index in place (no extraction to temp); opening a single file streams just that entry out to temp
+- [x] **The path bar shows where you really are inside an archive** — the trail is the real folders
+  down to the archive file, then the directories within it, as one continuous path. It used to begin
+  at the archive file, which meant the folders containing it were unreachable (there was nothing to
+  click to get back out) and Ctrl+L seeded its field with `sample.zip/sub`, which is not a path
+  anything can navigate to. Clicking a folder crumb now leaves the archive, clicking the archive
+  returns to its root, and the crumbs compose back into exactly the path the tab reports
+  (`ArchiveBrowsingTests`)
 - [x] Extract from archives (single items, selections, or whole archive) through the standard copy queue — "Extract Here" extracts the whole archive; per-selection extract pending
 - [ ] Create and modify archives where the format supports write (add/remove entries)
 - [x] Nested archive descent (archive inside archive) without manual extraction — entering an extracted inner archive re-enters it

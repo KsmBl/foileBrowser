@@ -474,6 +474,9 @@ public sealed class FileGridView : DataGridView
             Command("Copy path", _shell.CopyPathCommand),
             Command("Copy name", _shell.CopyNameCommand),
             new ToolStripSeparator(),
+            // Pinning used to reach only the folder you were standing in; this pins the one you are
+            // pointing at, which is what makes building up a set of favourites bearable.
+            Command("Pin folder to favorites", _shell.PinSelectedCommand),
             Command("Extract archive here", _shell.ExtractHereCommand),
             Command("Identify file", _shell.IdentifyFileCommand),
             new ToolStripSeparator(),

@@ -1189,7 +1189,8 @@ public partial class MainWindowViewModel : ViewModelBase
         FreeBytes = volume.FreeBytes,
         TotalBytes = volume.TotalBytes,
         FileSystem = volume.FileSystem ?? (volume.Kind == VolumeKind.Gvfs ? "GVfs" : null),
-        IsEjectable = volume.IsRemovable,
+        IsEjectable = volume.IsRemovable && volume.IsMounted,
+        NeedsMounting = !volume.IsMounted,
         Device = volume.Device,
         // Formatting is opt-in, needs a real block device, and never targets the running root mount.
         CanFormat = _settings.Current.EnableDiskFormatting && volume.Device is not null && volume.RootPath != "/",
@@ -1332,11 +1333,45 @@ public partial class MainWindowViewModel : ViewModelBase
     }
 
     [RelayCommand]
-    private Task OpenSidebarItem(SidebarItemViewModel? item)
+    private async Task OpenSidebarItem(SidebarItemViewModel? item)
     {
-        if (item is { IsNavigable: true } && ActiveTab is { } tab)
-            return tab.NavigateToAsync(item.Path);
-        return Task.CompletedTask;
+        if (item is null || ActiveTab is not { } tab)
+            return;
+
+        // A device that is present but not mounted is mounted first, so opening it is one click
+        // rather than a trip to a terminal (PRD §6.10).
+        if (item.NeedsMounting)
+        {
+            await MountAndOpenAsync(item);
+            return;
+        }
+
+        if (item.IsNavigable)
+            await tab.NavigateToAsync(item.Path);
+    }
+
+    /// <summary>Mounts a device and browses where it landed, refreshing the sidebar either way.</summary>
+    private async Task MountAndOpenAsync(SidebarItemViewModel item)
+    {
+        if (item.Device is not { Length: > 0 } device)
+            return;
+
+        if (ActiveTab is { } tab)
+            tab.StatusText = $"Mounting {item.Name}…";
+
+        var mountPoint = await _device.MountAsync(device);
+        await LoadSidebarAsync();
+
+        if (mountPoint is { Length: > 0 } && ActiveTab is { } opened)
+        {
+            await opened.NavigateToAsync(mountPoint);
+            return;
+        }
+
+        // Said plainly rather than silently doing nothing: the disk may carry no filesystem the
+        // kernel knows, or polkit may have refused.
+        if (ActiveTab is { } failed)
+            failed.StatusText = $"Could not mount {item.Name}";
     }
 
     /// <summary>Context menu: opens a sidebar target in a new tab in the active pane.</summary>
@@ -1534,17 +1569,31 @@ public partial class MainWindowViewModel : ViewModelBase
         ActiveTab?.SelectedEntry is { } e ? _shell.OpenAsync(e.FullPath) : Task.CompletedTask;
 
     [RelayCommand]
-    private async Task PinFavorite()
+    private Task PinFavorite() => PinPath(ActiveTab?.CurrentPath);
+
+    /// <summary>
+    /// Pins any folder, not only the one being looked at (PRD §6.2) — the selected folder in the
+    /// list, a node in the tree, or wherever else a path comes from. Pinning something already
+    /// pinned is a no-op rather than a duplicate row.
+    /// </summary>
+    [RelayCommand]
+    private async Task PinPath(string? path)
     {
-        if (ActiveTab?.CurrentPath is not { Length: > 0 } dir)
+        if (path is not { Length: > 0 } dir || !_fileSystem.DirectoryExists(dir))
             return;
-        if (!_settings.Current.Favorites.Contains(dir))
-        {
-            _settings.Current.Favorites.Add(dir);
-            await _settings.SaveAsync();
-            await LoadSidebarAsync();
-        }
+
+        if (_settings.Current.Favorites.Contains(dir))
+            return;
+
+        _settings.Current.Favorites.Add(dir);
+        await _settings.SaveAsync();
+        await LoadSidebarAsync();
     }
+
+    /// <summary>Pins the selected folder in the active tab, for the file list's context menu.</summary>
+    [RelayCommand]
+    private Task PinSelected()
+        => PinPath(ActiveTab?.SelectedEntry is { IsDirectory: true } entry ? entry.FullPath : null);
 
     [RelayCommand]
     private async Task BatchRename()
