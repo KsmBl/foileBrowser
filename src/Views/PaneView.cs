@@ -17,6 +17,7 @@ public sealed class PaneView : Panel
     private const int SearchHeight = 30;
     private const int StatusHeight = 22;
     private const int SidebarWidth = 165;
+    private const int FilterWidth = 170;
 
     private readonly MainWindowViewModel _shell;
     private readonly FileTabViewModel _tab;
@@ -26,7 +27,7 @@ public sealed class PaneView : Panel
     {
         Dock = DockStyle.Top,
         Bounds = new(0, 0, 0, NavHeight),
-        ColumnCount = 7,
+        ColumnCount = 8,
         RowCount = 1,
     };
 
@@ -34,7 +35,7 @@ public sealed class PaneView : Panel
     {
         Dock = DockStyle.Top,
         Bounds = new(0, 0, 0, SearchHeight),
-        ColumnCount = 4,
+        ColumnCount = 3,
         RowCount = 1,
     };
 
@@ -50,7 +51,7 @@ public sealed class PaneView : Panel
     private readonly CheckBox _hidden = new() { Text = "Hidden", Margin = new(2) };
     private readonly CheckBox _sidebarToggle = new() { Image = Icons.MenuIcon, Margin = new(2) };
 
-    private readonly TextBox _filter = new() { PlaceholderText = "Filter this folder…", Margin = new(2) };
+    private readonly TextBox _filter = new() { PlaceholderText = "Filter…", Margin = new(2) };
     private readonly TextBox _search = new() { PlaceholderText = "Search subtree (Enter, Esc to dismiss)…", Margin = new(2) };
     private readonly TextBox _extensions = new() { PlaceholderText = "ext,ext", Margin = new(2) };
     private readonly Button _stopSearch = new() { Image = Icons.CloseIcon, Margin = new(2) };
@@ -154,6 +155,9 @@ public sealed class PaneView : Panel
         for (var i = 0; i < 4; ++i)
             _nav.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, NavButtonWidth));
         _nav.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        // The filter rides here rather than in a row of its own: narrowing the current folder is the
+        // everyday gesture, and a whole row of chrome to hold one box is what it used to cost.
+        _nav.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, FilterWidth));
         _nav.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 84));
         _nav.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 42));
 
@@ -185,23 +189,23 @@ public sealed class PaneView : Panel
                 _tab.IsSidebarVisible = _sidebarToggle.Checked;
         };
 
-        _nav.Controls.AddRange(_back, _forward, _up, _refresh, _breadcrumb, _hidden, _sidebarToggle);
-    }
-
-    // ---- filter / search row (PRD §6.4) ----
-
-    private void BuildSearchRow()
-    {
-        _searchRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
-        _searchRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
-        _searchRow.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 100));
-        _searchRow.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, NavButtonWidth));
-
         _filter.TextChanged += (_, _) =>
         {
             if (!_suppress)
                 _tab.FilterText = _filter.Text;
         };
+        _filter.KeyDown += this.OnFilterKeyDown;
+
+        _nav.Controls.AddRange(_back, _forward, _up, _refresh, _breadcrumb, _filter, _hidden, _sidebarToggle);
+    }
+
+    // ---- subtree search row (PRD §6.4) ----
+
+    private void BuildSearchRow()
+    {
+        _searchRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        _searchRow.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 100));
+        _searchRow.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, NavButtonWidth));
 
         _search.TextChanged += (_, _) =>
         {
@@ -219,7 +223,18 @@ public sealed class PaneView : Panel
 
         _stopSearch.Command = _tab.StopSearchCommand;
 
-        _searchRow.Controls.AddRange(_filter, _search, _extensions, _stopSearch);
+        _searchRow.Controls.AddRange(_search, _extensions, _stopSearch);
+    }
+
+    /// <summary>Escape drops the filter and hands focus back, since the box is always on screen now.</summary>
+    private void OnFilterKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (e.KeyCode is not Keys.Escape)
+            return;
+
+        _filter.Text = string.Empty;
+        this.Content.Focus();
+        e.Handled = true;
     }
 
     private void OnSearchKeyDown(object? sender, KeyEventArgs e)
