@@ -338,8 +338,14 @@ public class ShellViewModelTests
         var first = CreateShell(new FakeFileSystem(), new RecordingTrash());
         await first.InitializeAsync();
         await first.ActiveTab!.NavigateToAsync(one);
-        await WaitUntilAsync(() =>
-            System.IO.File.Exists(_settingsFile) && System.IO.File.ReadAllText(_settingsFile).Contains("one"));
+        // Asserted, not just awaited: when this times out the failure belongs here, at the folder
+        // never reaching the file, rather than further down where the reloaded shell merely looks
+        // like it forgot.
+        Assert.That(
+            await WaitUntilAsync(() =>
+                System.IO.File.Exists(_settingsFile) && System.IO.File.ReadAllText(_settingsFile).Contains("one")),
+            Is.True,
+            "the visited folder is written to the settings file");
 
         var second = CreateShell(new FakeFileSystem(), new RecordingTrash());
         await second.InitializeAsync();
