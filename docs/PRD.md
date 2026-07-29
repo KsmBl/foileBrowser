@@ -1,6 +1,6 @@
 # foileBrowser — Product Requirements Document
 
-**Status:** Draft · **Last updated:** 2026-07-16
+**Status:** Draft · **Last updated:** 2026-07-29
 
 > **Documentation policy (hard requirement).** Every change to the code must update the docs in the
 > same commit: check off / add the relevant item in §6 of this PRD, and revise the README when
@@ -52,6 +52,16 @@ The guiding principle: **every interaction feels instantaneous, and everything i
 
 Check off items as they're completed; delete lines you decide not to build.
 
+> **Coverage against the two influences (audited 2026-07-29).** Every feature the OneCommander and
+> File Pilot sites advertise was walked against this section, and every tick was checked against the
+> code rather than taken on trust. Three ticks were wrong and are fixed: free-space indicators and
+> emoji/Unicode were built but listed as missing, and the cold-start target was met but never
+> measured. Nine features of the two apps had no requirement here at all and are now listed
+> unchecked — the significant one being **Miller columns**, which §1 names as one of the two things
+> taken from OneCommander and which §6 had never asked for. The rest of the gap list is deliberate:
+> the theming engine, accent colours and skins are explicitly not being built (§6.8), because a
+> native widget takes its look from the desktop.
+
 ### 6.1 Core Browsing
 
 - [x] Directory listing with name, size, type, and modified date
@@ -84,9 +94,22 @@ Check off items as they're completed; delete lines you decide not to build.
   current folder is always visible — instead of showing a scrollbar on top of the segment buttons
 - [x] Switch modified dates between absolute timestamps and relative ("5 min ago", "yesterday"),
   quick-toggle in the toolbar / View menu / command palette (persisted)
+- [x] Emoji and full Unicode in names, everywhere a name is shown or changed. Both backends already
+  drew them — GTK falls back through Pango, Win32 routes colour glyphs to DirectWrite — so the work
+  was the half that is ours: listing, filtering, type-ahead, path composition, and renaming, copying
+  and moving, each covered against a real disk (`EmojiNameTests`). A name too wide for its cell is
+  shortened with an ellipsis rather than clipped, and the cut is *measured* through the renderer that
+  will draw it and lands on a grapheme cluster boundary — so a flag, a ZWJ profession or a skin-tone
+  modifier is never cut in half (toolkit `TextTrim`)
+- [x] Drive/volume list with free-space indicators — each drive/partition row carries a free-space
+  bar and a "free of total" value beside its filesystem type (see §6.10)
+- [ ] Long-path (>260 chars) support (Windows caveat: `\\?\` prefix handling) — nothing in the app
+  handles the prefix today; Linux/macOS have no such limit, so this is Windows-only work
 - [ ] Editable path bar with autocompletion and recent-folder suggestions (File Pilot "GoTo") — combined breadcrumb/entry path bar with Ctrl+L done; autocompletion/suggestions pending
-- [ ] Drive/volume list with free-space indicators
-- [ ] Long-path (>260 chars), emoji and full Unicode path support (Windows caveat: `\\?\` prefix handling)
+- [ ] A recent-folders list as a navigation surface of its own (File Pilot): history is per tab and
+  reachable only through back/forward, so a folder visited in another tab cannot be jumped back to
+- [ ] File-age heat colouring — tint a row by how recently it changed, so a folder's activity reads
+  at a glance (OneCommander)
 
 ### 6.2 Layout & Views
 
@@ -125,6 +148,11 @@ Check off items as they're completed; delete lines you decide not to build.
   collapsed entirely from the pane's own toggle. The width is not yet persisted across restarts.
 - [x] Tabs per pane, restored across restart
 - [x] Details (list) view mode
+- [ ] **Miller columns** — the parent chain shown as adjacent scrolling columns, selecting in one
+  filling the next, so a deep hierarchy is walked without losing sight of where it came from. Named
+  in §1 as one of the two things taken from OneCommander, but it had never been written down as a
+  requirement here and none of it exists. It is the largest single gap between this document's stated
+  vision and what §6 asks for
 - [x] Gallery view mode with thumbnails — Ctrl+G, View ▸ Gallery View, per pane so one can show
   thumbnails while the other shows rows; the starting mode is a setting. Thumbnails are decoded off
   the UI thread at most three at a time and letterboxed into 128 px squares, so a cell shows its kind
@@ -179,6 +207,10 @@ Check off items as they're completed; delete lines you decide not to build.
   Delete (trash) are scoped to the focused file list, so they never hijack those keys while typing in
   a text box (path bar, filter, dialogs)
 - [x] Batch rename with RegEx, counters, and file-date tokens (OneCommander File Automator style)
+- [ ] A unique-ID token for batch rename (File Pilot) — counters and date tokens exist; a
+  collision-proof id for flattening many folders into one does not
+- [ ] Batch image conversion on a selection (OneCommander) — SkiaSharp is already linked as a
+  decoder, so this is an encode path and a dialog rather than a new dependency
 - [x] New file / new folder
 - [x] Multi-level undo / redo for renames and moves — Ctrl+Z / Ctrl+Y, in the Edit menu and the
   palette, 50 steps deep; a step that can no longer be reversed is dropped rather than left to fail
@@ -281,6 +313,13 @@ Check off items as they're completed; delete lines you decide not to build.
   source of truth for the palette, menus and the generated window key bindings, so e.g. Alt+←/→/↑ and
   F5 are now real, editable shortcuts. (Multi-key sequences still pending.)
 - [ ] Hotkey assignment directly from the command palette — done via Settings ▸ Keybinds instead
+- [ ] Multi-key sequences as bindings (File Pilot) — the binder takes one chord; a leader key
+  followed by a second press is not expressible. Noted in the item above but never asked for here
+- [ ] Command aliases (File Pilot) — a user-chosen name that finds a command in the palette, so the
+  palette can be driven by muscle memory rather than by the command's own wording
+- [ ] Numpad keys usable as shortcuts (File Pilot) — the gesture parser has no names for them
+- [ ] Pinned context-menu items (File Pilot) — the menu is searchable (§6.6) but every entry ranks
+  the same; pinning the two or three actions a person actually uses to the top is the other half
 - [x] Complete keyboard operability: navigation, selection, dialogs, panels — core flows keyboard-driven (nav, palette, search, dialogs)
 - [x] Type-ahead selection in file lists — typing letters jumps to the next entry starting with
   them; repeating one letter steps through the entries beginning with it, typing on narrows, a pause
@@ -372,7 +411,10 @@ Check off items as they're completed; delete lines you decide not to build.
 
 ### 6.12 Performance Targets
 
-- [ ] Cold start to interactive < 1 s
+- [x] Cold start to interactive < 1 s — **283–377 ms** over three runs of the NativeAOT build on
+  Linux/GTK, and that figure is an upper bound: it measures the whole process, from exec to a
+  realized, painted window to encoding a PNG of it and exiting, so time-to-interactive is less. Not
+  measured on Windows
 - [x] 100k-entry directory lists without UI freeze (virtualized lists) — ListBox virtualizes; enumeration is off-thread and cancellable
 - [x] All I/O async; UI thread never blocks on disks / removeables / opticals / floppys etc (also r/w errors)
 - [x] Directory change detection via file-system watchers (auto-refresh)
@@ -479,6 +521,9 @@ Check off items as they're completed; delete lines you decide not to build.
 | **M3 — Search, preview & palette** ✅ | Fuzzy search, inspector/quick preview, command palette, hotkeys |
 | **M4 — Polish** ✅ | Theming, tags, batch rename, saved layouts, OS integration, perf tuning |
 | **M5 — Devices & archives** ✅ | Removable-media mount/unmount, GVfs/MTP (Android), archive & disk-image browsing via CompressionWorkbench |
+| **M6 — Configurability** ✅ | Rebindable hotkeys with live capture and conflict detection, per-button toolbar show/hide and reordering, tabbed Settings dialog |
+| **M7 — Native UI** ✅ | View layer rebuilt on NativeForms — real platform windows/buttons/fields, everything else painted in the desktop's theme; view-models, services and docking model untouched; idle RSS halved |
+| **M8 — The vision's remainder** ⬜ | What §6 asks for that does not exist yet, led by **Miller columns** (§6.2) — the one thing named in §1 that was never written down as a requirement. Then the smaller borrowings: file-age heat colouring, batch image conversion, unique-id rename tokens, key sequences, command aliases, pinned menu items |
 
 ## 8. notes:
 
