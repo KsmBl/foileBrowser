@@ -12,7 +12,7 @@ namespace FoileBrowser.Services;
 /// makes the head seek back and forth and destroys throughput, so those get a large sequential
 /// slurp; everything else (SSDs, cross-device transfers) gets overlapped read+write.
 /// </summary>
-internal static class DriveProfiler
+public static class DriveProfiler
 {
     private readonly record struct Profile(string Device, bool Sequential);
 
@@ -39,6 +39,36 @@ internal static class DriveProfiler
         }
 
         return CopyStrategy.Overlapped;
+    }
+
+    /// <summary>
+    /// A key identifying the physical device a path lives on, for deciding whether two operations
+    /// can run at once (PRD §6.3). Empty when it cannot be worked out, which the scheduler reads as
+    /// "assume it clashes" rather than risking two transfers thrashing one spindle.
+    /// </summary>
+    /// <remarks>
+    /// Partitions collapse onto their disk: two operations on <c>/dev/sda1</c> and <c>/dev/sda3</c>
+    /// are one set of heads, so they must not be run in parallel however separate the mount points
+    /// look. On Windows the volume root is as far as this goes without another <c>DeviceIoControl</c>
+    /// round trip, so two partitions of one disk are treated as separate — the conservative direction
+    /// there is the other way, and getting it wrong costs throughput rather than correctness.
+    /// </remarks>
+    public static string PhysicalDeviceOf(string path)
+    {
+        try
+        {
+            var device = ProfileFor(path).Device;
+            if (device.Length == 0)
+                return string.Empty;
+
+            return device.StartsWith("/dev/", StringComparison.Ordinal)
+                ? "/dev/" + BaseDisk(device["/dev/".Length..])
+                : device;
+        }
+        catch
+        {
+            return string.Empty;
+        }
     }
 
     private static Profile ProfileFor(string path)
