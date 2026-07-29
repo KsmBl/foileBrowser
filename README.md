@@ -1,21 +1,21 @@
 # 📂 foileBrowser
 
-[![License](https://img.shields.io/github/license/Hawkynt/foileBrowser)](https://github.com/Hawkynt/foileBrowser/blob/main/LICENSE)
-[![Language](https://img.shields.io/github/languages/top/Hawkynt/foileBrowser?color=8957D5)](https://github.com/Hawkynt/foileBrowser)
+[![License](https://img.shields.io/github/license/KsmBl/foileBrowser)](https://github.com/KsmBl/foileBrowser/blob/main/LICENSE)
+[![Language](https://img.shields.io/github/languages/top/KsmBl/foileBrowser?color=8957D5)](https://github.com/KsmBl/foileBrowser)
 
-[![CI](https://github.com/Hawkynt/foileBrowser/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Hawkynt/foileBrowser/actions/workflows/ci.yml)
-![Last Commit](https://img.shields.io/github/last-commit/Hawkynt/foileBrowser?branch=main)
-![Activity](https://img.shields.io/github/commit-activity/m/Hawkynt/foileBrowser)
+[![CI](https://github.com/KsmBl/foileBrowser/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/KsmBl/foileBrowser/actions/workflows/ci.yml)
+![Last Commit](https://img.shields.io/github/last-commit/KsmBl/foileBrowser?branch=main)
+![Activity](https://img.shields.io/github/commit-activity/m/KsmBl/foileBrowser)
 
-[![Stars](https://img.shields.io/github/stars/Hawkynt/foileBrowser?color=FFD700)](https://github.com/Hawkynt/foileBrowser/stargazers)
-[![Forks](https://img.shields.io/github/forks/Hawkynt/foileBrowser?color=008080)](https://github.com/Hawkynt/foileBrowser/network/members)
-[![Issues](https://img.shields.io/github/issues/Hawkynt/foileBrowser)](https://github.com/Hawkynt/foileBrowser/issues)
-![Code Size](https://img.shields.io/github/languages/code-size/Hawkynt/foileBrowser?color=4CAF50)
-![Repo Size](https://img.shields.io/github/repo-size/Hawkynt/foileBrowser?color=FF9800)
+[![Stars](https://img.shields.io/github/stars/KsmBl/foileBrowser?color=FFD700)](https://github.com/KsmBl/foileBrowser/stargazers)
+[![Forks](https://img.shields.io/github/forks/KsmBl/foileBrowser?color=008080)](https://github.com/KsmBl/foileBrowser/network/members)
+[![Issues](https://img.shields.io/github/issues/KsmBl/foileBrowser)](https://github.com/KsmBl/foileBrowser/issues)
+![Code Size](https://img.shields.io/github/languages/code-size/KsmBl/foileBrowser?color=4CAF50)
+![Repo Size](https://img.shields.io/github/repo-size/KsmBl/foileBrowser?color=FF9800)
 
-[![Release](https://img.shields.io/github/v/release/Hawkynt/foileBrowser)](https://github.com/Hawkynt/foileBrowser/releases/latest)
-[![Nightly](https://img.shields.io/github/v/release/Hawkynt/foileBrowser?include_prereleases&sort=date&filter=nightly-*&label=nightly&color=FF9800)](https://github.com/Hawkynt/foileBrowser/releases)
-[![Downloads](https://img.shields.io/github/downloads/Hawkynt/foileBrowser/total)](https://github.com/Hawkynt/foileBrowser/releases)
+[![Release](https://img.shields.io/github/v/release/KsmBl/foileBrowser)](https://github.com/KsmBl/foileBrowser/releases/latest)
+[![Nightly](https://img.shields.io/github/v/release/KsmBl/foileBrowser?include_prereleases&sort=date&filter=nightly-*&label=nightly&color=FF9800)](https://github.com/KsmBl/foileBrowser/releases)
+[![Downloads](https://img.shields.io/github/downloads/KsmBl/foileBrowser/total)](https://github.com/KsmBl/foileBrowser/releases)
 
 > A fast, keyboard-first file browser for Windows and Linux — multi panes, tabs, a fuzzy command
 > palette, an inspector, colour tags and archives-as-folders — drawn with real platform widgets
@@ -64,7 +64,7 @@ work/
 ├─ foileBrowser/   # this repo
 └─ NativeForms/    # the UI toolkit
 
-git clone https://github.com/Hawkynt/foileBrowser.git
+git clone https://github.com/KsmBl/foileBrowser.git
 git clone https://github.com/Hawkynt/NativeForms.git
 ```
 
