@@ -278,6 +278,7 @@ public partial class MainWindowViewModel : ViewModelBase
             IsGallery = string.Equals(_settings.Current.ViewMode, "Gallery", StringComparison.OrdinalIgnoreCase),
         };
         tab.PropertyChanged += OnTabPropertyChanged;
+        tab.FolderOpened += (_, path) => RecordRecentFolder(path);
         return tab;
     }
 
@@ -799,6 +800,10 @@ public partial class MainWindowViewModel : ViewModelBase
                 if (ColumnCatalog.Create(id) is { } column)
                     Columns.Add(column);
 
+        RecentFolders.Clear();
+        foreach (var folder in _settings.Current.RecentFolders.Take(RecentFolderLimit))
+            RecentFolders.Add(folder);
+
         // A heated column that is no longer shown (or no longer exists) is dropped rather than kept
         // as a setting that quietly does nothing.
         HeatColumns.Clear();
@@ -841,6 +846,61 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         _settings.Current.Columns = Columns.Select(c => new ColumnState { Id = c.Id, Width = c.Width }).ToList();
         _ = _settings.SaveAsync();
+    }
+
+    // ---- recently visited folders (PRD §6.1) ----
+
+    /// <summary>How many folders are remembered. Enough to cover a working session, few enough that
+    /// the list stays something you can scan.</summary>
+    private const int RecentFolderLimit = 40;
+
+    /// <summary>Folders visited recently, most recent first.</summary>
+    public ObservableCollection<string> RecentFolders { get; } = [];
+
+    /// <summary>
+    /// Notes that a folder was opened. Moves it to the front if it was already known, so the list is
+    /// ordered by when it was last useful rather than when it was first seen.
+    /// </summary>
+    public void RecordRecentFolder(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+            return;
+
+        var existing = RecentFolders.FirstOrDefault(p => string.Equals(p, path, StringComparison.Ordinal));
+        if (existing is not null)
+            RecentFolders.Remove(existing);
+
+        RecentFolders.Insert(0, path);
+        while (RecentFolders.Count > RecentFolderLimit)
+            RecentFolders.RemoveAt(RecentFolders.Count - 1);
+
+        _settings.Current.RecentFolders = [.. RecentFolders];
+        _ = _settings.SaveAsync();
+    }
+
+    /// <summary>Navigates the active pane to a folder — what picking a recent one does. Unlike the
+    /// window's OpenPath, this never opens a tab or a window: it is a move, not a hand-over.</summary>
+    public Task GoToAsync(string path) => ActiveTab?.NavigateToAsync(path) ?? Task.CompletedTask;
+
+    /// <summary>
+    /// The path-bar completions for what has been typed (PRD §6.1). Recently visited folders first,
+    /// then whatever the filesystem offers for the segment being typed.
+    /// </summary>
+    public IReadOnlyList<string> CompletePath(string typed)
+        => PathCompletion.Complete(typed, RecentFolders, Subdirectories);
+
+    /// <summary>Subdirectories of a folder, or nothing at all when it cannot be read — which is the
+    /// ordinary case while a path is still half-typed.</summary>
+    private static IEnumerable<string> Subdirectories(string directory)
+    {
+        try
+        {
+            return Directory.EnumerateDirectories(directory);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+        {
+            return [];
+        }
     }
 
     // ---- heat maps (PRD §6.1) ----

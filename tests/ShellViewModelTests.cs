@@ -26,7 +26,7 @@ public class ShellViewModelTests
     }
 
     // Isolates settings/tags to a temp file so tests never touch the real user config.
-    private MainWindowViewModel CreateShell(FakeFileSystem fs, RecordingTrash trash)
+    private MainWindowViewModel CreateShell(IFileSystemService fs, RecordingTrash trash)
     {
         var settings = new SettingsService(_settingsFile);
         return new MainWindowViewModel(fs, new FileOperationService(), trash,
@@ -270,6 +270,78 @@ public class ShellViewModelTests
         vm.CopyNameCommand.Execute(null);
 
         Assert.That(captured, Is.EqualTo("clip.txt"));
+    }
+
+    // ---- recently visited folders (PRD §6.1) ----
+
+    [Test]
+    public async Task Opening_A_Folder_Remembers_It_Newest_First()
+    {
+        var vm = CreateShell(new FakeFileSystem(), new RecordingTrash());
+        await vm.InitializeAsync();
+
+        var root = Path.Combine(_settingsDir, "recents");
+        var one = Directory.CreateDirectory(Path.Combine(root, "one")).FullName;
+        var two = Directory.CreateDirectory(Path.Combine(root, "two")).FullName;
+
+        await vm.ActiveTab!.NavigateToAsync(one);
+        await vm.ActiveTab!.NavigateToAsync(two);
+
+        Assert.That(vm.RecentFolders.Take(2), Is.EqualTo(new[] { two, one }));
+    }
+
+    [Test]
+    public async Task Going_Back_Somewhere_Moves_It_To_The_Front_Rather_Than_Listing_It_Twice()
+    {
+        var vm = CreateShell(new FakeFileSystem(), new RecordingTrash());
+        await vm.InitializeAsync();
+
+        var root = Path.Combine(_settingsDir, "revisit");
+        var one = Directory.CreateDirectory(Path.Combine(root, "one")).FullName;
+        var two = Directory.CreateDirectory(Path.Combine(root, "two")).FullName;
+
+        await vm.ActiveTab!.NavigateToAsync(one);
+        await vm.ActiveTab!.NavigateToAsync(two);
+        await vm.ActiveTab!.NavigateToAsync(one);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(vm.RecentFolders[0], Is.EqualTo(one), "ordered by when it was last useful");
+            Assert.That(vm.RecentFolders.Count(p => p == one), Is.EqualTo(1));
+        });
+    }
+
+    [Test]
+    public async Task A_Folder_That_Would_Not_Open_Is_Not_Remembered()
+    {
+        // The path nobody wants offered back to them is precisely the one that failed. Against the
+        // real file system, because the fake happily "lists" a folder that was never there — it is
+        // the listing throwing that makes this true.
+        var vm = CreateShell(new FileSystemService(), new RecordingTrash());
+        await vm.InitializeAsync();
+
+        var missing = Path.Combine(_settingsDir, "gone-" + Guid.NewGuid().ToString("N"));
+        await vm.ActiveTab!.NavigateToAsync(missing);
+
+        Assert.That(vm.RecentFolders, Does.Not.Contain(missing));
+    }
+
+    [Test]
+    public async Task Recent_Folders_Come_Back_After_A_Restart()
+    {
+        var root = Path.Combine(_settingsDir, "persist");
+        var one = Directory.CreateDirectory(Path.Combine(root, "one")).FullName;
+
+        var first = CreateShell(new FakeFileSystem(), new RecordingTrash());
+        await first.InitializeAsync();
+        await first.ActiveTab!.NavigateToAsync(one);
+        await WaitUntilAsync(() =>
+            System.IO.File.Exists(_settingsFile) && System.IO.File.ReadAllText(_settingsFile).Contains("one"));
+
+        var second = CreateShell(new FakeFileSystem(), new RecordingTrash());
+        await second.InitializeAsync();
+
+        Assert.That(second.RecentFolders, Does.Contain(one));
     }
 
     // ---- toolbar (PRD §6.3/§6.8) ----

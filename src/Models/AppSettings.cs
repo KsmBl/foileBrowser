@@ -84,6 +84,10 @@ public sealed class AppSettings
     /// each carries its own scale in its own cells. Empty = none, which is the default.</summary>
     public List<string> HeatColumns { get; set; } = [];
 
+    /// <summary>Folders visited recently, most recent first (PRD §6.1). Feeds the path bar's
+    /// suggestions and the Go menu; bounded so the settings file cannot grow without limit.</summary>
+    public List<string> RecentFolders { get; set; } = [];
+
     // ---- copy engine tunables (PRD §6.3) ----
 
     /// <summary>Overlapped copy chunk size in KiB.</summary>

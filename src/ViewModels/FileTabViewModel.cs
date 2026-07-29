@@ -158,6 +158,10 @@ public partial class FileTabViewModel : ViewModelBase, IDockable, IDisposable
     /// <summary>Raised after any navigation completes so the owning pane can react (title, active path).</summary>
     public event EventHandler? Navigated;
 
+    /// <summary>Raised with the path of a folder that actually listed, so the shell can remember it
+    /// (PRD §6.1 recent folders). Unlike <see cref="Navigated"/>, a failed load does not raise it.</summary>
+    public event EventHandler<string>? FolderOpened;
+
     /// <summary>Raised by Ctrl+F so this pane's view focuses its subtree-search box (PRD §6.4).</summary>
     public event EventHandler? SearchFocusRequested;
 
@@ -616,6 +620,10 @@ public partial class FileTabViewModel : ViewModelBase, IDockable, IDisposable
             CurrentPath = path;
             if (record)
                 _history.Visit(path);
+
+            // Only a folder that actually opened is worth remembering — a path that failed to load
+            // is precisely the one nobody wants offered back to them.
+            FolderOpened?.Invoke(this, path);
 
             RebuildEntries();
             SetupWatcher(path);
