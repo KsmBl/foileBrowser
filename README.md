@@ -180,7 +180,9 @@ so no runtime reflection is used. See [docs/PRD.md](docs/PRD.md) §6.12 for the 
   did not auto-mount now *appears* in the sidebar marked "not mounted", and opening it mounts it
   (via udisksctl/polkit, no password) and browses where it landed. **Archives show where you really
   are**: the path bar's trail runs from the filesystem root through the archive file into the
-  directories inside it, so clicking a folder crumb gets you back out. **Pin any folder** from the
+  directories inside it, so clicking a folder crumb gets you back out — and that applies to **disk
+  images too**: an ISO, FAT, exFAT, ext4, NTFS or SquashFS image opens and browses exactly like a
+  ZIP. **Pin any folder** from the
   file list's right-click menu, not just the one you are standing in. **Getting somewhere**: the
   path bar (Ctrl+L) completes as you
   type — recently visited folders first, matched anywhere in the path so "inv" finds

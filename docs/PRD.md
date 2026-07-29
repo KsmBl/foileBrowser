@@ -473,8 +473,18 @@ Check off items as they're completed; delete lines you decide not to build.
 - [x] Extract from archives (single items, selections, or whole archive) through the standard copy queue — "Extract Here" extracts the whole archive; per-selection extract pending
 - [ ] Create and modify archives where the format supports write (add/remove entries)
 - [x] Nested archive descent (archive inside archive) without manual extraction — entering an extracted inner archive re-enters it
-- [ ] Mount disk images (ISO9660/UDF, VHD/VHDX, VMDK, VDI, QCOW2, DMG) as browsable virtual folders
-- [ ] Read foreign filesystem images (FAT, exFAT, NTFS, ext, HFS+, APFS, SquashFS, …) via `Hawkynt.FileFormats.FileSystems` — package referenced; wiring pending
+- [x] **Disk images and foreign filesystems open exactly like archives** — an ISO, a FAT or exFAT
+  volume, an ext2/3/4, NTFS or SquashFS image: double-click it and it lists, sub-folders are entered,
+  a file is streamed out of it, and the path bar shows the real trail through the image file. There
+  was nothing to wire: `Hawkynt.FileFormats.FileSystems` registers into the *same* `FormatRegistry`
+  as the archive formats, the compile-time generator already scanned `FileSystem.*` assemblies
+  alongside `FileFormat.*`, and the browsing path only ever asked whether a descriptor can list. The
+  requirement had been marked pending since before that was true. Now covered against images built
+  by the system's own tools — genisoimage, mkfs.ext4 -d, mkfs.vfat + mtools, mksquashfs — rather than
+  fixtures we wrote ourselves (`DiskImageBrowsingTests`)
+- [ ] Create and modify disk images (add/remove files inside one). The registry reports
+  `CanCreate`/`CanModify` for these formats, so this is a matter of using the write side of the same
+  ops the reading path already goes through — see the archive item above, which is the same work
 - [ ] Pseudo-archive browsing (e.g. resources in EXE/DLL, frames in GIF/TIFF, cover art in MP3/FLAC) — optional, low priority
 - [x] Unknown-format identification via CompressionWorkbench signature scanning ("what is this file?" action) — "Identify File" action (extension→format via the registry); byte-signature scan pending
 - [x] Streamed access for large archives (browse the index without extracting; extract a single
