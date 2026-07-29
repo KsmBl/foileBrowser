@@ -317,8 +317,9 @@ public sealed class FileGridView : DataGridView
     {
         switch (e.KeyCode)
         {
+            // Return steps back out of the folder; going in is the double-click.
             case Keys.Enter when !e.Alt:
-                this.ActivateSelected();
+                _tab.GoUpCommand.Execute(null);
                 e.Handled = true;
                 return;
             case Keys.Space:
