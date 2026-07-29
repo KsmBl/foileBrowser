@@ -4,5 +4,9 @@
     <LangVersion>14</LangVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <!-- The base version every project inherits; the build number is appended at release time by
+         .github/workflows/scripts/version.pl from the commit count. Versions come from files, never
+         from a git tag. -->
+    <Version>1.0.0</Version>
   </PropertyGroup>
 </Project>
