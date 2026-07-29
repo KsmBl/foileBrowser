@@ -25,4 +25,14 @@ public sealed record BreadcrumbSegment(
     string Name,
     string Path,
     bool ShowSeparator = false,
-    BreadcrumbKind Kind = BreadcrumbKind.Folder);
+    BreadcrumbKind Kind = BreadcrumbKind.Folder)
+{
+    /// <summary>
+    /// What joins these segments back into a path. The toolkit's bar defaults to "/" and treats the
+    /// separator as a text convention, so that an archive or any other virtual namespace can pick its
+    /// own — but every <see cref="Path"/> here is a real filesystem path, archive entries included, so
+    /// this trail composes with the platform's separator. Left at the default, a Windows root crumb of
+    /// "C:\" gained a second, foreign separator and the path bar opened on "C:\/Users".
+    /// </summary>
+    public static string Separator { get; } = System.IO.Path.DirectorySeparatorChar.ToString();
+}

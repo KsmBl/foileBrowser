@@ -43,7 +43,13 @@ public sealed class PaneView : Panel
     private readonly ToolStripStatusLabel _statusLabel = new() { Spring = true };
     private readonly ToolStripStatusLabel _loadingLabel = new();
 
-    private readonly Breadcrumb _breadcrumb = new() { Editable = true, TrimOnClick = false, Margin = new(2) };
+    private readonly Breadcrumb _breadcrumb = new()
+    {
+        Editable = true,
+        TrimOnClick = false,
+        Margin = new(2),
+        PathSeparator = BreadcrumbSegment.Separator,
+    };
     private readonly Button _back = new() { Image = Icons.BackIcon, Margin = new(1) };
     private readonly Button _forward = new() { Image = Icons.ForwardIcon, Margin = new(1) };
     private readonly Button _up = new() { Image = Icons.UpIcon, Margin = new(1) };

@@ -27,10 +27,14 @@ public class PathBarTests
         try { Directory.Delete(_root, recursive: true); } catch (IOException) { }
     }
 
-    /// <summary>Fills a breadcrumb the way the pane does, and asks it for the path it composes.</summary>
+    /// <summary>
+    /// Fills a breadcrumb the way the pane does, and asks it for the path it composes. The separator
+    /// comes from the same place the pane takes it from, so this cannot pass while the real bar joins
+    /// a Windows path with a POSIX separator.
+    /// </summary>
     private static string Compose(IEnumerable<BreadcrumbSegment> segments)
     {
-        var bar = new Breadcrumb();
+        var bar = new Breadcrumb { PathSeparator = BreadcrumbSegment.Separator };
         foreach (var segment in segments)
             bar.Items.Add(new BreadcrumbItem(segment.Name) { Tag = segment });
 
@@ -58,7 +62,25 @@ public class PathBarTests
 
         var composed = Compose(tab.Breadcrumbs);
         Assert.That(composed, Is.EqualTo(root));
-        Assert.That(composed, Does.Not.StartWith("//"), "the root crumb must not double the separator");
+        Assert.That(composed, Does.Not.Contain(BreadcrumbSegment.Separator + BreadcrumbSegment.Separator),
+            "the root crumb must not double the separator");
+    }
+
+    /// <summary>
+    /// The three tests around this one compose whatever root the host happens to have, so a Windows
+    /// drive root is invisible to a Linux runner — which is exactly how "C:\/$Recycle.Bin" reached CI
+    /// and failed there alone. These drive the composition directly with each platform's shape.
+    /// </summary>
+    [TestCase(@"C:\", "Users", @"C:\", @"C:\Users")]
+    [TestCase("/", "home", "/", "/home")]
+    public void A_Root_Crumb_Carrying_Its_Separator_Does_Not_Get_A_Second_One(
+        string root, string child, string separator, string expected)
+    {
+        var bar = new Breadcrumb { PathSeparator = separator };
+        bar.Items.Add(new BreadcrumbItem(root));
+        bar.Items.Add(new BreadcrumbItem(child));
+
+        Assert.That(bar.FullPath, Is.EqualTo(expected));
     }
 
     [Test]
