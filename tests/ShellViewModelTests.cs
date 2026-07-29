@@ -272,6 +272,22 @@ public class ShellViewModelTests
         Assert.That(captured, Is.EqualTo("clip.txt"));
     }
 
+    // ---- toolbar (PRD §6.3/§6.8) ----
+
+    [Test]
+    public async Task Every_Toolbar_Button_Says_What_It_Does()
+    {
+        var vm = CreateShell(new FakeFileSystem(), new RecordingTrash());
+        await vm.InitializeAsync();
+
+        Assert.That(vm.ToolbarItems, Is.Not.Empty);
+
+        // Most of the bar is icon-only, and a drawn icon states nothing about itself. The hover text
+        // is the only place a button explains what it is, so a blank one is a button nobody can read.
+        var mute = vm.ToolbarItems.Where(i => string.IsNullOrWhiteSpace(i.Tooltip)).Select(i => i.Id);
+        Assert.That(mute, Is.Empty, "every toolbar button needs hover text");
+    }
+
     // ---- search row visibility (PRD §6.4): off means "only show it on Ctrl+F" ----
 
     [Test]

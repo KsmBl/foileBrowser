@@ -119,8 +119,8 @@ public sealed partial class MainForm
 
     /// <summary>
     /// The caption for the two buttons that have no icon, because what they show is their current
-    /// value ("KiB", "Ago") rather than a picture. Everything else carries a drawn icon; the bar's
-    /// right-click menu spells out what each one does, since a strip item has no tooltip of its own.
+    /// value ("KiB", "Ago") rather than a picture. Everything else carries a drawn icon and states
+    /// what it does in its tooltip.
     /// </summary>
     private static string Caption(ToolbarItemViewModel item) => item.Id switch
     {
@@ -195,6 +195,8 @@ public sealed partial class MainForm
                 Command = item.Command,
                 Visible = item.IsVisible,
                 Tag = item.Id,
+                // An icon-only button says nothing about itself; the tip is where it says it.
+                ToolTipText = item.Tooltip,
             };
             // The size/date buttons relabel themselves live, and Settings can hide any of them.
             Ui.Watch(item, () =>
@@ -210,9 +212,9 @@ public sealed partial class MainForm
     }
 
     /// <summary>
-    /// The toolbar's own context menu. It carries what a strip button cannot: the descriptive label
-    /// each button's icon stands for, and the reorder gesture — the toolkit's strip items are not
-    /// controls, so they have neither tooltips nor drag handles of their own (PRD §6.8).
+    /// The toolbar's own context menu: where a button is reordered, since a strip item is not a
+    /// control and has no drag handle of its own (PRD §6.8). Each entry is labelled with the same
+    /// description the button shows on hover, so the list reads as the bar does.
     /// </summary>
     private ContextMenuStrip BuildToolbarMenu()
     {

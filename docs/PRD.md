@@ -93,8 +93,9 @@ Check off items as they're completed; delete lines you decide not to build.
 - [x] Application menu bar (File / Edit / View / Go / Tools / Help) with accelerators and gesture hints
 - [x] Toolbar with drawn icons; can be hidden via View ▸ Toolbar (persisted). The icons are painted
   from pixel masks rather than typed as emoji (§6.12); the two buttons that show a live value ("KiB",
-  "Ago") keep their word instead. A strip item has no tooltip of its own, so the bar's right-click
-  menu carries each button's full description plus the reorder commands (see §6.8).
+  "Ago") keep their word instead. Every button states what it does on hover; the bar's right-click
+  menu repeats those descriptions and carries the reorder commands, since a strip item is not a
+  control and has no drag handle of its own (see §6.8).
   It holds file/view operations only — back/forward/up/refresh live in each pane's own nav bar next to
   the path bar, so they aren't duplicated on the global toolbar
 - [x] Tabs are the dockable documents: every folder tab has a tab strip and can be dragged within its
