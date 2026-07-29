@@ -11,9 +11,7 @@
   </PropertyGroup>
 
   <PropertyGroup>
-    <!-- Named once: the PackageReference uses it, and Directory.Build.targets needs the same
-         version to locate the assemblies it puts back after the name collision is resolved. -->
-    <HawkyntImagesVersion>1.0.0.8</HawkyntImagesVersion>
+    <HawkyntImagesVersion>1.0.0.17</HawkyntImagesVersion>
   </PropertyGroup>
 
 </Project>
