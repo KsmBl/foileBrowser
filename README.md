@@ -1,4 +1,4 @@
-# foileBrowser
+# 📂 foileBrowser
 
 [![License](https://img.shields.io/github/license/Hawkynt/foileBrowser)](https://github.com/Hawkynt/foileBrowser/blob/main/LICENSE)
 [![Language](https://img.shields.io/github/languages/top/Hawkynt/foileBrowser?color=8957D5)](https://github.com/Hawkynt/foileBrowser)
@@ -17,7 +17,7 @@
 [![Nightly](https://img.shields.io/github/v/release/Hawkynt/foileBrowser?include_prereleases&sort=date&filter=nightly-*&label=nightly&color=FF9800)](https://github.com/Hawkynt/foileBrowser/releases)
 [![Downloads](https://img.shields.io/github/downloads/Hawkynt/foileBrowser/total)](https://github.com/Hawkynt/foileBrowser/releases)
 
-> A fast, keyboard-first file browser for Windows and Linux — dual panes, tabs, a fuzzy command
+> A fast, keyboard-first file browser for Windows and Linux — multi panes, tabs, a fuzzy command
 > palette, an inspector, colour tags and archives-as-folders — drawn with real platform widgets
 > rather than a rendering engine, so it idles in a fraction of the memory a modern file manager
 > takes. Inspired by [OneCommander](https://onecommander.com/) and [File Pilot](https://filepilot.tech/).
@@ -119,19 +119,18 @@ meets a format the toolkit does not read itself.
 
 Measured idle on one Linux/GTK (Wayland) desktop, published Release:
 
-| Build | RSS | PSS |
-|---|---:|---:|
-| Avalonia (the previous UI) | 149 MB | 107 MB |
-| NativeForms | 96 MB | 42 MB |
+| Build                                          |       RSS |      PSS |
+| ---------------------------------------------- | --------: | -------: |
+| NativeForms                                    |     96 MB |    42 MB |
 | NativeForms + NativeAOT (`./install.sh --aot`) | **73 MB** | 41–48 MB |
 
 Against the neighbours, measured identically on the same folder and session:
 
-| File manager | RSS | PSS |
-|---|---:|---:|
-| Thunar (GTK, C) | 59 MB | 29 MB |
+| File manager           |       RSS |      PSS |
+| ---------------------- | --------: | -------: |
+| Thunar (GTK, C)        |     59 MB |    29 MB |
 | **foileBrowser (AOT)** | **73 MB** | 41–48 MB |
-| Dolphin (Qt/KDE) | 153 MB | 51 MB |
+| Dolphin (Qt/KDE)       |    153 MB |    51 MB |
 
 So: under half of Dolphin's RSS and about level on PSS; Thunar is leaner than both. The ~14 MB
 between us and Thunar is the .NET runtime itself — `ConserveMemory`, gen0 tuning and size-optimised
@@ -177,12 +176,12 @@ built, delete what's not wanted.
 
 GitHub Actions, mirroring the layout every repo here uses:
 
-| Workflow | When | What |
-|---|---|---|
-| `ci.yml` | push / PR to `main` | tests on Linux, Windows and macOS; a GTK screenshot gate; a NativeAOT publish per RID |
+| Workflow      | When                       | What                                                                                                        |
+| ------------- | -------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `ci.yml`      | push / PR to `main`        | tests on Linux, Windows and macOS; a GTK screenshot gate; a NativeAOT publish per RID                       |
 | `nightly.yml` | after a green CI on `main` | builds that exact SHA, publishes a `nightly-yyyyMMdd` prerelease, prunes old ones, and reports idle RSS/PSS |
-| `release.yml` | manual dispatch | runs CI, builds, updates `CHANGELOG.md`, cuts a dated `vyyyyMMdd` release |
-| `_build.yml` | called by the two above | the single place a commit turns into artifacts, so release and nightly cannot diverge |
+| `release.yml` | manual dispatch            | runs CI, builds, updates `CHANGELOG.md`, cuts a dated `vyyyyMMdd` release                                   |
+| `_build.yml`  | called by the two above    | the single place a commit turns into artifacts, so release and nightly cannot diverge                       |
 
 Both workflows that build check out **NativeForms beside this repo**, because the toolkit is consumed
 by project reference rather than as a package.
@@ -199,8 +198,8 @@ the `<Version>` in `Directory.Build.props`. Versions come from files, never from
 
 If this project saves you time or money, consider supporting its development:
 
-[![GitHub Sponsors](https://img.shields.io/badge/GitHub-Sponsor-EA4AAA?logo=githubsponsors)](https://github.com/sponsors/Hawkynt)
-[![PayPal](https://img.shields.io/badge/PayPal-Donate-00457C?logo=paypal)](https://www.paypal.me/hawkynt)
+[![GitHub Sponsors](https://img.shields.io/badge/GitHub-Sponsor-EA4AAA?logo=githubsponsors)](https://github.com/sponsors/KsmBl)
+[![PayPal](https://img.shields.io/badge/PayPal-Donate-00457C?logo=paypal)](https://www.paypal.me/WhisperUwU)
 
 ## 📜 License
 
