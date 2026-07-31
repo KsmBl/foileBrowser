@@ -31,13 +31,15 @@ The guiding principle: **every interaction feels instantaneous, and everything i
 
 - Windows 10+ (x64/ARM64)
 - Linux with X11 or Wayland (mainstream distros)
-- macOS 12+ — **building, not yet claimed.** The toolkit's Cocoa backend stopped being a stub: it is
-  a real `objc_msgSend` peer layer, so the app now registers it alongside Win32 and GTK and there is
-  nothing left to port. What is missing is evidence. The unit tests have always run on macOS in CI
-  and prove nothing about the view layer — they never touch a backend — so a screenshot probe on a
-  `macos-latest` runner takes the same shot the Linux gate takes. It reports rather than blocks until
-  it has passed often enough to be trusted, which is how the Linux shot earned its place. Until then
-  this line says "builds and is being watched", not "supported".
+- macOS 12+ — **running, not yet claimed.** The toolkit's Cocoa backend stopped being a stub: it is a
+  real `objc_msgSend` peer layer, so the app registers it alongside Win32 and GTK and there was
+  nothing else to port. The first probe on a `macos-latest` runner showed the window coming up, the
+  message loop running and the app closing cleanly — but the capture failed, because `Screenshot.cs`
+  knew only Win32 and GTK and macOS fell through to a `libgtk-3.so.0` that is not there. It has a
+  Cocoa path now (`cacheDisplayInRect:toBitmapImageRep:`, AppKit's answer to `gtk_widget_draw`), so
+  the probe takes the same shot the Linux gate takes. It reports rather than blocks until it has
+  passed often enough to be trusted, which is how the Linux shot earned its place. Until then this
+  line says "runs and is being watched", not "supported".
 
 ## 5. Tech Stack
 
