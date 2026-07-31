@@ -19,6 +19,9 @@ public sealed class ArchiveService : IArchiveService
         return true;
     }
 
+    /// <summary>Runs the one-time registration, for a caller that wants to read the registry itself.</summary>
+    internal static void EnsureFormatsRegistered() => _ = Registration.Value;
+
     private static IFormatDescriptor? DescriptorFor(string path)
     {
         _ = Registration.Value;

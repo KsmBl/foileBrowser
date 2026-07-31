@@ -93,8 +93,6 @@ public sealed class MetadataService : IMetadataService
         Dictionary<string, string> Read(string path);
     }
 
-    private static readonly HashSet<string> ImageExts = new(StringComparer.Ordinal)
-        { "png", "jpg", "jpeg", "gif", "bmp", "webp", "tif", "tiff", "ico", "tga", "heic", "heif", "avif", "psd" };
 
     /// <summary>
     /// Cheap image header read (dimensions/channels/depth) — the format's own header parser, with no
@@ -107,7 +105,7 @@ public sealed class MetadataService : IMetadataService
 
         public string Category => "ImageHeader";
         public IReadOnlyList<string> ColumnIds { get; } = ["img.dimensions", "img.megapixels", "img.channels", "img.depth"];
-        public bool CanHandle(string ext) => ImageExts.Contains(ext);
+        public bool CanHandle(string ext) => ImageSupport.CanDecodeExtension(ext);
 
         public Dictionary<string, string> Read(string path)
         {
@@ -190,7 +188,7 @@ public sealed class MetadataService : IMetadataService
 
         public string Category => "ImageColors";
         public IReadOnlyList<string> ColumnIds { get; } = ["img.colors"];
-        public bool CanHandle(string ext) => ImageExts.Contains(ext);
+        public bool CanHandle(string ext) => ImageSupport.CanDecodeExtension(ext);
 
         public Dictionary<string, string> Read(string path)
         {
