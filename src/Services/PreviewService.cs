@@ -8,9 +8,6 @@ public sealed class PreviewService : IPreviewService
     private const int MaxTextBytes = 64 * 1024;
     private const int FolderListLimit = 60;
 
-    private static readonly HashSet<string> ImageExtensions =
-        new(StringComparer.OrdinalIgnoreCase) { "png", "jpg", "jpeg", "gif", "bmp", "webp", "ico" };
-
     // Extensions we always treat as text even if large; other files are sniffed for binary bytes.
     private static readonly HashSet<string> TextExtensions =
         new(StringComparer.OrdinalIgnoreCase)
@@ -62,8 +59,17 @@ public sealed class PreviewService : IPreviewService
         var ext = entry.Extension;
         var info = DescribeFile(entry);
 
-        if (ImageExtensions.Contains(ext))
-            return new PreviewResult { Kind = PreviewKind.Image, Title = entry.Name, Info = info, ImagePath = entry.FullPath };
+        // Widening the picture panel from seven extensions to the library's whole catalogue means it
+        // now meets names that are not evidence of anything, so the order matters. A name nobody else
+        // claims is trusted as before, which keeps a corrupt .png opening as a broken picture rather
+        // than as three control characters of "text". A contested one — .obj, .dat, .exe and the rest
+        // that the archive registry wants too — has to be earned by the file's own bytes, which is
+        // also how the decoder itself decides.
+        PreviewResult Picture() =>
+            new() { Kind = PreviewKind.Image, Title = entry.Name, Info = info, ImagePath = entry.FullPath };
+
+        if (ImageSupport.ExtensionAloneIsEnough(ext) || ImageSupport.ContentIsDecodable(entry.FullPath))
+            return Picture();
 
         var text = TryReadText(entry.FullPath, ext);
         return text is not null
