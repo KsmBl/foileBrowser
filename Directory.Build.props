@@ -11,7 +11,7 @@
   </PropertyGroup>
 
   <PropertyGroup>
-    <HawkyntImagesVersion>1.0.0.17</HawkyntImagesVersion>
+    <HawkyntImagesVersion>1.0.0.120</HawkyntImagesVersion>
     <!-- The UI toolkit. Each of its packages carries its own build number (its own folder's commit
          count), so there is no single toolkit version to pin — the three move independently and are
          listed separately. Only consulted when NativeFormsSource=package (the default); see
