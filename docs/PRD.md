@@ -31,10 +31,13 @@ The guiding principle: **every interaction feels instantaneous, and everything i
 
 - Windows 10+ (x64/ARM64)
 - Linux with X11 or Wayland (mainstream distros)
-- ~~macOS 12+~~ — **not currently reachable.** The toolkit's Cocoa backend is a stub whose every
-  member throws, so nothing renders there; it is on NativeForms' roadmap (its PRD §10, M9) rather
-  than on ours. The code is platform-neutral and the test suite runs on macOS in CI, so the day that
-  backend lands this is a build, not a port.
+- macOS 12+ — **building, not yet claimed.** The toolkit's Cocoa backend stopped being a stub: it is
+  a real `objc_msgSend` peer layer, so the app now registers it alongside Win32 and GTK and there is
+  nothing left to port. What is missing is evidence. The unit tests have always run on macOS in CI
+  and prove nothing about the view layer — they never touch a backend — so a screenshot probe on a
+  `macos-latest` runner takes the same shot the Linux gate takes. It reports rather than blocks until
+  it has passed often enough to be trusted, which is how the Linux shot earned its place. Until then
+  this line says "builds and is being watched", not "supported".
 
 ## 5. Tech Stack
 

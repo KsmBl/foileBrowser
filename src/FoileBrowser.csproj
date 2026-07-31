@@ -102,17 +102,21 @@
   <!-- UI toolkit: the NativeForms core plus the backends this build ships. Core never calls a
        native API; each backend is one platform's P/Invoke layer and only the one matching the
        running OS is ever realized — so there is no Skia, no GPU stack and no bundled font in the
-       process (PRD §6.12). -->
+       process (PRD §6.12). All three ship in every build, which is what makes one binary run on
+       every platform; the two that do not match the running OS cost their P/Invoke surface and
+       nothing else. -->
   <ItemGroup Condition="'$(NativeFormsSource)' == 'package'">
     <PackageReference Include="Hawkynt.NativeForms" Version="$(NativeFormsVersion)" />
     <PackageReference Include="Hawkynt.NativeForms.Backends.Gtk" Version="$(NativeFormsGtkVersion)" />
     <PackageReference Include="Hawkynt.NativeForms.Backends.Windows" Version="$(NativeFormsWindowsVersion)" />
+    <PackageReference Include="Hawkynt.NativeForms.Backends.MacOS" Version="$(NativeFormsMacOSVersion)" />
   </ItemGroup>
 
   <ItemGroup Condition="'$(NativeFormsSource)' == 'project'">
     <ProjectReference Include="$(NativeFormsDir)\NativeForms.Core\NativeForms.Core.csproj" />
     <ProjectReference Include="$(NativeFormsDir)\NativeForms.Backends.Gtk\NativeForms.Backends.Gtk.csproj" />
     <ProjectReference Include="$(NativeFormsDir)\NativeForms.Backends.Windows\NativeForms.Backends.Windows.csproj" />
+    <ProjectReference Include="$(NativeFormsDir)\NativeForms.Backends.MacOS\NativeForms.Backends.MacOS.csproj" />
   </ItemGroup>
 
   <ItemGroup>
