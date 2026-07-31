@@ -42,20 +42,43 @@ internal static class ImageSupport
     {
         try
         {
-            using var stream = File.OpenRead(path);
-            Span<byte> head = stackalloc byte[HeaderBytes];
-            var read = stream.Read(head);
-            if (read <= 0)
+            long length;
+            using (var stream = File.OpenRead(path))
+            {
+                length = stream.Length;
+                Span<byte> head = stackalloc byte[HeaderBytes];
+                var read = stream.Read(head);
+                if (read <= 0)
+                    return false;
+
+                if (Readable(FormatRegistry.DetectFromBytes(head[..read])))
+                    return true;
+            }
+
+            // No signature matched, which settles nothing on its own: plenty of the older rasters
+            // carry no magic bytes at all. The name is the only other witness, and for a contested
+            // extension it is not a good one — so the doubt is resolved by simply trying to decode,
+            // and a file that yields a picture is shown as one whatever it is called. Bounded by
+            // size because this runs for one selected file rather than for a listing, and only ever
+            // reached for a name the image registry already claims.
+            var named = FormatRegistry.DetectFromExtension(Path.GetExtension(path));
+            if (!Readable(named) || length > MaxProbeBytes)
                 return false;
 
-            var format = FormatRegistry.DetectFromBytes(head[..read]);
-            return format != ImageFormat.Unknown && FormatRegistry.GetEntry(format) is not null;
+            return FormatRegistry.GetEntry(named)!.LoadRawImageFromBytes(File.ReadAllBytes(path)) is not null;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+        catch (Exception)
         {
+            // Unreadable, or the wrong reader after all — either way, not a picture.
             return false;
         }
     }
+
+    /// <summary>The largest file a decode will be attempted on merely to find out what it is.</summary>
+    private const long MaxProbeBytes = 32L * 1024 * 1024;
+
+    private static bool Readable(ImageFormat format)
+        => format != ImageFormat.Unknown && FormatRegistry.GetEntry(format) is not null;
 
     /// <summary>As above, for an extension that may or may not carry its leading dot.</summary>
     public static bool CanDecodeExtension(string extension)
