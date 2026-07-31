@@ -217,7 +217,7 @@ GitHub Actions, mirroring the layout every repo here uses:
 
 | Workflow      | When                       | What                                                                                                        |
 | ------------- | -------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| `ci.yml`      | push / PR to `main`        | tests on Linux, Windows and macOS; a GTK screenshot gate; a NativeAOT publish per RID                       |
+| `ci.yml`      | push / PR to `main`        | tests on Linux, Windows and macOS; a GTK screenshot gate; a Cocoa screenshot probe; a NativeAOT publish per RID |
 | `nightly.yml` | after a green CI on `main` | builds that exact SHA, publishes a `nightly-yyyyMMdd` prerelease, prunes old ones, and reports idle RSS/PSS |
 | `release.yml` | manual dispatch            | runs CI, builds, updates `CHANGELOG.md`, cuts a dated `vyyyyMMdd` release                                   |
 | `_build.yml`  | called by the two above    | the single place a commit turns into artifacts, so release and nightly cannot diverge                       |

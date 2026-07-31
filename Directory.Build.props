@@ -19,6 +19,7 @@
     <NativeFormsVersion>1.0.0.211</NativeFormsVersion>
     <NativeFormsGtkVersion>1.0.0.68</NativeFormsGtkVersion>
     <NativeFormsWindowsVersion>1.0.0.60</NativeFormsWindowsVersion>
+    <NativeFormsMacOSVersion>1.0.0.84</NativeFormsMacOSVersion>
   </PropertyGroup>
 
 </Project>

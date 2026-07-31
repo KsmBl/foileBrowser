@@ -3,6 +3,7 @@ using FoileBrowser.Views;
 using Hawkynt.NativeForms;
 using Hawkynt.NativeForms.Backends;
 using Hawkynt.NativeForms.Backends.Gtk;
+using Hawkynt.NativeForms.Backends.MacOS;
 using Hawkynt.NativeForms.Backends.Windows;
 
 namespace FoileBrowser;
@@ -35,6 +36,7 @@ internal sealed class Program
 
         BackendRegistry.Register(new Win32Backend());
         BackendRegistry.Register(new GtkBackend());
+        BackendRegistry.Register(new CocoaBackend());
 
         var shell = App.CreateShell();
         if (requested is not null)
