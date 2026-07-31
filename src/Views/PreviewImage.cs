@@ -140,12 +140,88 @@ internal static class PreviewImage
 
     // ---- the managed format library: everything the toolkit's own decoder does not read ----
 
+    /// <summary>How long each picture is held when a file turns out to hold several.</summary>
+    private const int MultiImageDelayMs = 1200;
+
     private static IImage? LoadScaled(string path, ref Failure failure)
     {
+        // A file often holds more than one picture — the icons in an executable, the pages of a
+        // TIFF, the sizes inside an .ico — and showing only the first threw the rest away. Where the
+        // format can say how many it has, all of them are handed to the picture box, which already
+        // knows how to cycle frames because that is how an animated GIF is shown.
+        if (ManagedGallery(path, MaxEdge) is { Count: > 1 } gallery)
+        {
+            var width = gallery.Max(picture => picture.Width);
+            var height = gallery.Max(picture => picture.Height);
+            var frames = gallery
+                .Select(picture => new ImageFrame(Centre(picture, width, height), MultiImageDelayMs))
+                .ToArray();
+
+            failure = Failure.None;
+            return new AnimatedImage(new DecodedImage(width, height, frames));
+        }
+
         var pixels = ManagedPixels(path, MaxEdge, ref failure);
         return pixels is { } decoded
             ? new AnimatedImage(new DecodedImage(decoded.Width, decoded.Height, [new ImageFrame(decoded.Pixels, 0)]))
             : null;
+    }
+
+    /// <summary>
+    /// Every picture in a file that holds several, scaled to fit, or null when it holds one.
+    /// </summary>
+    /// <remarks>
+    /// Multi-image support is an optional augmentation on a format entry, so most formats answer
+    /// nothing here and fall straight through to the single decode. The count is asked first and the
+    /// pictures only pulled when there is more than one, so a plain photograph pays nothing for this.
+    /// </remarks>
+    private static List<(int Width, int Height, int[] Pixels)>? ManagedGallery(string path, int maxEdge)
+    {
+        try
+        {
+            var file = new FileInfo(path);
+            var format = FormatRegistry.DetectFromBytes(File.ReadAllBytes(path));
+            if (format == ImageFormat.Unknown)
+                format = FormatRegistry.DetectFromExtension(file.Extension);
+
+            if (FormatRegistry.GetEntry(format) is not { SupportsMultiImage: true } entry
+                || entry.GetImageCount!(file) <= 1
+                || entry.LoadAllRawImages?.Invoke(file) is not { Count: > 1 } raws)
+                return null;
+
+            var pictures = new List<(int Width, int Height, int[] Pixels)>(raws.Count);
+            foreach (var raw in raws)
+            {
+                if ((long)raw.Width * raw.Height > MaxPixels)
+                    continue;
+
+                var decoded = ToPixels(raw);
+                var shrink = Fit(decoded.Width, decoded.Height, maxEdge);
+                pictures.Add(shrink >= 1f ? decoded : Shrink(decoded, shrink));
+            }
+
+            return pictures.Count > 1 ? pictures : null;
+        }
+        catch (Exception)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>Places a picture in the middle of a transparent canvas, so frames of different
+    /// sizes — the 16, 32 and 256-pixel icons of one executable — share one box without stretching.</summary>
+    private static int[] Centre((int Width, int Height, int[] Pixels) source, int width, int height)
+    {
+        if (source.Width == width && source.Height == height)
+            return source.Pixels;
+
+        var canvas = new int[width * height];
+        var left = (width - source.Width) / 2;
+        var top = (height - source.Height) / 2;
+        for (var y = 0; y < source.Height; ++y)
+            Array.Copy(source.Pixels, y * source.Width, canvas, ((y + top) * width) + left, source.Width);
+
+        return canvas;
     }
 
     /// <summary>

@@ -165,6 +165,85 @@ public class FormatCoverageTests
         0xFF, 0x00, 0x00,  0xFF, 0xFF, 0xFF,
     ];
 
+    /// <summary>
+    /// A picture keeps its preview even when its extension also names a container.
+    /// </summary>
+    /// <remarks>
+    /// The rule the two panels split on: previewing shows the picture, entering shows the archive.
+    /// Neither suppresses the other, and anything the app itself should not open is a job for Open
+    /// With on the context menu.
+    /// </remarks>
+    [TestCase("dat")]
+    [TestCase("img")]
+    [TestCase("dll")]
+    public void A_Picture_Named_As_A_Container_Still_Previews_As_A_Picture(string extension)
+    {
+        var name = "artwork." + extension;
+        File.WriteAllBytes(Path.Combine(_root, name), OnePixelPng);
+
+        var preview = new PreviewService().CreateAsync(FileEntry(name)).GetAwaiter().GetResult();
+
+        Assert.That(preview.Kind, Is.EqualTo(PreviewKind.Image),
+            $"a picture called .{extension} should still be shown as one");
+    }
+
+    /// <summary>
+    /// A file holding several pictures shows all of them, not just the first.
+    /// </summary>
+    /// <remarks>
+    /// 14 of the shipped formats can hold more than one — the pages of a TIFF or a PDF, the sizes in
+    /// an .ico, the icons inside an executable's resources. The picture box already cycles frames,
+    /// because that is how an animated GIF has always been shown, so they are handed over the same
+    /// way. ImageMagick writes the fixture, and the test steps aside where it is not installed, which
+    /// is the same bargain the disk-image tests make with genisoimage.
+    /// </remarks>
+    [TestCase("tif")]
+    [TestCase("pdf")]
+    public void A_File_Holding_Several_Pictures_Shows_Them_All(string extension)
+    {
+        var first = Path.Combine(_root, "a.png");
+        var second = Path.Combine(_root, "b.png");
+        var many = Path.Combine(_root, "pages." + extension);
+        if (!Run("magick", "-size", "64x64", "xc:red", first) && !Run("convert", "-size", "64x64", "xc:red", first))
+            Assert.Ignore("no ImageMagick on this machine");
+
+        if (!Run("magick", "-size", "32x32", "xc:blue", second))
+            Run("convert", "-size", "32x32", "xc:blue", second);
+        if (!Run("magick", first, second, many) && !Run("convert", first, second, many))
+            Assert.Ignore($"ImageMagick here cannot write a {extension}");
+
+        var image = FoileBrowser.Views.PreviewImage.Load(many, out var failure);
+
+        Assert.That(image, Is.Not.Null, $"the multi-page {extension} did not decode ({failure})");
+        Assert.That(
+            ((Hawkynt.NativeForms.Drawing.AnimatedImage)image!).FrameCount, Is.GreaterThan(1),
+            $"both pages of the {extension} should be shown");
+    }
+
+    private static bool Run(string tool, params string[] args)
+    {
+        try
+        {
+            var start = new System.Diagnostics.ProcessStartInfo(tool)
+            {
+                RedirectStandardOutput = true, RedirectStandardError = true,
+            };
+            foreach (var argument in args)
+                start.ArgumentList.Add(argument);
+
+            using var process = System.Diagnostics.Process.Start(start);
+            if (process is null)
+                return false;
+
+            process.WaitForExit();
+            return process.ExitCode == 0;
+        }
+        catch (Exception)
+        {
+            return false;
+        }
+    }
+
     // ---- archives and filesystem images (PRD §6.11) ----
 
     [Test]

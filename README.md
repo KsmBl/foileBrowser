@@ -137,6 +137,13 @@ lists of their own, and every one of the 261 listable archive and filesystem for
 into as a folder. Both are asserted against the registries in the test suite, so a format a package
 adds arrives with the version bump rather than waiting for someone to widen a list.
 
+Twenty-five extensions — `.exe`, `.dll`, `.img`, `.wad` and the like — are both at once, and the two
+answers don't compete: **preview shows the picture, Enter opens the container.** A `.dll` shows its
+icons in the inspector and still opens as a resource container. Anything foileBrowser shouldn't be
+opening at all goes to Open With on the context menu, which hands it to the desktop's own app. Where
+a file holds several pictures — the pages of a PDF or TIFF, the sizes in an `.ico`, the icons in an
+executable — the preview cycles through all of them instead of showing the first.
+
 Measured idle on one Linux/GTK (Wayland) desktop, published Release:
 
 | Build                                          |       RSS |      PSS |
