@@ -41,7 +41,7 @@ The guiding principle: **every interaction feels instantaneous, and everything i
 | Concern | Choice |
 |---|---|
 | Language | C# 14 on .NET 10 |
-| UI framework | [NativeForms](https://github.com/Hawkynt/NativeForms) — a Windows-Forms-shaped toolkit over Win32/GTK via P/Invoke |
+| UI framework | [NativeForms](https://github.com/Hawkynt/NativeForms) — a Windows-Forms-shaped toolkit over Win32/GTK via P/Invoke (`Hawkynt.NativeForms` + the two backend packages; `-p:NativeFormsSource=project` swaps in a sibling checkout for co-development) |
 | Architecture | MVVM via CommunityToolkit.Mvvm |
 | Archives & filesystem images | [CompressionWorkbench](https://github.com/Hawkynt/CompressionWorkbench) (`Hawkynt.FileFormats.Archives` / `.FileSystems` / `Hawkynt.Compression.Core` NuGet packages, LGPL-3.0) |
 | Image decoding & metadata | [PNGCrushCS](https://github.com/Hawkynt/PNGCrushCS) (`Hawkynt.FileFormats.Images`, ~580 formats, pure managed — replaced SkiaSharp and its native library) |
