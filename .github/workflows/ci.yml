@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [main]
   workflow_call: {}
+  # So a branch can be put through the full matrix — the macOS probe in particular — without
+  # opening a pull request for it: `gh workflow run ci.yml --ref <branch>`.
+  workflow_dispatch: {}
 
 # Force JavaScript-based actions to run on Node 24 instead of the deprecated Node 20 ahead of
 # the 2026-06-16 hard cutover, until we bump each action to a Node-24-native major version.
@@ -89,6 +92,49 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: linux-screenshot
+          path: ${{ runner.temp }}/shots/*.png
+          if-no-files-found: warn
+
+  macos-probe:
+    name: screenshot probe (macos/cocoa)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: foileBrowser
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Build
+        run: dotnet build foileBrowser.slnx --configuration Release
+        working-directory: foileBrowser
+      # The same shot the Linux gate takes, on the backend that only just became real (NativeForms'
+      # Cocoa peers). It answers "how far does this app get on macOS" on every push, and the shot is
+      # the answer — the macOS test job above cannot show it, because the unit tests never touch a
+      # backend at all. No virtual display: a macOS runner has a window server, and the capture
+      # composites through the toolkit's own draw pipeline rather than asking for a desktop grab.
+      #
+      # A report, not a gate — `continue-on-error` until it has passed often enough to be trusted,
+      # which is how the Linux shot and the Windows job each earned their place. Bounded, because a
+      # backend this young can leave the message loop running with nothing left to end it, and a
+      # probe that hangs tells you less than one that stops.
+      - name: Shoot the main window
+        continue-on-error: true
+        timeout-minutes: 5
+        run: |
+          mkdir -p "$RUNNER_TEMP/home/Documents" "$RUNNER_TEMP/shots"
+          echo hello > "$RUNNER_TEMP/home/Documents/notes.txt"
+          env HOME="$RUNNER_TEMP/home" \
+            dotnet run --project src/FoileBrowser.csproj --configuration Release --no-build -- \
+              --standalone "$RUNNER_TEMP/home" \
+              --screenshot "$RUNNER_TEMP/shots/main-window.png" --screenshot-delay 6000
+          test -s "$RUNNER_TEMP/shots/main-window.png" || { echo "no screenshot was written"; exit 1; }
+        working-directory: foileBrowser
+      - name: Upload screenshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-screenshot
           path: ${{ runner.temp }}/shots/*.png
           if-no-files-found: warn
 
