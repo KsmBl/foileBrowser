@@ -351,6 +351,27 @@ Check off items as they're completed; delete lines you decide not to build.
   than it used to: SkiaSharp could subsample a JPEG *while* decoding, so an enormous photo never
   existed at full size; the managed decode is full-size and scales afterwards, which makes the
   pre-decode bound the thing that stops a decompression bomb rather than merely a nicety.
+- [x] **Every format the library reads is actually offered.** The decode path always went to the
+  whole catalogue, but three hand-written extension lists stood in front of it — seven extensions for
+  the inspector, fourteen for gallery thumbnails, fourteen for the metadata columns — so an Amiga
+  IFF, a Sun raster or a Dr. Halo CUT decoded perfectly well and was never asked for. All three now
+  ask the registry (872 extensions across ~580 formats), and `FormatCoverageTests` holds them against
+  it rather than against a list, so a format the package adds is covered the day it is bumped.
+  Widening it put the two shipped registries in the same room: 25 extensions — `.exe`, `.dll`,
+  `.obj`, `.dat`, `.img`, `.wad` among them — name both a picture and a container, and for those the
+  name is no evidence, so the file has to earn the picture panel with its own bytes. An uncontested
+  name is still trusted outright, which keeps a corrupt `.png` opening as a broken picture instead of
+  as three control characters of "text"
+- [x] **The decoder asks the name as well as the bytes.** The magic-byte table is right far more often
+  than a file name, but where it is wrong it does not say "unknown" — a Targa keeps its signature in a
+  footer, so the table reads it as a Gaf; an XPM is C source and comes back as a Sun icon. Reading
+  with that one answer decoded them as nothing while the reader their extension names sat unused. The
+  decode now tries the content's format and then the name's. Measured on files written by ImageMagick,
+  that took eight exotic formats from four decoding to six — and `.tga`, which was in the *old*
+  hand-written thumbnail list all along, had been silently failing the whole time
+  (`FormatCoverageTests`). The two still failing are upstream reader gaps rather than routing: MIFF is
+  detected correctly and its reader declines, and XPM's reader declines the file its own extension
+  names
 - [x] Preview of files inside an opened archive — selecting an entry while browsing an archive streams
   just that entry out to a temp file so the inspector and spacebar quick-preview work there too (entries
   above 16 MB are skipped rather than extracted on a whim)
@@ -471,7 +492,11 @@ Check off items as they're completed; delete lines you decide not to build.
 ### 6.11 Archives & Virtual Filesystems (CompressionWorkbench)
 
 - [x] Enter archives (ZIP, TAR, 7z, RAR, CAB, CPIO, …) as virtual folders — navigate the archive
-  index in place (no extraction to temp); opening a single file streams just that entry out to temp
+  index in place (no extraction to temp); opening a single file streams just that entry out to temp.
+  Unlike the preview, this never had a hand-written list to outgrow: entering asks the registry which
+  descriptor claims the extension and whether it can list, so all 261 listable formats are reachable.
+  `FormatCoverageTests` now asserts that against the registry rather than leaving it to the handful
+  the other archive tests happen to exercise
 - [x] **The path bar shows where you really are inside an archive** — the trail is the real folders
   down to the archive file, then the directories within it, as one continuous path. It used to begin
   at the archive file, which meant the folders containing it were unreachable (there was nothing to
