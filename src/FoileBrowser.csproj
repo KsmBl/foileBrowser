@@ -49,6 +49,16 @@
     <IlcFoldIdenticalMethodBodies>true</IlcFoldIdenticalMethodBodies>
   </PropertyGroup>
 
+  <!-- Opt into a trimmed (non-AOT) publish via -p:FoileTrimmed=true, for the same reason FoileAot is
+       a custom property rather than PublishAot: passing -p:PublishTrimmed=true on the command line
+       makes it a *global* MSBuild property, which reaches the netstandard2.0 generator project too
+       and fails it with NETSDK1124 ("to trim assemblies, .NET Core 3.0 or higher is required") —
+       the UndefineProperties on that ProjectReference does not stop a global property. Set here, it
+       is a property of this project alone and the analyzer never sees it. -->
+  <PropertyGroup Condition="'$(FoileTrimmed)' == 'true'">
+    <PublishTrimmed>true</PublishTrimmed>
+  </PropertyGroup>
+
   <PropertyGroup Condition="'$(PublishTrimmed)' == 'true' Or '$(PublishAot)' == 'true'">
     <TrimMode>full</TrimMode>
   </PropertyGroup>
