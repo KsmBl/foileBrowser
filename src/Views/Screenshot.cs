@@ -35,7 +35,15 @@ internal static partial class Screenshot
         try
         {
             Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(path)) ?? ".");
-            return OperatingSystem.IsWindows() ? Win32.Capture(path, out windows) : Gtk.Capture(path, out windows);
+            if (OperatingSystem.IsWindows())
+                return Win32.Capture(path, out windows);
+
+            // Before this existed macOS fell through to the GTK branch, where libgtk-3.so.0 is not
+            // there to load: the DllNotFoundException below was caught and the capture reported
+            // failure, on a run where the window had come up perfectly well.
+            return OperatingSystem.IsMacOS()
+                ? Cocoa.Capture(path, out windows)
+                : Gtk.Capture(path, out windows);
         }
         catch (Exception ex) when (ex is DllNotFoundException or EntryPointNotFoundException or IOException)
         {
@@ -402,6 +410,218 @@ internal static partial class Screenshot
             if (owner == _wanted && IsWindowVisible(window))
                 Found.Add(window);
             return 1;
+        }
+    }
+
+    // ---- Cocoa: ask the content view to cache its own drawing into a bitmap ----
+
+    /// <summary>
+    /// The macOS half, and the same idea as the other two: <c>cacheDisplayInRect:toBitmapImageRep:</c>
+    /// asks the view to draw itself, which is AppKit's <c>gtk_widget_draw</c>, so the file holds what
+    /// the toolkit painted rather than whatever the window server had stacked on a desktop the runner
+    /// does not have.
+    ///
+    /// The rep encodes its own PNG, so <see cref="Png"/> is not used here — AppKit's encoder is right
+    /// about colour space and premultiplication in a way a hand-rolled writer would have to be taught.
+    ///
+    /// Ported from <c>NativeForms.Demo/Shoot.MacOS.cs</c>, which is where the awkward parts were
+    /// learned; the toolkit's own gallery shots go through it on every push.
+    /// </summary>
+    private static unsafe partial class Cocoa
+    {
+        private const string ObjC = "/usr/lib/libobjc.A.dylib";
+        private const string CoreFoundation =
+            "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation";
+
+        /// <summary>NSBitmapImageFileTypePNG.</summary>
+        private const nint PngType = 4;
+
+        /// <summary>kCFStringEncodingUTF8.</summary>
+        private const uint Utf8 = 0x08000100;
+
+        [LibraryImport(ObjC, StringMarshalling = StringMarshalling.Utf8)]
+        private static partial nint objc_getClass(string name);
+
+        [LibraryImport(ObjC, StringMarshalling = StringMarshalling.Utf8)]
+        private static partial nint sel_registerName(string name);
+
+        [LibraryImport(ObjC, EntryPoint = "objc_msgSend")]
+        private static partial nint Send(nint receiver, nint selector);
+
+        [LibraryImport(ObjC, EntryPoint = "objc_msgSend")]
+        private static partial nint Send(nint receiver, nint selector, nint argument);
+
+        [LibraryImport(ObjC, EntryPoint = "objc_msgSend")]
+        private static partial nint Send(nint receiver, nint selector, nint first, nint second);
+
+        [LibraryImport(ObjC, EntryPoint = "objc_msgSend")]
+        [return: MarshalAs(UnmanagedType.U1)]
+        private static partial bool SendBool(nint receiver, nint selector);
+
+        [LibraryImport(ObjC, EntryPoint = "objc_msgSend")]
+        private static partial nint SendRect(nint receiver, nint selector, Rect frame);
+
+        [LibraryImport(ObjC, EntryPoint = "objc_msgSend")]
+        private static partial void SendRect(nint receiver, nint selector, Rect frame, nint rep);
+
+        [LibraryImport(ObjC, EntryPoint = "objc_msgSend")]
+        private static partial Rect SendFrame(nint receiver, nint selector);
+
+        [LibraryImport(ObjC, EntryPoint = "objc_msgSend_stret")]
+        private static partial void SendFrameStret(out Rect result, nint receiver, nint selector);
+
+        [LibraryImport(CoreFoundation, StringMarshalling = StringMarshalling.Utf8)]
+        private static partial nint CFStringCreateWithCString(nint allocator, string text, uint encoding);
+
+        [LibraryImport(CoreFoundation)]
+        private static partial int CFRunLoopRunInMode(nint mode, double seconds, [MarshalAs(UnmanagedType.U1)] bool returnAfterSourceHandled);
+
+        [LibraryImport(CoreFoundation)]
+        private static partial void CFRelease(nint reference);
+
+        /// <summary>An NSRect: four CGFloats, which are doubles on every architecture this runs on.</summary>
+        [StructLayout(LayoutKind.Sequential)]
+        private struct Rect
+        {
+            public double X, Y, Width, Height;
+        }
+
+        public static bool Capture(string path, out int windows)
+        {
+            windows = 0;
+
+            var application = objc_getClass("NSApplication");
+            var app = application == 0 ? 0 : Send(application, sel_registerName("sharedApplication"));
+            if (app == 0)
+                return false;
+
+            var window = Photographable(app);
+            if (window == 0)
+                return false;
+
+            var view = Send(window, sel_registerName("contentView"));
+            if (view == 0)
+                return false;
+
+            var size = FrameSize(view);
+            if (size.Width <= 0 || size.Height <= 0 || size.Width > MaxExtent || size.Height > MaxExtent)
+                return false;
+
+            windows = 1;
+            var bounds = new Rect { X = 0, Y = 0, Width = size.Width, Height = size.Height };
+
+            // The shutter fires from a queued timer tick, so a frame the view still owes may not have
+            // rendered when the capture asks for it — and caching an undrawn view yields an empty rep.
+            // So the whole attempt repeats, each round letting the run loop breathe and the view finish
+            // laying out first, and the first round that produces bytes wins.
+            for (var attempt = 0; attempt < 5; ++attempt)
+            {
+                Settle();
+                Send(view, sel_registerName("layoutSubtreeIfNeeded"));
+                Send(view, sel_registerName("display"));
+
+                var rep = SendRect(view, sel_registerName("bitmapImageRepForCachingDisplayInRect:"), bounds);
+                if (rep == 0)
+                    continue;
+
+                SendRect(view, sel_registerName("cacheDisplayInRect:toBitmapImageRep:"), bounds, rep);
+
+                var data = Send(rep, sel_registerName("representationUsingType:properties:"), PngType, EmptyDictionary());
+                if (data == 0)
+                    continue;
+
+                var bytes = Send(data, sel_registerName("bytes"));
+                var length = (int)Send(data, sel_registerName("length"));
+                if (bytes == 0 || length <= 0)
+                    continue;
+
+                using var file = File.Create(path);
+                file.Write(new ReadOnlySpan<byte>((void*)bytes, length));
+                return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>Lets the platform catch up, bounded so a frame that never arrives cannot hold the run.</summary>
+        private static void Settle()
+        {
+            var mode = CFStringCreateWithCString(0, "kCFRunLoopDefaultMode", Utf8);
+            if (mode == 0)
+                return;
+
+            for (var i = 0; i < 10; ++i)
+                CFRunLoopRunInMode(mode, 0.02, false);
+
+            CFRelease(mode);
+        }
+
+        /// <summary>
+        /// The window to photograph: the largest visible one the application owns.
+        /// </summary>
+        /// <remarks>
+        /// Not <c>mainWindow</c> and not <c>keyWindow</c>. Both are nil while the application is
+        /// inactive, and on a CI runner it stays inactive for several seconds after asking to be
+        /// activated — nothing is competing for the focus, so nothing hurries the window server along.
+        /// The window list does not depend on activation, so the capture does not wait for a focus
+        /// change that may never come. Size rather than title keeps this from having to read an
+        /// NSString back, and everything else this process owns is a popup or a quick-preview window,
+        /// which are smaller and only visible while open.
+        /// </remarks>
+        private static nint Photographable(nint app)
+        {
+            var windows = Send(app, sel_registerName("windows"));
+            var count = windows == 0 ? 0 : (int)Send(windows, sel_registerName("count"));
+            var largest = (nint)0;
+            var largestArea = 0L;
+
+            for (var i = 0; i < count; ++i)
+            {
+                var window = Send(windows, sel_registerName("objectAtIndex:"), i);
+                if (window == 0 || !SendBool(window, sel_registerName("isVisible")))
+                    continue;
+
+                var size = FrameSize(Send(window, sel_registerName("contentView")));
+                var area = (long)size.Width * size.Height;
+                if (area <= largestArea)
+                    continue;
+
+                largest = window;
+                largestArea = area;
+            }
+
+            if (largest != 0)
+                return largest;
+
+            // Nothing visible: ask the way that does need activation after all, rather than give up on
+            // a run whose window is merely ordered out.
+            var main = Send(app, sel_registerName("mainWindow"));
+            return main != 0 ? main : Send(app, sel_registerName("keyWindow"));
+        }
+
+        /// <summary>A view's frame, through the struct-return entry point where the ABI needs one.</summary>
+        private static Size FrameSize(nint view)
+        {
+            if (view == 0)
+                return Size.Empty;
+
+            // On arm64 a four-double struct comes back in registers, so the ordinary send is correct;
+            // the x64 ABI returns it through hidden storage instead.
+            if (RuntimeInformation.ProcessArchitecture != Architecture.X64)
+            {
+                var frame = SendFrame(view, sel_registerName("frame"));
+                return new((int)frame.Width, (int)frame.Height);
+            }
+
+            SendFrameStret(out var wide, view, sel_registerName("frame"));
+            return new((int)wide.Width, (int)wide.Height);
+        }
+
+        /// <summary>An empty NSDictionary for the encoder's options.</summary>
+        private static nint EmptyDictionary()
+        {
+            var dictionary = objc_getClass("NSDictionary");
+            return dictionary == 0 ? 0 : Send(dictionary, sel_registerName("dictionary"));
         }
     }
 
