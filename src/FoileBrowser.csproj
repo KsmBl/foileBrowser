@@ -74,18 +74,42 @@
   </ItemGroup>
 
   <PropertyGroup>
-    <!-- Where the sibling toolkit checkout lives. Overridable so a build can be pointed at another
-         checkout of it — a git worktree, say — without editing this file:
-         `dotnet build -p:NativeFormsDir=/path/to/NativeForms`. The default is the layout CI lays
-         down and the one an ordinary clone beside this repo already has. -->
+    <!-- Where the UI toolkit comes from: `package` (default) takes the published NuGet packages at
+         the versions pinned in Directory.Build.props; `project` takes a sibling checkout by
+         ProjectReference, which is what you want while changing the toolkit and this app together —
+         `dotnet build -p:NativeFormsSource=project`.
+
+         Deliberately its own property rather than keyed off $(Configuration): Release is the
+         configuration the screenshot gate and the AOT publish run in, and those are the only places
+         the whole view layer is exercised, so they must build the same toolkit the tests did. -->
+    <NativeFormsSource Condition="'$(NativeFormsSource)' == ''">package</NativeFormsSource>
+    <!-- Only consulted when NativeFormsSource=project. Overridable so a build can be pointed at
+         another checkout — a git worktree, say — without editing this file:
+         `-p:NativeFormsSource=project -p:NativeFormsDir=/path/to/NativeForms`. The default is what
+         an ordinary clone beside this repo already has. -->
     <NativeFormsDir Condition="'$(NativeFormsDir)' == ''">..\..\NativeForms</NativeFormsDir>
   </PropertyGroup>
 
-  <ItemGroup>
-    <!-- UI toolkit: the NativeForms core plus the backends this build ships. Core never calls a
-         native API; each backend is one platform's P/Invoke layer and only the one matching the
-         running OS is ever realized — so there is no Skia, no GPU stack and no bundled font in the
-         process (PRD §6.12). -->
+  <!-- A typo'd value would otherwise reference the toolkit neither way and bury the cause under a
+       few hundred "type or namespace not found" errors. -->
+  <Target Name="_ValidateNativeFormsSource" BeforeTargets="CollectPackageReferences;ResolveProjectReferences">
+    <Error Condition="'$(NativeFormsSource)' != 'package' And '$(NativeFormsSource)' != 'project'"
+           Text="NativeFormsSource must be 'package' or 'project', not '$(NativeFormsSource)'." />
+    <Error Condition="'$(NativeFormsSource)' == 'project' And !Exists('$(NativeFormsDir)\NativeForms.Core\NativeForms.Core.csproj')"
+           Text="NativeFormsSource=project, but no toolkit checkout at '$(NativeFormsDir)'. Clone Hawkynt/NativeForms beside this repo, pass -p:NativeFormsDir=..., or drop back to -p:NativeFormsSource=package." />
+  </Target>
+
+  <!-- UI toolkit: the NativeForms core plus the backends this build ships. Core never calls a
+       native API; each backend is one platform's P/Invoke layer and only the one matching the
+       running OS is ever realized — so there is no Skia, no GPU stack and no bundled font in the
+       process (PRD §6.12). -->
+  <ItemGroup Condition="'$(NativeFormsSource)' == 'package'">
+    <PackageReference Include="Hawkynt.NativeForms" Version="$(NativeFormsVersion)" />
+    <PackageReference Include="Hawkynt.NativeForms.Backends.Gtk" Version="$(NativeFormsGtkVersion)" />
+    <PackageReference Include="Hawkynt.NativeForms.Backends.Windows" Version="$(NativeFormsWindowsVersion)" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(NativeFormsSource)' == 'project'">
     <ProjectReference Include="$(NativeFormsDir)\NativeForms.Core\NativeForms.Core.csproj" />
     <ProjectReference Include="$(NativeFormsDir)\NativeForms.Backends.Gtk\NativeForms.Backends.Gtk.csproj" />
     <ProjectReference Include="$(NativeFormsDir)\NativeForms.Backends.Windows\NativeForms.Backends.Windows.csproj" />
