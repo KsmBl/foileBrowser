@@ -329,6 +329,33 @@ public class ShellViewModelTests
         Assert.That(vm.RecentFolders, Does.Not.Contain(missing));
     }
 
+    /// <summary>
+    /// Whether the settings file currently holds a piece of text, treating a file that cannot be read
+    /// this instant as "not yet".
+    /// </summary>
+    /// <remarks>
+    /// The saver writes a temporary file and moves it over the real one, so the settings file is
+    /// briefly not openable — on Windows, where a rename over an open handle is refused rather than
+    /// swapped underneath it. A poll that hit that window used to fail the whole test with an
+    /// IOException instead of coming back a few milliseconds later and finding the new contents. It
+    /// only ever failed on Windows, and only when the poll and the save happened to collide.
+    /// </remarks>
+    private bool SettingsFileMentions(string text)
+    {
+        try
+        {
+            return System.IO.File.Exists(_settingsFile) && System.IO.File.ReadAllText(_settingsFile).Contains(text);
+        }
+        catch (IOException)
+        {
+            return false;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return false;
+        }
+    }
+
     [Test]
     public async Task Recent_Folders_Come_Back_After_A_Restart()
     {
@@ -342,8 +369,7 @@ public class ShellViewModelTests
         // never reaching the file, rather than further down where the reloaded shell merely looks
         // like it forgot.
         Assert.That(
-            await WaitUntilAsync(() =>
-                System.IO.File.Exists(_settingsFile) && System.IO.File.ReadAllText(_settingsFile).Contains("one")),
+            await WaitUntilAsync(() => SettingsFileMentions("one")),
             Is.True,
             "the visited folder is written to the settings file");
 
