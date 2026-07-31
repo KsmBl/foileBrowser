@@ -28,18 +28,11 @@ public sealed class ThumbnailService
     private readonly ConcurrentDictionary<string, byte> _inFlight = new();
     private readonly SemaphoreSlim _slots = new(Parallelism, Parallelism);
 
-    /// <summary>Extensions worth trying. Anything else gets the file-kind icon instead.</summary>
-    private static readonly HashSet<string> Renderable = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ".png", ".jpg", ".jpeg", ".jpe", ".gif", ".bmp", ".ico", ".cur", ".pcx",
-        ".webp", ".tif", ".tiff", ".tga", ".avif",
-    };
-
     /// <summary>Raised on a worker thread once a thumbnail is ready; the view marshals it.</summary>
     public event EventHandler<string>? Ready;
 
-    /// <summary>Whether this file is worth asking about at all.</summary>
-    public static bool CanRender(string path) => Renderable.Contains(Path.GetExtension(path));
+    /// <summary>Whether this file is worth asking about at all — every format the library reads.</summary>
+    public static bool CanRender(string path) => ImageSupport.CanDecode(path);
 
     /// <summary>
     /// The thumbnail if it is already decoded; otherwise null, and a decode is started unless one is
