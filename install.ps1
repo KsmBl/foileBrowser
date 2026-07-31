@@ -47,7 +47,7 @@ $publishArgs = @('-c', 'Release', '-o', $appDir, '--nologo')
 if ($aot) {
   $publishArgs += @('-r', 'win-x64', '--self-contained', 'true', '-p:FoileAot=true')
 } elseif (-not $FrameworkDependent) {
-  $publishArgs += @('-r', 'win-x64', '--self-contained', 'true', '-p:PublishSingleFile=false', '-p:PublishTrimmed=true')
+  $publishArgs += @('-r', 'win-x64', '--self-contained', 'true', '-p:PublishSingleFile=false', '-p:FoileTrimmed=true')
 } else {
   $publishArgs += @('--self-contained', 'false')
 }

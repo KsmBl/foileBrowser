@@ -76,7 +76,7 @@ if [ "$SELF_CONTAINED" -eq 1 ]; then
     }
     PUBLISH_ARGS+=(--self-contained true -p:FoileAot=true)  # NativeAOT (smallest footprint)
   else
-    PUBLISH_ARGS+=(--self-contained true -p:PublishSingleFile=false -p:PublishTrimmed=true)
+    PUBLISH_ARGS+=(--self-contained true -p:PublishSingleFile=false -p:FoileTrimmed=true)
   fi
 else
   PUBLISH_ARGS+=(--self-contained false)
