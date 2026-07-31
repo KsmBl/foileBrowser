@@ -12,6 +12,13 @@
 
   <PropertyGroup>
     <HawkyntImagesVersion>1.0.0.17</HawkyntImagesVersion>
+    <!-- The UI toolkit. Each of its packages carries its own build number (its own folder's commit
+         count), so there is no single toolkit version to pin — the three move independently and are
+         listed separately. Only consulted when NativeFormsSource=package (the default); see
+         src/FoileBrowser.csproj. -->
+    <NativeFormsVersion>1.0.0.211</NativeFormsVersion>
+    <NativeFormsGtkVersion>1.0.0.68</NativeFormsGtkVersion>
+    <NativeFormsWindowsVersion>1.0.0.60</NativeFormsWindowsVersion>
   </PropertyGroup>
 
 </Project>

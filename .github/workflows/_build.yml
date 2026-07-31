@@ -33,16 +33,11 @@ jobs:
             rid: win-x64
     runs-on: ${{ matrix.os }}
     steps:
-      # The UI toolkit is a sibling repo consumed by ProjectReference, so it has to be beside us.
       - uses: actions/checkout@v4
         with:
           ref: ${{ inputs.ref || github.ref }}
           path: foileBrowser
           fetch-depth: 0                           # version.pl counts commits
-      - uses: actions/checkout@v4
-        with:
-          repository: Hawkynt/NativeForms
-          path: NativeForms
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'

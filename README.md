@@ -55,26 +55,31 @@ window instead of handing the request over.
 
 ## 🛠️ Build & run
 
-The UI toolkit is a sibling repo consumed by project reference, not a package, so clone it next to
-this one before building:
+Clone and build — every dependency, the UI toolkit included, comes from NuGet:
 
 ```sh
-# Working directory layout the csproj's relative paths expect
-work/
-├─ foileBrowser/   # this repo
-└─ NativeForms/    # the UI toolkit
-
 git clone https://github.com/KsmBl/foileBrowser.git
-git clone https://github.com/Hawkynt/NativeForms.git
-```
-
-```sh
 cd foileBrowser
 
 dotnet run --project src/FoileBrowser.csproj   # launch the app
 dotnet test foileBrowser.slnx                  # run the NUnit suite
 dotnet build foileBrowser.slnx                 # build the whole solution
 ```
+
+**Building against a NativeForms checkout.** The toolkit is normally the published
+[`Hawkynt.NativeForms`](https://www.nuget.org/packages/Hawkynt.NativeForms/) packages, pinned in
+`Directory.Build.props`. When you are changing the toolkit and this app together, point the build at
+a checkout instead:
+
+```sh
+git clone https://github.com/Hawkynt/NativeForms.git ../NativeForms   # beside this repo
+dotnet build foileBrowser.slnx -p:NativeFormsSource=project
+dotnet build foileBrowser.slnx -p:NativeFormsSource=project -p:NativeFormsDir=/path/to/worktree
+```
+
+That switch is deliberately not tied to Debug/Release: Release is where the screenshot gate and the
+AOT publish run, and those are the only places the whole view layer is exercised, so they have to
+build the same toolkit the tests did.
 
 On Linux the app needs GTK 3 at run time (`libgtk-3-0`); on Windows it needs nothing beyond the
 .NET runtime, or nothing at all for a self-contained build.
@@ -172,7 +177,7 @@ so no runtime reflection is used. See [docs/PRD.md](docs/PRD.md) §6.12 for the 
   as virtual folders, extract, nested descent, identify-format
 - **M6 — Configurability** ✅ — rebindable hotkeys (live key capture + conflict detection), per-button
   toolbar show/hide, subtree-search row on Ctrl+F — all in a tabbed Settings dialog
-- **M7 — Native UI** ✅ — the whole view layer rebuilt on [NativeForms](../NativeForms): real
+- **M7 — Native UI** ✅ — the whole view layer rebuilt on [NativeForms](https://github.com/Hawkynt/NativeForms): real
   platform windows, buttons and text fields, everything else painted in the desktop's own theme.
   The view-models, services and docking model were untouched. Theme variant and accent colour are
   gone as settings — the toolkit takes both from the desktop. Icons are drawn in code instead of
@@ -216,9 +221,6 @@ GitHub Actions, mirroring the layout every repo here uses:
 | `nightly.yml` | after a green CI on `main` | builds that exact SHA, publishes a `nightly-yyyyMMdd` prerelease, prunes old ones, and reports idle RSS/PSS |
 | `release.yml` | manual dispatch            | runs CI, builds, updates `CHANGELOG.md`, cuts a dated `vyyyyMMdd` release                                   |
 | `_build.yml`  | called by the two above    | the single place a commit turns into artifacts, so release and nightly cannot diverge                       |
-
-Both workflows that build check out **NativeForms beside this repo**, because the toolkit is consumed
-by project reference rather than as a package.
 
 The screenshot job is a gate, not decoration. The unit tests only reach view-models and services;
 that job is the first and only place the whole view layer is put on screen, and the first shot taken
