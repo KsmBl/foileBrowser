@@ -175,11 +175,14 @@ internal static class PreviewImage
                 return null;
             }
 
-            var format = FormatRegistry.DetectFromBytes(bytes);
-            if (format == ImageFormat.Unknown)
-                format = FormatRegistry.DetectFromExtension(Path.GetExtension(path));
-
-            if (format == ImageFormat.Unknown)
+            // Both opinions, tried in that order. The magic-byte table is right far more often than a
+            // file name, but it is not infallible and it does not answer "unknown" when it is wrong:
+            // a Targa has no signature at its head, so the table reads it as a Gaf, and an XPM is C
+            // source that comes back as a Sun icon. Reading with only the first answer meant those
+            // decoded as nothing at all, even though the reader their extension names is right there.
+            var byContent = FormatRegistry.DetectFromBytes(bytes);
+            var byName = FormatRegistry.DetectFromExtension(Path.GetExtension(path));
+            if (byContent == ImageFormat.Unknown && byName == ImageFormat.Unknown)
             {
                 failure = Failure.Unreadable;
                 return null;
@@ -187,18 +190,40 @@ internal static class PreviewImage
 
             // Read the dimensions from the header where the format can say, and refuse before
             // decoding. A 50000×50000 PNG is a few hundred KB on disk and 10 GB in memory.
-            if (FormatRegistry.GetEntry(format)?.ReadImageInfo?.Invoke(bytes) is { } info
-                && (long)info.Width * info.Height > MaxPixels)
+            var oversized = false;
+            var raw = Decode(byContent) ?? (byName != byContent ? Decode(byName) : null);
+            if (oversized)
             {
                 failure = Failure.TooLarge;
                 return null;
             }
 
-            var raw = FormatRegistry.Read(bytes);
             if (raw is null)
             {
                 failure = Failure.Unreadable;
                 return null;
+            }
+
+            RawImage? Decode(ImageFormat format)
+            {
+                if (format == ImageFormat.Unknown || FormatRegistry.GetEntry(format) is not { } entry)
+                    return null;
+
+                if (entry.ReadImageInfo?.Invoke(bytes) is { } info && (long)info.Width * info.Height > MaxPixels)
+                {
+                    oversized = true;
+                    return null;
+                }
+
+                try
+                {
+                    return entry.LoadRawImageFromBytes(bytes);
+                }
+                catch (Exception)
+                {
+                    // Wrong reader for this file after all; the caller tries the other opinion.
+                    return null;
+                }
             }
 
             if ((long)raw.Width * raw.Height > MaxPixels)
