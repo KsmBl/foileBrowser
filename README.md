@@ -131,6 +131,12 @@ Image decoding is [Hawkynt.FileFormats.Images](https://www.nuget.org/packages/Ha
 ~580 formats in pure managed code. It replaced SkiaSharp, which was the last native dependency
 outside the platform toolkits and shipped a 9 MB `.so` on Linux.
 
+**Everything the libraries read, you can open.** The inspector, the gallery thumbnails and the
+metadata columns ask the image registry what it can decode (872 extensions) rather than carrying
+lists of their own, and every one of the 261 listable archive and filesystem formats can be walked
+into as a folder. Both are asserted against the registries in the test suite, so a format a package
+adds arrives with the version bump rather than waiting for someone to widen a list.
+
 Measured idle on one Linux/GTK (Wayland) desktop, published Release:
 
 | Build                                          |       RSS |      PSS |
