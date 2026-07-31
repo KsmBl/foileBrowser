@@ -358,10 +358,15 @@ Check off items as they're completed; delete lines you decide not to build.
   ask the registry (872 extensions across ~580 formats), and `FormatCoverageTests` holds them against
   it rather than against a list, so a format the package adds is covered the day it is bumped.
   Widening it put the two shipped registries in the same room: 25 extensions — `.exe`, `.dll`,
-  `.obj`, `.dat`, `.img`, `.wad` among them — name both a picture and a container, and for those the
-  name is no evidence, so the file has to earn the picture panel with its own bytes. An uncontested
-  name is still trusted outright, which keeps a corrupt `.png` opening as a broken picture instead of
-  as three control characters of "text"
+  `.obj`, `.dat`, `.img`, `.wad` among them — name both a picture and a container. **The two panels
+  do not compete: previewing shows the picture, entering shows the archive.** Neither suppresses the
+  other, so a `.dll` shows its icons in the inspector *and* opens as a resource container on Enter,
+  and anything the app should not be opening at all is a job for Open With on the context menu, which
+  hands the file to the desktop's own application. Where a contested name is the only witness the
+  doubt is settled by decoding rather than by guessing — a file that yields a picture is shown as
+  one, and a Wavefront `.obj` full of text still reads as text. An uncontested name is trusted
+  outright without a decode, which keeps a corrupt `.png` opening as a broken picture instead of as
+  three control characters of "text"
 - [x] **The decoder asks the name as well as the bytes.** The magic-byte table is right far more often
   than a file name, but where it is wrong it does not say "unknown" — a Targa keeps its signature in a
   footer, so the table reads it as a Gaf; an XPM is C source and comes back as a Sun icon. Reading
@@ -385,7 +390,16 @@ Check off items as they're completed; delete lines you decide not to build.
 - [ ] Thumbnails cached on disk between sessions — the cache is in memory only, so a folder is
   re-decoded the first time it is opened in a new session
 - [ ] Syntax-highlighted text/code preview — plain-text preview done; highlighting pending
-- [ ] PDF first-page preview
+- [x] **A file holding several pictures shows all of them.** 14 of the shipped formats can hold more
+  than one — the pages of a TIFF or a PDF, the sizes inside an `.ico`, the icons in an executable's
+  resources (`PeResource`) — and only the first was ever shown. Where the format can say how many it
+  holds, all of them go to the picture box, which already knew how to cycle frames because that is how
+  an animated GIF has always been drawn; frames of different sizes are centred on one canvas rather
+  than stretched, so the 16-, 32- and 256-pixel icons of one executable keep their proportions. Asked
+  first and pulled only when the answer is more than one, so a plain photograph pays nothing for it
+- [x] ~~PDF first-page preview~~ — every page, as of the item above. The first page had in fact
+  worked for some time, through `Hawkynt.FileFormats.Images` rather than through anything written
+  here, and this requirement had simply never been re-checked against the library
 
 ### 6.6 Keyboard & Commands
 
