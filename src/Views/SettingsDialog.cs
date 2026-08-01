@@ -19,7 +19,7 @@ public sealed class SettingsDialog : Form
 
     private readonly NumericUpDown _fontSize = new() { Bounds = new(150, 16, 90, 26), Minimum = 8, Maximum = 32 };
     private readonly NumericUpDown _rowHeight = new() { Bounds = new(150, 50, 90, 26), Minimum = 16, Maximum = 64 };
-    private readonly CheckBox _searchBar = new() { Text = "Show the subtree search row by default", Bounds = new(16, 84, 340, 24) };
+    private readonly CheckBox _searchBar = new() { Text = "Keep the subtree search row pinned open", Bounds = new(16, 84, 340, 24) };
     private readonly TextBox _terminal = new() { Bounds = new(150, 118, 220, 26) };
     private readonly ComboBox _terminalPicker = new() { Bounds = new(376, 118, 130, 26), PlaceholderText = "detected…" };
     private readonly ComboBox _handoff = new() { Bounds = new(150, 152, 220, 26) };
@@ -281,7 +281,7 @@ public sealed class SettingsDialog : Form
     {
         _fontSize.Value = (decimal)_settings.FontSize;
         _rowHeight.Value = (decimal)_settings.RowHeight;
-        _searchBar.Checked = _settings.SearchBarVisible;
+        _searchBar.Checked = _settings.SearchBarPinned;
         _terminal.Text = _settings.TerminalCommand;
         _handoff.SelectedIndex = _settings.OpenHandoffIn switch { "Pane" => 1, "Window" => 2, _ => 0 };
 
@@ -332,7 +332,7 @@ public sealed class SettingsDialog : Form
             .Where((_, index) => !_toolbarList.GetItemChecked(index))
             .Select(option => option.Id)
             .ToList();
-        _settings.SearchBarVisible = _searchBar.Checked;
+        _settings.SearchBarPinned = _searchBar.Checked;
         _settings.TerminalCommand = _terminal.Text.Trim();
         _settings.OpenHandoffIn = _handoff.SelectedIndex switch { 1 => "Pane", 2 => "Window", _ => "Tab" };
 

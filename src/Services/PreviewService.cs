@@ -66,7 +66,7 @@ public sealed class PreviewService : IPreviewService
         // that the archive registry wants too — has to be earned by the file's own bytes, which is
         // also how the decoder itself decides.
         PreviewResult Picture() =>
-            new() { Kind = PreviewKind.Image, Title = entry.Name, Info = info, ImagePath = entry.FullPath };
+            new() { Kind = PreviewKind.Image, Title = entry.Name, Info = info, ImagePaths = [entry.FullPath] };
 
         if (ImageSupport.ExtensionAloneIsEnough(ext) || ImageSupport.ContentIsDecodable(entry.FullPath))
             return Picture();

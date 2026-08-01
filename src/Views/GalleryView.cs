@@ -142,6 +142,9 @@ public sealed class GalleryView : ListView
     /// <inheritdoc/>
     protected override void OnMouseDown(MouseEventArgs e)
     {
+        if (Gestures.TryNavigate(e, _tab))
+            return;
+
         _dragFrom = e.Button == MouseButtons.Left && !e.Control && !e.Shift && this.SelectedItems.Count > 0
             ? new System.Drawing.Point(e.X, e.Y)
             : new System.Drawing.Point(-1, -1);

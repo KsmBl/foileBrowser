@@ -410,7 +410,7 @@ public class ShellViewModelTests
     [Test]
     public async Task Search_Bars_Stay_Hidden_At_Startup_When_The_Setting_Is_Off()
     {
-        System.IO.File.WriteAllText(_settingsFile, """{ "SearchBarVisible": false }""");
+        System.IO.File.WriteAllText(_settingsFile, """{ "SearchBarPinned": false }""");
         var vm = CreateShell(new FakeFileSystem(), new RecordingTrash());
         await vm.InitializeAsync();
 
@@ -421,7 +421,7 @@ public class ShellViewModelTests
     [Test]
     public async Task Ctrl_F_Reveals_Hidden_Search_Bars_And_Escape_Hides_Them_Again()
     {
-        System.IO.File.WriteAllText(_settingsFile, """{ "SearchBarVisible": false }""");
+        System.IO.File.WriteAllText(_settingsFile, """{ "SearchBarPinned": false }""");
         var vm = CreateShell(new FakeFileSystem(), new RecordingTrash());
         await vm.InitializeAsync();
 
@@ -433,9 +433,9 @@ public class ShellViewModelTests
     }
 
     [Test]
-    public async Task Escape_Leaves_The_Bars_Up_When_They_Are_Configured_To_Always_Show()
+    public async Task Escape_Leaves_The_Bars_Up_When_They_Are_Pinned()
     {
-        System.IO.File.WriteAllText(_settingsFile, """{ "SearchBarVisible": true }""");
+        System.IO.File.WriteAllText(_settingsFile, """{ "SearchBarPinned": true }""");
         var vm = CreateShell(new FakeFileSystem(), new RecordingTrash());
         await vm.InitializeAsync();
 
@@ -444,6 +444,42 @@ public class ShellViewModelTests
 
         Assert.That(vm.IsSearchBarVisible, Is.True,
             "Escape collapses only a bar that was revealed on demand");
+    }
+
+    [Test]
+    public async Task The_Pin_In_The_Row_Keeps_It_Up_And_Is_Remembered()
+    {
+        System.IO.File.WriteAllText(_settingsFile, """{ "SearchBarPinned": false }""");
+        var vm = CreateShell(new FakeFileSystem(), new RecordingTrash());
+        await vm.InitializeAsync();
+
+        vm.FocusSearchCommand.Execute(null);
+        await vm.ToggleSearchBarPinCommand.ExecuteAsync(null);
+        vm.CollapseSearchBar();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(vm.IsSearchBarPinned, Is.True);
+            Assert.That(vm.IsSearchBarVisible, Is.True, "a pinned row survives Escape");
+            Assert.That(
+                System.IO.File.ReadAllText(_settingsFile),
+                Does.Contain("\"SearchBarPinned\": true"),
+                "the pin is a setting, not a mood");
+        });
+    }
+
+    [Test]
+    public async Task Unpinning_Lets_The_Next_Escape_Take_The_Row_Away()
+    {
+        System.IO.File.WriteAllText(_settingsFile, """{ "SearchBarPinned": true }""");
+        var vm = CreateShell(new FakeFileSystem(), new RecordingTrash());
+        await vm.InitializeAsync();
+
+        await vm.ToggleSearchBarPinCommand.ExecuteAsync(null);
+
+        Assert.That(vm.IsSearchBarVisible, Is.True, "unpinning leaves the row up for the search in hand");
+        vm.CollapseSearchBar();
+        Assert.That(vm.IsSearchBarVisible, Is.False, "and Escape is what then dismisses it");
     }
 
     [Test]
@@ -468,6 +504,49 @@ public class ShellViewModelTests
         Assert.That(await WaitUntilAsync(() => vm.Preview?.Title == "3 items selected"), Is.True,
             "extending the selection switches the inspector to the combined summary");
         Assert.That(vm.Preview!.Text, Does.Contain("(2 file(s), 1 folder(s))"));
+    }
+
+    [Test]
+    public async Task Inspector_Shows_The_Pictures_In_A_Multi_Selection()
+    {
+        var fs = new FakeFileSystem();
+        fs.Entries.Add(File("one.png"));
+        fs.Entries.Add(File("notes.txt"));
+        fs.Entries.Add(File("two.jpg"));
+        var vm = CreateShell(fs, new RecordingTrash());
+        await vm.InitializeAsync();
+
+        var tab = vm.ActiveTab!;
+        tab.SelectedEntry = tab.Entries.First();
+        tab.SetSelection([.. tab.Entries]);
+
+        Assert.That(await WaitUntilAsync(() => vm.Preview?.HasManyImages == true), Is.True,
+            "a selection with pictures in it shows the pictures, not just a count of them");
+        Assert.Multiple(() =>
+        {
+            Assert.That(vm.Preview!.ImagePaths.Select(System.IO.Path.GetFileName),
+                Is.EqualTo(new[] { "one.png", "two.jpg" }));
+            Assert.That(vm.Preview.Info, Does.Contain("2 image(s)"));
+            Assert.That(vm.Preview.Text, Does.Contain("(3 file(s), 0 folder(s))"),
+                "the statistics still come along underneath");
+        });
+    }
+
+    [Test]
+    public async Task Inspector_Falls_Back_To_The_Summary_When_A_Selection_Has_No_Pictures()
+    {
+        var fs = new FakeFileSystem();
+        fs.Entries.Add(File("a.txt"));
+        fs.Entries.Add(File("b.log"));
+        var vm = CreateShell(fs, new RecordingTrash());
+        await vm.InitializeAsync();
+
+        var tab = vm.ActiveTab!;
+        tab.SelectedEntry = tab.Entries.First();
+        tab.SetSelection([.. tab.Entries]);
+
+        Assert.That(await WaitUntilAsync(() => vm.Preview?.Title == "2 items selected"), Is.True);
+        Assert.That(vm.Preview!.HasImage, Is.False);
     }
 
     [Test]

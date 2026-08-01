@@ -16,8 +16,6 @@ public sealed partial class MainForm : Form
 {
     private const int MenuHeight = 26;
     private const int ToolbarHeight = 30;
-    private const int InspectorWidth = 280;
-    private const int OperationRowHeight = 24;
 
     /// <summary>How far a new window is offset from the one that opened it.</summary>
     private const int CascadeStep = 36;
@@ -25,8 +23,23 @@ public sealed partial class MainForm : Form
     private readonly MainWindowViewModel _vm;
     private readonly MenuStrip _menu = new() { Dock = DockStyle.Top, Bounds = new(0, 0, 0, MenuHeight) };
     private readonly ToolStrip _toolbar = new() { Dock = DockStyle.Top, Bounds = new(0, 0, 0, ToolbarHeight) };
-    private readonly InspectorView _inspector;
+    private readonly PreviewPane _inspector;
     private readonly OperationsView _operations;
+
+    /// <summary>
+    /// Hosts the pane tree as the document and the side panels around it (PRD §6.2/§6.5).
+    /// </summary>
+    /// <remarks>
+    /// The panels used to be docked straight onto the form at a width the view chose, which left them
+    /// neither resizable nor movable: the preview was 280 pixels wide for ever, wherever the picture
+    /// wanted more. Here each is a piece of furniture the user can drag to another edge, tear off into
+    /// a window of its own, or auto-hide — and where they are put is remembered.
+    /// </remarks>
+    private readonly DockPanel _panels = new() { Dock = DockStyle.Fill };
+
+    private readonly DockContent _filesContent = new("Files") { PersistId = "files", AllowClose = false };
+    private readonly DockContent _previewContent = new("Preview") { PersistId = "preview" };
+    private readonly DockContent _operationsContent = new("Operations") { PersistId = "operations" };
     private readonly DockLayoutView _dock;
 
     /// <summary>Every shell window this process has open, so the last one out can end the loop.</summary>
@@ -56,23 +69,20 @@ public sealed partial class MainForm : Form
         this.ApplyIcon();
 
         _dock = new DockLayoutView(_vm) { Dock = DockStyle.Fill };
-        _inspector = new InspectorView
-        {
-            Dock = DockStyle.Right,
-            Bounds = new(0, 0, InspectorWidth, 0),
-            BorderStyle = BorderStyle.FixedSingle,
-        };
-        _operations = new OperationsView(_vm.OperationQueue, _vm.Display)
-        {
-            Dock = DockStyle.Bottom,
-            Bounds = new(0, 0, 0, 0),
-        };
+        _inspector = new PreviewPane(_vm.Thumbnails) { Dock = DockStyle.Fill };
+        _operations = new OperationsView(_vm.OperationQueue, _vm.Display) { Dock = DockStyle.Fill };
+
+        _filesContent.Controls.Add(_dock);
+        _previewContent.Controls.Add(_inspector);
+        _operationsContent.Controls.Add(_operations);
+
+        _panels.AddDocument(_filesContent);
+        _panels.Add(_previewContent, DockState.Docked, DockEdge.Right);
+        _panels.Add(_operationsContent, DockState.Docked, DockEdge.Bottom);
 
         // Reverse order: the last child added claims its edge first, so the menu ends up outermost
-        // and the pane area takes whatever is left (see Control.OnLayout).
-        this.Controls.Add(_dock);
-        this.Controls.Add(_inspector);
-        this.Controls.Add(_operations);
+        // and the dock area takes whatever is left (see Control.OnLayout).
+        this.Controls.Add(_panels);
         this.Controls.Add(_toolbar);
         this.Controls.Add(_menu);
 
@@ -84,7 +94,11 @@ public sealed partial class MainForm : Form
         this.FormClosed += this.OnFormClosed;
         // Splitter positions are proportions in the model but pixels in the toolkit, so they are
         // re-derived whenever the window changes size (Form is the only control that reports one).
-        this.Resize += (_, _) => _dock.ApplyProportions();
+        this.Resize += (_, _) =>
+        {
+            _dock.ApplyProportions();
+            _inspector.Reframe();
+        };
 
         this.WireViewModel();
     }
@@ -95,6 +109,7 @@ public sealed partial class MainForm : Form
     {
         this.ApplySettings();
         await _vm.InitializeAsync();
+        this.RestorePanelLayout();
         // The pane tree only exists once the session restored, so its splitters are placed after it.
         _dock.ApplyProportions();
 
@@ -114,6 +129,7 @@ public sealed partial class MainForm : Form
 
         // The session write is asynchronous, so the first close is vetoed, awaited, then repeated.
         e.Cancel = true;
+        _vm.Settings.PanelLayout = _panels.SaveLayout();
         await _vm.SaveSessionAsync();
         _sessionSaved = true;
         this.Close();
@@ -180,6 +196,35 @@ public sealed partial class MainForm : Form
         Ui.Watch(_vm.CommandPalette, this.SyncPalette, nameof(CommandPaletteViewModel.IsOpen));
     }
 
+    /// <summary>
+    /// Puts the panels back where they were left, if they were ever moved.
+    /// </summary>
+    /// <remarks>
+    /// A layout saved by an older build can name a panel this one no longer has; the resolver answers
+    /// null for those and the dock leaves them out rather than refusing the whole layout.
+    /// </remarks>
+    private void RestorePanelLayout()
+    {
+        var layout = _vm.Settings.PanelLayout;
+        if (string.IsNullOrEmpty(layout))
+            return;
+
+        try
+        {
+            _panels.LoadLayout(layout, id => id switch
+            {
+                "files" => _filesContent,
+                "preview" => _previewContent,
+                "operations" => _operationsContent,
+                _ => null,
+            });
+        }
+        catch (Exception)
+        {
+            // A layout that will not parse is not worth failing to start over.
+        }
+    }
+
     /// <summary>Applies the settings the toolkit can honour: text size and row density (PRD §6.8).</summary>
     private void ApplySettings()
     {
@@ -192,14 +237,22 @@ public sealed partial class MainForm : Form
     private void SyncInspector()
     {
         _inspector.Show(_vm.Preview);
-        Ui.SetDockedExtent(_inspector, _vm.IsInspectorOpen, InspectorWidth);
+        _previewContent.DockState = _vm.IsInspectorOpen ? DockState.Docked : DockState.Hidden;
     }
 
     private void SyncOperations()
     {
         var count = _vm.OperationQueue.Operations.Count;
         _operations.Sync();
-        Ui.SetDockedExtent(_operations, count > 0, Math.Min(4, count) * OperationRowHeight + 8);
+        // The panel comes up when there is something to report and goes away when there is not, but a
+        // user who has pulled it somewhere of their own keeps it there.
+        if (count > 0)
+        {
+            if (_operationsContent.DockState == DockState.Hidden)
+                _operationsContent.DockState = DockState.Docked;
+        }
+        else if (_operationsContent.DockState == DockState.Docked)
+            _operationsContent.DockState = DockState.Hidden;
     }
 
     private void SyncPalette()
@@ -276,14 +329,21 @@ public sealed partial class MainForm : Form
             return;
 
         await tab.NavigateToAsync(parent);
-        if (tab.Entries.FirstOrDefault(e => e.FullPath == path) is { } entry)
-            await tab.OpenCommand.ExecuteAsync(entry);
+        if (tab.Entries.FirstOrDefault(e => e.FullPath == path) is not { } entry)
+            return;
+
+        // Reveal it, do not launch it. Being handed a file means "show me where this is" — which is
+        // what a desktop's "show in file manager" asks for, and what every other file manager does
+        // with it. Running OpenCommand here instead handed the file straight to whatever application
+        // claims it, so asking to be shown a picture opened an image viewer over the top.
+        tab.SelectedEntry = entry;
+        tab.SetSelection([entry]);
     }
 
     /// <summary>Opens the spacebar quick-preview window for the current inspector preview (PRD §6.5).</summary>
     public void ShowQuickPreview()
     {
         if (_vm.Preview is { } preview)
-            new QuickPreviewForm(preview).ShowDialog(this);
+            new QuickPreviewForm(preview, _vm.Thumbnails).ShowDialog(this);
     }
 }

@@ -25,9 +25,18 @@ public sealed record PreviewResult
     /// <summary>Text body for text/folder previews (truncated).</summary>
     public string? Text { get; init; }
 
-    /// <summary>Absolute path of an image to render, for image previews.</summary>
-    public string? ImagePath { get; init; }
+    /// <summary>
+    /// Absolute paths of the images to render, in the order they should be stepped through. One entry
+    /// for a single file; a whole selection's worth when several were picked (PRD §6.5).
+    /// </summary>
+    public IReadOnlyList<string> ImagePaths { get; init; } = [];
+
+    /// <summary>The first image, which is the only one a single-file preview has.</summary>
+    public string? ImagePath => ImagePaths.Count > 0 ? ImagePaths[0] : null;
 
     public bool HasText => !string.IsNullOrEmpty(Text);
-    public bool HasImage => !string.IsNullOrEmpty(ImagePath);
+    public bool HasImage => ImagePaths.Count > 0;
+
+    /// <summary>Whether stepping and a thumbnail strip are worth showing.</summary>
+    public bool HasManyImages => ImagePaths.Count > 1;
 }

@@ -22,6 +22,12 @@ public sealed class AppSettings
 
     public bool IsToolbarVisible { get; set; } = true;
 
+    /// <summary>
+    /// Where the preview and operations panels have been put: which edge, how wide, torn off or
+    /// auto-hidden (PRD §6.5). Empty until they are moved, which leaves the defaults in charge.
+    /// </summary>
+    public string PanelLayout { get; set; } = string.Empty;
+
     /// <summary>Ids of global-toolbar buttons the user has hidden (PRD §6.8). Empty = show all.</summary>
     public List<string> HiddenToolbarButtons { get; set; } = [];
 
@@ -29,12 +35,18 @@ public sealed class AppSettings
     public List<string> ToolbarOrder { get; set; } = [];
 
     /// <summary>
-    /// Whether each pane's subtree-search row is shown by default; when false, Ctrl+F reveals it
-    /// (PRD §6.4). Off by default because searching a subtree is occasional and the row costs its
-    /// height in every pane for the whole session — the everyday filter box lives in the nav bar
-    /// and is always there either way. The name predates that split; it is what is on disk.
+    /// Whether each pane's subtree-search row is pinned open; when false, Ctrl+F reveals it for as
+    /// long as it is wanted and Escape lets it go again (PRD §6.4). Off by default because searching
+    /// a subtree is occasional and the row costs its height in every pane for the whole session —
+    /// the everyday filter box lives in the nav bar and is always there either way.
     /// </summary>
-    public bool SearchBarVisible { get; set; }
+    /// <remarks>
+    /// This replaces a <c>SearchBarVisible</c> key that meant the same thing under a name that
+    /// described the effect rather than the choice. Anyone who had it on comes back to a hidden row,
+    /// which is the default the setting always documented, and the pin in the row itself is now the
+    /// way to change it — it used to be reachable only from the settings dialog.
+    /// </remarks>
+    public bool SearchBarPinned { get; set; }
 
     /// <summary>
     /// Where a folder handed over by a second launch is opened (PRD §6.12): <c>Tab</c> in the active

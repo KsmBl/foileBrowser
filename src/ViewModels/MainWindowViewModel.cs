@@ -96,13 +96,30 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     [ObservableProperty]
     private bool _isToolbarVisible = true;
 
-    /// <summary>Whether every pane's subtree-search row is shown; when off it's revealed on demand by
-    /// Ctrl+F for the session and collapsed again on Escape (PRD §6.4).</summary>
+    /// <summary>Whether every pane's subtree-search row is on screen right now (PRD §6.4).</summary>
     [ObservableProperty]
     private bool _isSearchBarVisible;
 
+    /// <summary>
+    /// Whether the row stays put. Unpinned it appears for a search and goes again on Escape; pinned
+    /// it stays, and comes back that way next time.
+    /// </summary>
+    [ObservableProperty]
+    private bool _isSearchBarPinned;
+
     /// <summary>Escape from a revealed-on-demand search bar returns it to its configured state.</summary>
-    public void CollapseSearchBar() => IsSearchBarVisible = _settings.Current.SearchBarVisible;
+    public void CollapseSearchBar() => IsSearchBarVisible = IsSearchBarPinned;
+
+    /// <summary>The pin in the search row itself, which is where the choice is actually made.</summary>
+    [RelayCommand]
+    private async Task ToggleSearchBarPin()
+    {
+        IsSearchBarPinned = !IsSearchBarPinned;
+        // Unpinning leaves the row up for the search in progress; Escape is what dismisses it.
+        IsSearchBarVisible = true;
+        _settings.Current.SearchBarPinned = IsSearchBarPinned;
+        await _settings.SaveAsync();
+    }
 
     /// <summary>Set by the view to prompt the user for a name (rename). Returns null if cancelled.</summary>
     public Func<string, Task<string?>>? NameRequester { get; set; }
@@ -527,7 +544,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         await _settings.LoadAsync();
         IsInspectorOpen = _settings.Current.IsInspectorOpen;
         IsToolbarVisible = _settings.Current.IsToolbarVisible;
-        IsSearchBarVisible = _settings.Current.SearchBarVisible;
+        IsSearchBarPinned = _settings.Current.SearchBarPinned;
+        IsSearchBarVisible = IsSearchBarPinned;
         _shell.TerminalCommand = _settings.Current.TerminalCommand;
 
         if (Enum.TryParse<SizeUnit>(_settings.Current.SizeUnit, out var unit))
@@ -982,6 +1000,20 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     /// via <see cref="OnTabPropertyChanged"/>, so this just re-renders).</summary>
     private void RewireInspector() => _ = UpdatePreviewAsync();
 
+    /// <summary>The line above a multi-selection's pictures, saying where they came from.</summary>
+    private static string DescribeSelection(SelectionImages.Result images, int selected)
+    {
+        var parts = new List<string> { $"{images.Paths.Count:N0} image(s)" };
+        if (images.Folders > 0)
+            parts.Add($"{images.Folders:N0} folder(s) · {images.FolderFiles:N0} file(s) within");
+
+        parts.Add($"{selected:N0} selected");
+        if (images.Truncated)
+            parts.Add($"first {SelectionImages.MaxImages:N0} shown");
+
+        return string.Join(" · ", parts);
+    }
+
     private async Task UpdatePreviewAsync()
     {
         _previewCts?.Cancel();
@@ -995,11 +1027,33 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             return;
         }
 
-        // More than one item selected: show them combined rather than previewing an arbitrary one.
+        // More than one item selected. If there are pictures in it — chosen directly, or sitting in a
+        // folder that was — they are what the panel shows, because that is what a preview is for. The
+        // statistics still come along as the text underneath, so nothing is lost by looking.
         if (ActiveTab.SelectedEntries is { Count: > 1 } multiple)
         {
-            Preview = SelectionSummary.Build(
-                [.. multiple.Select(e => e.Entry)], _display.SizeUnit, _display.DateDisplay);
+            var entries = multiple.Select(e => e.Entry).ToList();
+            var summary = SelectionSummary.Build(entries, _display.SizeUnit, _display.DateDisplay);
+            SelectionImages.Result images;
+            try
+            {
+                images = await SelectionImages.CollectAsync(entries, _fileSystem.ListDirectoryAsync, cts.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                return; // a newer selection superseded this one mid-walk
+            }
+
+            if (!cts.Token.IsCancellationRequested)
+                Preview = images.Paths.Count == 0
+                    ? summary
+                    : summary with
+                    {
+                        Kind = PreviewKind.Image,
+                        Info = DescribeSelection(images, entries.Count),
+                        ImagePaths = images.Paths,
+                    };
+
             return;
         }
 
@@ -1680,7 +1734,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             await _settings.SaveAsync();
             ThemeChanged?.Invoke(this, EventArgs.Empty);
             ApplyKeybinds();
-            IsSearchBarVisible = _settings.Current.SearchBarVisible;
+            IsSearchBarPinned = _settings.Current.SearchBarPinned;
+            IsSearchBarVisible = IsSearchBarPinned;
             _shell.TerminalCommand = _settings.Current.TerminalCommand;
             BuildToolbar(); // reflect any hide/show changes while preserving the saved order
             await LoadSidebarAsync();

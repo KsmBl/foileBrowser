@@ -60,6 +60,7 @@ public sealed class PaneView : Panel
     private readonly TextBox _filter = new() { PlaceholderText = "Filter…", Margin = new(2) };
     private readonly TextBox _search = new() { PlaceholderText = "Search subtree (Enter, Esc to dismiss)…", Margin = new(2) };
     private readonly TextBox _extensions = new() { PlaceholderText = "ext,ext", Margin = new(2) };
+    private readonly CheckBox _pinSearch = new() { Image = Icons.PinIcon, Margin = new(2) };
     private readonly Button _stopSearch = new() { Image = Icons.CloseIcon, Margin = new(2) };
 
     private readonly SidebarView _sidebar;
@@ -220,8 +221,10 @@ public sealed class PaneView : Panel
 
     private void BuildSearchRow()
     {
+        _searchRow.ColumnCount = 4;
         _searchRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         _searchRow.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 100));
+        _searchRow.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, NavButtonWidth));
         _searchRow.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, NavButtonWidth));
 
         _search.TextChanged += (_, _) =>
@@ -240,7 +243,15 @@ public sealed class PaneView : Panel
 
         _stopSearch.Command = _tab.StopSearchCommand;
 
-        _searchRow.Controls.AddRange(_search, _extensions, _stopSearch);
+        // The pin is what decides whether the row stays after this search. It lives here rather than
+        // only in the settings dialog because this is where the question comes up.
+        _pinSearch.CheckedChanged += (_, _) =>
+        {
+            if (!_suppress && _pinSearch.Checked != _shell.IsSearchBarPinned)
+                _shell.ToggleSearchBarPinCommand.Execute(null);
+        };
+
+        _searchRow.Controls.AddRange(_search, _extensions, _pinSearch, _stopSearch);
     }
 
     /// <summary>Escape drops the filter and hands focus back, since the box is always on screen now.</summary>
@@ -309,6 +320,13 @@ public sealed class PaneView : Panel
 
         _cleanup.Add(Ui.Watch(_shell, () => Ui.SetDockedExtent(_searchRow, _shell.IsSearchBarVisible, SearchHeight),
             nameof(MainWindowViewModel.IsSearchBarVisible)));
+
+        _cleanup.Add(Ui.Watch(_shell, () =>
+        {
+            _suppress = true;
+            _pinSearch.Checked = _shell.IsSearchBarPinned;
+            _suppress = false;
+        }, nameof(MainWindowViewModel.IsSearchBarPinned)));
 
         // Rows or thumbnails — both are always built, so flipping back keeps scroll and selection.
         _cleanup.Add(Ui.Watch(_tab, () =>

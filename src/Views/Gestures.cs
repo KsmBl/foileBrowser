@@ -1,3 +1,4 @@
+using FoileBrowser.ViewModels;
 using Hawkynt.NativeForms;
 
 namespace FoileBrowser.Views;
@@ -10,6 +11,36 @@ namespace FoileBrowser.Views;
 /// </summary>
 public static class Gestures
 {
+    /// <summary>
+    /// Runs a mouse press through the browser's back/forward buttons, reporting whether it was one.
+    /// </summary>
+    /// <remarks>
+    /// The two buttons under the thumb mean the same here as they do in a browser, which is the only
+    /// thing anyone expects of them. Both listings ask, because either can be under the pointer.
+    /// </remarks>
+    public static bool TryNavigate(MouseEventArgs e, FileTabViewModel tab)
+    {
+        ArgumentNullException.ThrowIfNull(e);
+        ArgumentNullException.ThrowIfNull(tab);
+
+        var command = e.Button switch
+        {
+            MouseButtons.XButton1 => tab.GoBackCommand,
+            MouseButtons.XButton2 => tab.GoForwardCommand,
+            _ => null,
+        };
+
+        if (command is null)
+            return false;
+
+        // Pressing back at the start of the history is not an error, and must not fall through to
+        // the selection handling either — the press was still meant for navigation.
+        if (command.CanExecute(null))
+            command.Execute(null);
+
+        return true;
+    }
+
     /// <summary>Parses a gesture string; returns <see cref="Keys.None"/> for null, empty or unparseable input.</summary>
     public static Keys Parse(string? gesture)
     {

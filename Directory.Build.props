@@ -16,10 +16,10 @@
          count), so there is no single toolkit version to pin — the three move independently and are
          listed separately. Only consulted when NativeFormsSource=package (the default); see
          src/FoileBrowser.csproj. -->
-    <NativeFormsVersion>1.0.0.211</NativeFormsVersion>
-    <NativeFormsGtkVersion>1.0.0.68</NativeFormsGtkVersion>
-    <NativeFormsWindowsVersion>1.0.0.60</NativeFormsWindowsVersion>
-    <NativeFormsMacOSVersion>1.0.0.84</NativeFormsMacOSVersion>
+    <NativeFormsVersion>1.0.0.221</NativeFormsVersion>
+    <NativeFormsGtkVersion>1.0.0.72</NativeFormsGtkVersion>
+    <NativeFormsWindowsVersion>1.0.0.63</NativeFormsWindowsVersion>
+    <NativeFormsMacOSVersion>1.0.0.92</NativeFormsMacOSVersion>
   </PropertyGroup>
 
 </Project>

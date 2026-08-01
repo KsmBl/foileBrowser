@@ -245,6 +245,9 @@ public sealed class FileGridView : DataGridView
     /// <inheritdoc/>
     protected override void OnMouseDown(MouseEventArgs e)
     {
+        if (Gestures.TryNavigate(e, _tab))
+            return;
+
         _pressed = new Point(e.X, e.Y);
         _dragFrom = new Point(-1, -1);
 
