@@ -17,8 +17,7 @@ public class SecureDeleteServiceTests
     [TearDown]
     public void TearDown()
     {
-        if (Directory.Exists(_dir))
-            Directory.Delete(_dir, recursive: true);
+        TempTree.Remove(_dir);
     }
 
     [Test]

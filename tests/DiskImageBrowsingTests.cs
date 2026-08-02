@@ -32,7 +32,7 @@ public class DiskImageBrowsingTests
     [TearDown]
     public void TearDown()
     {
-        try { Directory.Delete(_root, recursive: true); } catch (IOException) { }
+        TempTree.Remove(_root);
     }
 
     private static bool Run(string tool, params string[] args)

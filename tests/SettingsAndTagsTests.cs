@@ -19,7 +19,7 @@ public class SettingsAndTagsTests
     [TearDown]
     public void TearDown()
     {
-        try { Directory.Delete(_dir, recursive: true); } catch (IOException) { }
+        TempTree.Remove(_dir);
     }
 
     [Test]

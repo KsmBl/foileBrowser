@@ -41,7 +41,7 @@ public class EmojiNameTests
     [TearDown]
     public void TearDown()
     {
-        try { Directory.Delete(_root, recursive: true); } catch (IOException) { }
+        TempTree.Remove(_root);
     }
 
     [Test]

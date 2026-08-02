@@ -27,7 +27,7 @@ public class TrashServiceTests
         finally
         {
             Environment.SetEnvironmentVariable("XDG_DATA_HOME", previousXdg);
-            try { Directory.Delete(sandbox, recursive: true); } catch (IOException) { }
+            TempTree.Remove(sandbox);
         }
     }
 

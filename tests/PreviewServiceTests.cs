@@ -20,7 +20,7 @@ public class PreviewServiceTests
     [TearDown]
     public void TearDown()
     {
-        try { Directory.Delete(_root, recursive: true); } catch (IOException) { }
+        TempTree.Remove(_root);
     }
 
     private FileSystemEntry FileEntry(string name)

@@ -31,7 +31,7 @@ public class FormatCoverageTests
     [TearDown]
     public void TearDown()
     {
-        try { Directory.Delete(_root, recursive: true); } catch (IOException) { }
+        TempTree.Remove(_root);
     }
 
     // ---- images (PRD §6.5) ----

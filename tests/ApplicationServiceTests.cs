@@ -15,7 +15,7 @@ public class ApplicationServiceTests
     }
 
     [TearDown]
-    public void TearDown() => Directory.Delete(_dir, recursive: true);
+    public void TearDown() => TempTree.Remove(_dir);
 
     private string WriteDesktop(string name, string content)
     {

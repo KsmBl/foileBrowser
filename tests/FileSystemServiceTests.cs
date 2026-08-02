@@ -20,8 +20,7 @@ public class FileSystemServiceTests
     [TearDown]
     public void TearDown()
     {
-        try { Directory.Delete(_root, recursive: true); }
-        catch (IOException) { /* best effort cleanup */ }
+        TempTree.Remove(_root);
     }
 
     [Test]

@@ -35,7 +35,7 @@ public class NavigationFlowTests
     public void TearDown()
     {
         _shells.DisposeAll();
-        try { Directory.Delete(_root, recursive: true); } catch (IOException) { }
+        TempTree.Remove(_root);
     }
 
     private readonly ShellTracker _shells = new();

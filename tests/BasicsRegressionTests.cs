@@ -32,8 +32,7 @@ public class BasicsRegressionTests
     [TearDown]
     public void TearDown()
     {
-        if (Directory.Exists(_root))
-            Directory.Delete(_root, recursive: true);
+        TempTree.Remove(_root);
     }
 
     private static FileTabViewModel Tab() => new(new FileSystemService());

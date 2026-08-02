@@ -28,7 +28,7 @@ public class FavoritesAndTreeTests
     public void TearDown()
     {
         _shells.DisposeAll();
-        try { Directory.Delete(_settingsDir, recursive: true); } catch (IOException) { }
+        TempTree.Remove(_settingsDir);
     }
 
     private readonly ShellTracker _shells = new();

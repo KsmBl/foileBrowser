@@ -24,7 +24,7 @@ public class SearchServiceTests
     [TearDown]
     public void TearDown()
     {
-        try { Directory.Delete(_root, recursive: true); } catch (IOException) { }
+        TempTree.Remove(_root);
     }
 
     private async Task<List<string>> CollectAsync(string query, string[]? exts = null)
