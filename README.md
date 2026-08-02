@@ -53,6 +53,8 @@ window instead of handing the request over.
 - `tests/` — NUnit tests
 - `docs/` — documentation, including the [PRD](docs/PRD.md) and `screenshots/`
 
+The parts of the window and what they are called: [docs/UI.md](docs/UI.md).
+
 ## 🛠️ Build & run
 
 Clone and build — every dependency, the UI toolkit included, comes from NuGet:

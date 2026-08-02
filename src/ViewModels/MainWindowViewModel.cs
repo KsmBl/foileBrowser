@@ -1136,8 +1136,13 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         try
         {
             var children = await _fileSystem.ListDirectoryAsync(folder, token);
+
+            // In the order the listing shows them, so "4 of 6" counts the same way the eye does and
+            // the arrows step the way the list reads. A directory hands its entries back in whatever
+            // order the filesystem stored them, which is no order at all.
             var pictures = children
                 .Where(child => !child.IsDirectory && ImageSupport.NameAloneSaysPicture(child.FullPath))
+                .OrderBy(child => child.Name, StringComparer.OrdinalIgnoreCase)
                 .Select(child => child.FullPath)
                 .ToList();
 
