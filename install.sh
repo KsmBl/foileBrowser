@@ -7,7 +7,7 @@
 # set as the default file manager. Run uninstall.sh to reverse it.
 #
 # Usage:
-#   ./install.sh [--prefix DIR] [--no-aot] [--framework-dependent]
+#   ./install.sh [--prefix DIR] [--no-aot] [--framework-dependent] [--keep-settings]
 #
 # NativeAOT is the default: it is the smallest thing to ship and the lightest to run
 # (~75 MB RSS, one binary, no .NET runtime to install), and it is the build the memory
@@ -19,6 +19,13 @@
 #                         clang is unavailable or the AOT publish is too slow.
 #   --framework-dependent smallest download, needs the .NET runtime installed to run.
 #   --aot, --self-contained  accepted and ignored; both are implied by the default.
+#   --keep-settings       leave the existing settings.json alone.
+#
+# Installing resets the settings to their defaults. An install is how a new set of defaults
+# arrives — a toolbar that gained a button, a pane that changed shape — and a settings file
+# written by the previous version pins the old answer to questions the new one asks
+# differently. The old file is kept beside the new one as settings.json.bak, so nothing is
+# actually lost; pass --keep-settings to skip the reset entirely.
 #
 set -euo pipefail
 
@@ -26,17 +33,22 @@ REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PREFIX="${PREFIX:-$HOME/.local}"
 SELF_CONTAINED=1
 AOT=1
+RESET_SETTINGS=1
 
 while [ $# -gt 0 ]; do
   case "$1" in
     --prefix) PREFIX="$2"; shift 2 ;;
     --prefix=*) PREFIX="${1#*=}"; shift ;;
     --no-aot) AOT=0; SELF_CONTAINED=1; shift ;;
+    --keep-settings) RESET_SETTINGS=0; shift ;;
     --framework-dependent|--no-self-contained) AOT=0; SELF_CONTAINED=0; shift ;;
     # Both were opt-in flags before AOT became the default. Keeping them is what stops an
     # existing script from failing on an option that now describes what it already gets.
     --aot|--self-contained) shift ;;
-    -h|--help) grep '^#' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    # Only the header block, which is the part written to be read: stop at the first line that is
+    # not a comment. Taking every '#' line printed the script's own asides about clang and the GC
+    # as though they were usage.
+    -h|--help) sed -n '2,/^[^#]/{/^#/{s/^# \{0,1\}//;p}}' "$0"; exit 0 ;;
     *) echo "Unknown option: $1" >&2; exit 2 ;;
   esac
 done
@@ -134,6 +146,20 @@ EOF
   command -v update-desktop-database >/dev/null 2>&1 && update-desktop-database "$APPS_DIR" 2>/dev/null || true
   command -v gtk-update-icon-cache   >/dev/null 2>&1 && gtk-update-icon-cache -qtf "$ICON_DIR" 2>/dev/null || true
   echo "    To make it your default file manager:  xdg-mime default foilebrowser.desktop inode/directory"
+fi
+
+# The app reads its settings from SpecialFolder.ApplicationData, which on Unix is XDG_CONFIG_HOME
+# and falls back to ~/.config — the same rule reproduced here so the two cannot point at different
+# files. Removing it is what resets the settings: the app writes a fresh default file on next start,
+# rather than this script having to know the shape of one.
+SETTINGS_FILE="${XDG_CONFIG_HOME:-$HOME/.config}/foileBrowser/settings.json"
+if [ "$RESET_SETTINGS" -eq 1 ]; then
+  if [ -f "$SETTINGS_FILE" ]; then
+    echo "==> Resetting settings to defaults (previous kept as settings.json.bak)"
+    mv -f "$SETTINGS_FILE" "$SETTINGS_FILE.bak"
+  fi
+else
+  echo "==> Keeping existing settings"
 fi
 
 echo

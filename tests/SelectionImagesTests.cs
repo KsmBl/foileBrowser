@@ -150,4 +150,60 @@ public class SelectionImagesTests
             Assert.That(result.Truncated, Is.False);
         });
     }
+
+    /// <summary>
+    /// A source tree is not a photo album, however many of its names an obscure raster format also
+    /// claims.
+    /// </summary>
+    /// <remarks>
+    /// Four picture formats are named after the four commonest things in a checkout: <c>.cs</c> is an
+    /// Atari StarPainter screen, <c>.cpp</c> an Amstrad CPC Plus one, <c>.rs</c> a Sun raster and
+    /// <c>.csv</c> a table of pixel values. Taking the name as evidence meant selecting a folder of
+    /// repositories filled the gallery with several hundred source files and pushed every real
+    /// photograph in the tree past the limit — which is how a folder came to preview as nothing at
+    /// all.
+    /// </remarks>
+    [Test]
+    public async Task A_Folder_Of_Source_Code_Offers_Only_Its_Actual_Pictures()
+    {
+        var result = await SelectionImages.CollectAsync(
+            [Folder("/repo")],
+            Tree(new()
+            {
+                ["/repo"] =
+                [
+                    File("/repo/Program.cs"),
+                    File("/repo/native.cpp"),
+                    File("/repo/lib.rs"),
+                    File("/repo/data.csv"),
+                    File("/repo/logo.png"),
+                ],
+            }));
+
+        Assert.That(result.Paths, Is.EqualTo(new[] { "/repo/logo.png" }));
+    }
+
+    /// <summary>The limit is for pictures, so files that are not pictures cannot exhaust it.</summary>
+    [Test]
+    public async Task Source_Files_Do_Not_Crowd_Out_The_Pictures_Behind_Them()
+    {
+        var sources = Enumerable.Range(0, SelectionImages.MaxImages + 50)
+            .Select(i => File($"/repo/src/File{i}.cs"))
+            .ToArray();
+
+        var result = await SelectionImages.CollectAsync(
+            [Folder("/repo")],
+            Tree(new()
+            {
+                ["/repo"] = [Folder("/repo/src"), Folder("/repo/docs")],
+                ["/repo/src"] = sources,
+                ["/repo/docs"] = [File("/repo/docs/screenshot.png")],
+            }));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.Paths, Does.Contain("/repo/docs/screenshot.png"), "the picture is reached");
+            Assert.That(result.Truncated, Is.False, "and nothing was dropped to reach it");
+        });
+    }
 }

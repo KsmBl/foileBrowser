@@ -66,7 +66,7 @@ public static class SelectionImages
                 return;
             }
 
-            if (ImageSupport.CanDecode(path) && seen.Add(path))
+            if (ImageSupport.NameAloneSaysPicture(path) && seen.Add(path))
                 paths.Add(path);
         }
 

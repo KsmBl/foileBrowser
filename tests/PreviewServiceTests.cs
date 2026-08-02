@@ -79,4 +79,41 @@ public class PreviewServiceTests
         Assert.That(result.Info, Does.Contain("1 folders"));
         Assert.That(result.Info, Does.Contain("1 files"));
     }
+
+    /// <summary>
+    /// One file a person actually selected still earns the picture panel with its own bytes, however
+    /// ordinary its name.
+    /// </summary>
+    /// <remarks>
+    /// The gallery sweep stopped trusting <c>.cs</c> and its three siblings, because a checkout is
+    /// full of them and none of them is an Atari screen. That is a rule about sweeping, not about
+    /// picture-ness: pointing at a single file is still worth the read, and a picture called
+    /// <c>.cs</c> still opens as one.
+    /// </remarks>
+    [Test]
+    public async Task A_Picture_With_A_Source_Files_Name_Still_Previews_As_A_Picture()
+    {
+        await System.IO.File.WriteAllBytesAsync(
+            Path.Combine(_root, "screen.cs"), ImageFixture.Encode(".png", 8, 8));
+
+        var result = await _preview.CreateAsync(FileEntry("screen.cs"));
+
+        Assert.That(result.Kind, Is.EqualTo(PreviewKind.Image));
+    }
+
+    /// <summary>And a source file called what it is stays text.</summary>
+    [Test]
+    public async Task A_Source_File_Previews_As_Text()
+    {
+        await System.IO.File.WriteAllTextAsync(
+            Path.Combine(_root, "Program.cs"), "static void Main() { }\n");
+
+        var result = await _preview.CreateAsync(FileEntry("Program.cs"));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.Kind, Is.EqualTo(PreviewKind.Text));
+            Assert.That(result.Text, Does.Contain("Main"));
+        });
+    }
 }

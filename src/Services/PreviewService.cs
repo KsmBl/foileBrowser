@@ -9,13 +9,7 @@ public sealed class PreviewService : IPreviewService
     private const int FolderListLimit = 60;
 
     // Extensions we always treat as text even if large; other files are sniffed for binary bytes.
-    private static readonly HashSet<string> TextExtensions =
-        new(StringComparer.OrdinalIgnoreCase)
-        {
-            "txt", "md", "log", "json", "xml", "yaml", "yml", "csv", "ini", "cfg", "conf",
-            "cs", "js", "ts", "py", "java", "c", "cpp", "h", "hpp", "go", "rs", "rb", "php",
-            "html", "css", "sh", "bat", "ps1", "sql", "toml", "gitignore", "editorconfig",
-        };
+    private static HashSet<string> TextExtensions => ImageSupport.TextExtensions;
 
     public Task<PreviewResult> CreateAsync(FileSystemEntry entry, CancellationToken cancellationToken = default)
         => Task.Run(() =>

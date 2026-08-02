@@ -15,7 +15,8 @@ namespace FoileBrowser.Views;
 public sealed partial class MainForm : Form
 {
     private const int MenuHeight = 26;
-    private const int ToolbarHeight = 30;
+    /// <summary>Tall enough for a <see cref="Icons.ToolbarSize"/> glyph with breathing room around it.</summary>
+    private const int ToolbarHeight = 34;
 
     /// <summary>How far a new window is offset from the one that opened it.</summary>
     private const int CascadeStep = 36;
