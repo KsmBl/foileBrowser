@@ -20,8 +20,17 @@ public static class SelectionImages
     /// <summary>As many pictures as a strip can usefully step through.</summary>
     public const int MaxImages = 500;
 
-    /// <summary>How far into a selected folder to look.</summary>
-    public const int MaxDepth = 3;
+    /// <summary>
+    /// How far into a selected folder to look: its own contents, and no further.
+    /// </summary>
+    /// <remarks>
+    /// Descending made selecting a handful of folders slow enough to notice, and for no benefit
+    /// anyone asked for — what a person means by selecting a folder is that folder's pictures, not
+    /// every picture anywhere beneath it. A subtree walk is also unbounded in a way a preview panel
+    /// cannot afford: the same gesture on a checkout or a home directory reads tens of thousands of
+    /// entries to fill a strip that shows a few.
+    /// </remarks>
+    public const int MaxDepth = 0;
 
     /// <summary>What a selection turned out to hold.</summary>
     /// <param name="Paths">The images found, directly-selected files first.</param>
@@ -107,7 +116,8 @@ public static class SelectionImages
 
                 if (child.IsDirectory)
                 {
-                    await WalkAsync(child.FullPath, depth + 1);
+                    if (depth < MaxDepth)
+                        await WalkAsync(child.FullPath, depth + 1);
                     continue;
                 }
 

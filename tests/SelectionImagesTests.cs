@@ -80,16 +80,35 @@ public class SelectionImagesTests
         Assert.That(result.Paths, Is.EqualTo(new[] { "/album/a.png" }));
     }
 
+    /// <summary>
+    /// A selected folder means that folder's pictures, not every picture anywhere beneath it.
+    /// </summary>
+    /// <remarks>
+    /// The walk used to descend, which made selecting a few folders slow enough to notice and is
+    /// unbounded in a way a preview panel cannot afford — the same gesture on a checkout reads tens
+    /// of thousands of entries to fill a strip that shows a handful.
+    /// </remarks>
     [Test]
-    public async Task The_Walk_Goes_Into_Sub_Folders()
+    public async Task The_Walk_Stays_In_The_Folder_That_Was_Selected()
     {
         var result = await SelectionImages.CollectAsync(
             [Folder("/root")],
             Tree(new()
             {
-                ["/root"] = [Folder("/root/sub")],
+                ["/root"] = [Folder("/root/sub"), File("/root/here.png")],
                 ["/root/sub"] = [File("/root/sub/deep.png")],
             }));
+
+        Assert.That(result.Paths, Is.EqualTo(new[] { "/root/here.png" }));
+    }
+
+    /// <summary>Selecting the sub-folder itself is how its pictures are asked for.</summary>
+    [Test]
+    public async Task A_Sub_Folder_Selected_In_Its_Own_Right_Is_Walked()
+    {
+        var result = await SelectionImages.CollectAsync(
+            [Folder("/root/sub")],
+            Tree(new() { ["/root/sub"] = [File("/root/sub/deep.png")] }));
 
         Assert.That(result.Paths, Is.EqualTo(new[] { "/root/sub/deep.png" }));
     }
@@ -111,6 +130,7 @@ public class SelectionImagesTests
 
         Assert.That(result.Paths, Has.Count.EqualTo(SelectionImages.MaxDepth + 1),
             "one picture per level, down to the depth limit and no further");
+        Assert.That(result.Paths, Is.EqualTo(new[] { "/d/pic.png" }), "which is the selected folder alone");
     }
 
     [Test]
@@ -188,21 +208,16 @@ public class SelectionImagesTests
     public async Task Source_Files_Do_Not_Crowd_Out_The_Pictures_Behind_Them()
     {
         var sources = Enumerable.Range(0, SelectionImages.MaxImages + 50)
-            .Select(i => File($"/repo/src/File{i}.cs"))
+            .Select(i => File($"/repo/File{i}.cs"))
             .ToArray();
 
         var result = await SelectionImages.CollectAsync(
             [Folder("/repo")],
-            Tree(new()
-            {
-                ["/repo"] = [Folder("/repo/src"), Folder("/repo/docs")],
-                ["/repo/src"] = sources,
-                ["/repo/docs"] = [File("/repo/docs/screenshot.png")],
-            }));
+            Tree(new() { ["/repo"] = [.. sources, File("/repo/screenshot.png")] }));
 
         Assert.Multiple(() =>
         {
-            Assert.That(result.Paths, Does.Contain("/repo/docs/screenshot.png"), "the picture is reached");
+            Assert.That(result.Paths, Is.EqualTo(new[] { "/repo/screenshot.png" }), "the picture is reached");
             Assert.That(result.Truncated, Is.False, "and nothing was dropped to reach it");
         });
     }

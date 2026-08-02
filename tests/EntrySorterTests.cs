@@ -87,4 +87,57 @@ public class EntrySorterTests
 
         Assert.That(sorted.Select(e => e.Name), Is.EqualTo(new[] { "a", "b", "c" }));
     }
+    // ---- folders under a size sort ---------------------------------------------------------------
+
+    /// <summary>
+    /// Ordering by size orders the folders too, once their sizes have been counted.
+    /// </summary>
+    /// <remarks>
+    /// A folder has no size of its own on disk, so every folder compared equal and the whole group
+    /// fell through to the name tie-breaker: sorting by size left the folders in alphabetical order,
+    /// which looks exactly like a sort that ignored them. The counted size is what they are ordered
+    /// by, and it is the caller that knows it.
+    /// </remarks>
+    [Test]
+    public void Ordering_By_Size_Orders_The_Folders_By_Their_Counted_Size()
+    {
+        var counted = new Dictionary<string, long> { ["/root/small"] = 10, ["/root/big"] = 9000, ["/root/mid"] = 500 };
+        var input = new[] { Dir("small"), Dir("big"), Dir("mid"), File("f.txt", 42) };
+
+        var sorted = EntrySorter.Sort(
+            input, SortColumn.Size, SortDirection.Descending,
+            e => counted.TryGetValue(e.FullPath, out var size) ? size : null);
+
+        Assert.That(
+            sorted.Select(e => e.Name),
+            Is.EqualTo(new[] { "big", "mid", "small", "f.txt" }),
+            "largest folder first, and folders still lead the files");
+    }
+
+    [Test]
+    public void An_Uncounted_Folder_Falls_Back_To_Its_Name()
+    {
+        var counted = new Dictionary<string, long> { ["/root/known"] = 100 };
+        var input = new[] { Dir("zeta"), Dir("known"), Dir("alpha") };
+
+        var sorted = EntrySorter.Sort(
+            input, SortColumn.Size, SortDirection.Descending,
+            e => counted.TryGetValue(e.FullPath, out var size) ? size : null);
+
+        Assert.That(
+            sorted.Select(e => e.Name),
+            Is.EqualTo(new[] { "known", "alpha", "zeta" }),
+            "the one with a size sorts by it; the rest keep their alphabetical order");
+    }
+
+    /// <summary>With no lookup at all — the plain call — nothing about files changes.</summary>
+    [Test]
+    public void Files_Still_Sort_By_Size_Without_A_Folder_Lookup()
+    {
+        var input = new[] { File("small.txt", 1), File("big.txt", 100), File("mid.txt", 50) };
+
+        var sorted = EntrySorter.Sort(input, SortColumn.Size, SortDirection.Descending);
+
+        Assert.That(sorted.Select(e => e.Name), Is.EqualTo(new[] { "big.txt", "mid.txt", "small.txt" }));
+    }
 }

@@ -1,3 +1,4 @@
+using System.Formats.Tar;
 using System.IO.Compression;
 using FoileBrowser.Services;
 
@@ -95,4 +96,83 @@ public class ArchiveServiceTests
     {
         Assert.ThrowsAsync<NotSupportedException>(() => _archives.ListAsync("/x/plain.txt"));
     }
+    // ---- compressed tarballs -------------------------------------------------------------------
+
+    /// <summary>Writes a tar holding the same two entries as the zip, through an optional wrapper.</summary>
+    private string MakeTarball(string name, Func<Stream, Stream>? compress = null)
+    {
+        var path = Path.Combine(_root, name);
+        using (var file = File.Create(path))
+        {
+            var outer = compress?.Invoke(file) ?? file;
+            try
+            {
+                using var tar = new TarWriter(outer, leaveOpen: true);
+                Write(tar, "hello.txt", "hello world");
+                Write(tar, "sub/deep.txt", "deep content");
+            }
+            finally
+            {
+                if (!ReferenceEquals(outer, file))
+                    outer.Dispose();
+            }
+        }
+
+        return path;
+
+        static void Write(TarWriter tar, string name, string content)
+            => tar.WriteEntry(new PaxTarEntry(TarEntryType.RegularFile, name)
+            {
+                DataStream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(content)),
+            });
+    }
+
+    /// <summary>
+    /// A tarball is one file to a person and two formats to a registry, and the registry's answer was
+    /// the one that reached the UI.
+    /// </summary>
+    /// <remarks>
+    /// gzip, bzip2 and xz compress a single unnamed stream and so cannot list anything, which is true
+    /// of the format and useless for the file: on Unix a tarball is how software ships. Only the bare
+    /// <c>.tar</c> opened, and that is the rarer thing to actually have — so the whole family read as
+    /// "tar files do not open".
+    /// </remarks>
+    [TestCase("sample.tar", null)]
+    [TestCase("sample.tar.gz", "gz")]
+    [TestCase("sample.tgz", "gz")]
+    public async Task A_Tarball_Is_Entered_And_Lists_What_Is_In_It(string name, string? compression)
+    {
+        var path = MakeTarball(name, Wrap(compression));
+
+        Assert.That(_archives.IsArchive(path), Is.True, $"{name} is enterable");
+
+        var entries = await _archives.ListAsync(path);
+
+        Assert.That(
+            entries.Where(e => !e.IsDirectory).Select(e => e.Name),
+            Is.EquivalentTo(new[] { "hello.txt", "sub/deep.txt" }));
+    }
+
+    [TestCase("sample.tar", null)]
+    [TestCase("sample.tar.gz", "gz")]
+    public async Task A_Tarballs_Entry_Extracts_Its_Contents(string name, string? compression)
+    {
+        var path = MakeTarball(name, Wrap(compression));
+        var dest = Path.Combine(_root, "out", "hello.txt");
+
+        await _archives.ExtractEntryAsync(path, "hello.txt", dest);
+
+        Assert.That(await File.ReadAllTextAsync(dest), Is.EqualTo("hello world"));
+    }
+
+    /// <summary>The contraction names no format of its own, so it reports what it holds.</summary>
+    [Test]
+    public void A_Tgz_Says_What_It_Is()
+        => Assert.That(_archives.Identify(MakeTarball("sample.tgz", Wrap("gz"))), Does.Contain("tar"));
+
+    private static Func<Stream, Stream>? Wrap(string? compression) => compression switch
+    {
+        "gz" => s => new GZipStream(s, CompressionLevel.Fastest, leaveOpen: true),
+        _ => null,
+    };
 }

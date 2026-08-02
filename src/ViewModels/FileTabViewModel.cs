@@ -189,9 +189,28 @@ public partial class FileTabViewModel : ViewModelBase, IDockable, IDisposable
         UpdateTitle();
     }
 
+    /// <summary>
+    /// Raised when the values inside the rows changed while the rows themselves did not.
+    /// </summary>
+    /// <remarks>
+    /// A listing is drawn by pulling each cell's text at paint time, so a value that arrives later —
+    /// a metadata column read off the file, a folder's size once it has been counted, a size or date
+    /// re-rendered in new units — changes nothing on screen until something asks for a repaint.
+    /// <see cref="FileEntryViewModel.CellVersion"/> recorded that a cell had changed and nobody
+    /// listened, so the Dimensions column stayed blank until the folder was left and re-entered, and
+    /// switching KiB/KB or the date format did nothing to a list already on screen.
+    /// </remarks>
+    public event EventHandler? CellsChanged;
+
+    private void RaiseCellsChanged() => CellsChanged?.Invoke(this, EventArgs.Empty);
+
     /// <summary>Resolves a metadata column's value lazily; refreshes the row when the value arrives.</summary>
     private string ResolveMetadata(FileEntryViewModel entry, string columnId) =>
-        _metadata?.Get(entry.FullPath, columnId, () => Post(() => entry.CellVersion++)) ?? string.Empty;
+        _metadata?.Get(entry.FullPath, columnId, () => Post(() =>
+        {
+            entry.CellVersion++;
+            RaiseCellsChanged();
+        })) ?? string.Empty;
 
     /// <summary>Wraps a real (on-disk) entry, wiring metadata-column resolution.</summary>
     private FileEntryViewModel NewEntry(FileSystemEntry entry, string? location = null)
@@ -202,11 +221,17 @@ public partial class FileTabViewModel : ViewModelBase, IDockable, IDisposable
         return vm;
     }
 
+    /// <summary>A folder's counted size, if it has already been counted; null while it has not.</summary>
+    private long? CountedSize(FileSystemEntry entry)
+        => _sizes.TryGetCached(entry.FullPath, out var size) ? size : null;
+
     /// <summary>Re-renders every visible entry's size/date after a display-mode toggle (PRD §6.1/§6.2).</summary>
     public void RefreshDisplays()
     {
         foreach (var entry in Entries)
             entry.RefreshDisplay();
+
+        RaiseCellsChanged();
     }
 
     /// <summary>Updates the dockable tab header (Document.Title) — folder name, or archive location.</summary>
@@ -684,7 +709,7 @@ public partial class FileTabViewModel : ViewModelBase, IDockable, IDisposable
             visible = visible.Where(e => FuzzyMatcher.IsMatch(FilterText, e.Name));
         if (!string.IsNullOrEmpty(TagFilter))
             visible = visible.Where(e => string.Equals(TagLookup?.Invoke(e.FullPath), TagFilter, StringComparison.OrdinalIgnoreCase));
-        var sorted = EntrySorter.Sort(visible, SortColumn, SortDirection);
+        var sorted = EntrySorter.Sort(visible, SortColumn, SortDirection, CountedSize);
 
         Entries.Clear();
         foreach (var entry in sorted)
@@ -694,6 +719,31 @@ public partial class FileTabViewModel : ViewModelBase, IDockable, IDisposable
         StatusText = $"{sorted.Count} items ({folders} folders, {sorted.Count - folders} files)";
 
         ScheduleFolderSizes();
+    }
+
+    /// <summary>
+    /// Reorders the rows already on screen without rebuilding them, so the sizes counted so far —
+    /// and the counting still in flight — survive the move.
+    /// </summary>
+    private void ResortInPlace()
+    {
+        if (IsSearching || _archivePath is not null || Entries.Count < 2)
+            return;
+
+        var byPath = new Dictionary<string, FileEntryViewModel>(Entries.Count, StringComparer.Ordinal);
+        foreach (var entry in Entries)
+            byPath[entry.FullPath] = entry;
+
+        var order = EntrySorter.Sort(Entries.Select(e => e.Entry), SortColumn, SortDirection, CountedSize);
+        var selected = SelectedEntry;
+
+        Entries.Clear();
+        foreach (var entry in order)
+            if (byPath.TryGetValue(entry.FullPath, out var vm))
+                Entries.Add(vm);
+
+        if (selected is not null && Entries.Contains(selected))
+            SelectedEntry = selected;
     }
 
     // ---- background folder sizing (PRD §6.2) ----
@@ -712,6 +762,7 @@ public partial class FileTabViewModel : ViewModelBase, IDockable, IDisposable
         var cts = _sizeCts = new CancellationTokenSource();
         var token = cts.Token;
 
+        var anyCached = false;
         foreach (var vm in Entries)
         {
             if (!vm.IsDirectory || vm.Entry.Kind == FileSystemEntryKind.Drive)
@@ -720,12 +771,16 @@ public partial class FileTabViewModel : ViewModelBase, IDockable, IDisposable
             if (_sizes.TryGetCached(vm.FullPath, out var cached))
             {
                 vm.ComputedSize = cached;
+                anyCached = true;
                 continue;
             }
 
             vm.IsCalculatingSize = true;
             _ = CalculateSizeAsync(vm, token);
         }
+
+        if (anyCached)
+            RaiseCellsChanged();
     }
 
     private async Task CalculateSizeAsync(FileEntryViewModel vm, CancellationToken token)
@@ -733,12 +788,23 @@ public partial class FileTabViewModel : ViewModelBase, IDockable, IDisposable
         try
         {
             // Progress<T> marshals to the captured (UI) context, so the running total updates safely.
-            var progress = new Progress<long>(running => vm.ComputedSize = running);
+            var progress = new Progress<long>(running =>
+            {
+                vm.ComputedSize = running;
+                RaiseCellsChanged();
+            });
             var size = await _sizes.GetSizeAsync(vm.FullPath, progress, token);
             Post(() =>
             {
                 vm.ComputedSize = size;
                 vm.IsCalculatingSize = false;
+                RaiseCellsChanged();
+
+                // A folder that now has a size belongs somewhere else in a list ordered by size. Only
+                // the settled figure re-orders, never the running total, or the rows would shuffle
+                // under the pointer for as long as the count took.
+                if (SortColumn == SortColumn.Size)
+                    ResortInPlace();
             });
         }
         catch (OperationCanceledException)

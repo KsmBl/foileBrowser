@@ -84,6 +84,11 @@ public sealed class FileGridView : DataGridView
 
         _shell.HeatColumnsChanged += this.OnHeatColumnsChanged;
         _cleanup.Add(() => _shell.HeatColumnsChanged -= this.OnHeatColumnsChanged);
+
+        // Cells are pulled at paint time, so a value that arrives after the row was built shows up
+        // only when something asks for a repaint. Nothing did.
+        _tab.CellsChanged += this.OnCellsChanged;
+        _cleanup.Add(() => _tab.CellsChanged -= this.OnCellsChanged);
         _cleanup.Add(Ui.Watch(_tab, this.SyncSelection, nameof(FileTabViewModel.SelectedEntry)));
     }
 
@@ -152,6 +157,17 @@ public sealed class FileGridView : DataGridView
     /// <summary>The range object for a column, created once and then kept so the style selector that
     /// captured it keeps seeing the current values.</summary>
     private void OnHeatColumnsChanged(object? sender, EventArgs e) => this.RecomputeHeat();
+
+    /// <summary>A cell's value changed under a row that is already on screen; redraw it.</summary>
+    /// <remarks>
+    /// The heat ranges are recomputed too: a folder whose size has just been counted, or a column
+    /// re-rendered in different units, changes what the highest and lowest values in view are.
+    /// </remarks>
+    private void OnCellsChanged(object? sender, EventArgs e)
+    {
+        this.RecomputeHeat();
+        this.Invalidate();
+    }
 
     private HeatRange RangeFor(string id)
     {
