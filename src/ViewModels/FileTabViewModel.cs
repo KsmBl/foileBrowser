@@ -711,9 +711,25 @@ public partial class FileTabViewModel : ViewModelBase, IDockable, IDisposable
             visible = visible.Where(e => string.Equals(TagLookup?.Invoke(e.FullPath), TagFilter, StringComparison.OrdinalIgnoreCase));
         var sorted = EntrySorter.Sort(visible, SortColumn, SortDirection, CountedSize);
 
+        // A selection is a selection of these rows. Replacing them — which is what navigating does —
+        // leaves it describing files that are no longer on show, and everything downstream believes
+        // it: the status line counts them, the preview offers them, and a command run from a menu
+        // acts on them. Dropped here rather than left for the view to notice.
+        var keep = SelectedEntry?.FullPath;
+        SetSelection([]);
+        SelectedEntry = null;
+
         Entries.Clear();
         foreach (var entry in sorted)
             Entries.Add(NewEntry(entry));
+
+        // A refresh in place — a file appearing, a sort, a filter — should not lose the row the user
+        // was on, so it is picked up again by path if it is still there.
+        if (keep is not null && Entries.FirstOrDefault(e => e.FullPath == keep) is { } again)
+        {
+            SelectedEntry = again;
+            SetSelection([again]);
+        }
 
         var folders = sorted.Count(e => e.IsDirectory);
         StatusText = $"{sorted.Count} items ({folders} folders, {sorted.Count - folders} files)";

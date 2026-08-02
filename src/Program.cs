@@ -50,6 +50,13 @@ internal sealed class Program
         }
 
         ArmScreenshot(shell, args);
+        if (Array.IndexOf(args, "--autopilot") >= 0)
+        {
+            ArmAutopilot(shell, requested ?? Environment.CurrentDirectory);
+            Application.Run(shell);
+            return;
+        }
+
         try
         {
             Application.Run(shell);
@@ -58,6 +65,36 @@ internal sealed class Program
         {
             server?.Dispose();
         }
+    }
+
+    /// <summary>
+    /// Runs the UI walkthrough once the window is up, then closes it with the walkthrough's verdict.
+    /// </summary>
+    /// <remarks>
+    /// On its own thread: every gesture marshals onto the UI thread and waits for it, so the driver
+    /// cannot be the UI thread itself. The exit code is what CI reads.
+    /// </remarks>
+    private static void ArmAutopilot(MainForm shell, string root)
+    {
+        shell.Load += (_, _) =>
+        {
+            var timer = new Hawkynt.NativeForms.Timer { Interval = 2500 };
+            timer.Tick += (_, _) =>
+            {
+                timer.Stop();
+                new Thread(() =>
+                {
+                    var code = Autopilot.Driver.Run(shell, root);
+                    shell.BeginInvoke(() =>
+                    {
+                        Environment.ExitCode = code;
+                        shell.Close();
+                    });
+                })
+                { IsBackground = true }.Start();
+            };
+            timer.Start();
+        };
     }
 
     /// <summary>The folder to open, taken from the first argument that is not a switch.</summary>

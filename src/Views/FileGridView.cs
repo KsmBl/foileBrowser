@@ -53,6 +53,19 @@ public sealed class FileGridView : DataGridView
     private bool _suppressSelection;
     private Point _pressed = new(-1, -1);
     private Point _dragFrom = new(-1, -1);
+
+    /// <summary>
+    /// The already-selected row a press armed a drag on, kept until the button comes up.
+    /// </summary>
+    /// <remarks>
+    /// Pressing a row that is already part of a multi-selection cannot narrow the selection there and
+    /// then — the press might be the start of dragging all of it somewhere. Every file manager
+    /// resolves that on release: let go without having moved and the selection collapses to the row
+    /// under the pointer. Without this the press did nothing at all, so a selection of several files
+    /// could not be reduced to one by clicking one of them, and the next click carried the old
+    /// selection with it.
+    /// </remarks>
+    private object? _armedRow;
     private object? _lastClicked;
     private long _lastClickedAt;
 
@@ -236,6 +249,20 @@ public sealed class FileGridView : DataGridView
         _tab.SelectedEntry = selected.Count > 0 ? selected[0] : null;
     }
 
+    /// <summary>Narrows the selection to one row, the way a plain click on it would have.</summary>
+    private void CollapseSelectionTo(object row)
+    {
+        var index = this.Items.IndexOf(row);
+        if (index < 0)
+            return;
+
+        // Assigned even when this row is already the only one selected: the setter is also what puts
+        // the selection anchor here, and the press that armed the drag never reached the grid to set
+        // it. Skipping the assignment left the anchor wherever it was last — often at a row from the
+        // folder before this one — and the next shift-click had nothing to measure a run from.
+        this.SelectedRowIndex = index;
+    }
+
     private void SyncSelection()
     {
         if (_tab.SelectedEntry is not { } entry || ReferenceEquals(this.SelectedItem, entry))
@@ -287,10 +314,15 @@ public sealed class FileGridView : DataGridView
             _lastClicked = row;
             _lastClickedAt = now;
             _dragFrom = new Point(e.X, e.Y);
+            _armedRow = row;
             return;
         }
 
-        _lastClicked = this.RowAt(e.Y);
+        // Only a plain left click can be half of a double click. A ctrl- or shift-click is a
+        // different gesture entirely, and priming the detector with one meant that ctrl-clicking a
+        // row and then clicking it again — narrowing a selection to that row, the commonest thing
+        // there is — opened it instead.
+        _lastClicked = e.Button == MouseButtons.Left && !e.Control && !e.Shift ? this.RowAt(e.Y) : null;
         _lastClickedAt = Environment.TickCount64;
         base.OnMouseDown(e);
     }
@@ -303,6 +335,7 @@ public sealed class FileGridView : DataGridView
         {
             var paths = this.SelectedItems.OfType<FileEntryViewModel>().Select(entry => entry.FullPath).ToList();
             _dragFrom = new Point(-1, -1);
+            _armedRow = null; // it really was a drag, so there is nothing to collapse on release
             if (paths.Count > 0)
                 this.DoDragDrop(new FileDrag(paths, _tab.CurrentPath), DragDropEffects.Copy | DragDropEffects.Move);
             return;
@@ -327,9 +360,15 @@ public sealed class FileGridView : DataGridView
     protected override void OnMouseUp(MouseEventArgs e)
     {
         var pressed = _pressed;
+        var armed = _armedRow;
         _pressed = new Point(-1, -1);
         _dragFrom = new Point(-1, -1);
+        _armedRow = null;
         base.OnMouseUp(e);
+
+        // A press on a selected row that never became a drag was a plain click after all.
+        if (armed is not null && e.Button == MouseButtons.Left && ReferenceEquals(this.RowAt(e.Y), armed))
+            this.CollapseSelectionTo(armed);
 
         this.SyncColumnGeometry();
 

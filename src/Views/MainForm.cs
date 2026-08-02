@@ -272,6 +272,9 @@ public sealed partial class MainForm : Form
     /// <summary>The folder a launch asked for, opened once the shell has finished starting up.</summary>
     public void OpenAtStartup(string path) => _pendingPath = path;
 
+    /// <summary>The shell behind this window, so the autopilot can read what a gesture did.</summary>
+    internal MainWindowViewModel ViewModelForTest => _vm;
+
     private string? _pendingPath;
 
     /// <summary>
