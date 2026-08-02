@@ -533,6 +533,28 @@ public class ShellViewModelTests
     }
 
     [Test]
+    public async Task Inspector_Shows_The_Pictures_In_A_Single_Selected_Folder()
+    {
+        var fs = new FakeFileSystem();
+        fs.Entries.Add(Dir("album"));
+        fs.Entries.Add(File("a.png"));
+        fs.Entries.Add(File("b.jpg"));
+        var vm = CreateShell(fs, new RecordingTrash());
+        await vm.InitializeAsync();
+
+        // FakeFileSystem answers every listing with the same entries, so the folder appears to hold
+        // the two pictures beside it.
+        var tab = vm.ActiveTab!;
+        var folder = tab.Entries.First(e => e.Entry.IsDirectory);
+        tab.SelectedEntry = folder;
+        tab.SetSelection([folder]);
+
+        Assert.That(await WaitUntilAsync(() => vm.Preview?.HasImage == true), Is.True,
+            "one folder picked on its own shows what is in it");
+        Assert.That(vm.Preview!.Info, Does.Contain("image(s)"));
+    }
+
+    [Test]
     public async Task Inspector_Falls_Back_To_The_Summary_When_A_Selection_Has_No_Pictures()
     {
         var fs = new FakeFileSystem();

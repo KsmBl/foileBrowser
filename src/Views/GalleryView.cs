@@ -178,24 +178,19 @@ public sealed class GalleryView : ListView
     /// <inheritdoc/>
     protected override void OnKeyDown(KeyEventArgs e)
     {
-        switch (e.KeyCode)
+        switch (Gestures.ForListKey(e.KeyCode, e.Alt))
         {
-            // Return steps back out of the folder; going in is the double-click.
-            case Keys.Enter when !e.Alt:
-                _tab.GoUpCommand.Execute(null);
-                e.Handled = true;
-                return;
-            case Keys.Delete:
-                _shell.DeleteSelectedCommand.Execute(null);
-                e.Handled = true;
-                return;
-            case Keys.F2:
-                _shell.RenameSelectedCommand.Execute(null);
-                e.Handled = true;
+            case ListAction.Activate: this.ActivateSelected(); break;
+            case ListAction.GoUp: _tab.GoUpCommand.Execute(null); break;
+            case ListAction.QuickPreview: (this.FindForm() as MainForm)?.ShowQuickPreview(); break;
+            case ListAction.Delete: _shell.DeleteSelectedCommand.Execute(null); break;
+            case ListAction.Rename: _shell.RenameSelectedCommand.Execute(null); break;
+            default:
+                base.OnKeyDown(e);
                 return;
         }
 
-        base.OnKeyDown(e);
+        e.Handled = true;
     }
 
     /// <inheritdoc/>

@@ -9,8 +9,51 @@ namespace FoileBrowser.Views;
 /// parsed chord, and the keybind editor captures a live keystroke and writes the string back.
 /// Deliberately table-driven and reflection-free so it survives trimming.
 /// </summary>
+/// <summary>What a key pressed over a file listing means (PRD §6.1/§6.6).</summary>
+public enum ListAction
+{
+    /// <summary>Not one of the listing's keys; it goes on to the base handler.</summary>
+    None,
+
+    /// <summary>Open the selection: enter a folder, hand a file to whatever opens it.</summary>
+    Activate,
+
+    /// <summary>Leave for the parent folder.</summary>
+    GoUp,
+
+    /// <summary>Show the spacebar quick-preview window.</summary>
+    QuickPreview,
+
+    /// <summary>Delete the selection.</summary>
+    Delete,
+
+    /// <summary>Rename the selection in place.</summary>
+    Rename,
+}
+
 public static class Gestures
 {
+    /// <summary>
+    /// What a key means over a file listing. Both listings ask, so the two cannot drift apart.
+    /// </summary>
+    /// <remarks>
+    /// Return used to go the other way — back out to the parent — which left the everyday gesture of
+    /// stepping into the folder under the cursor with no key at all, and made Return the one key that
+    /// did the opposite of what it does in every other file manager. Going up is Backspace, and
+    /// Alt+Up alongside it.
+    /// </remarks>
+    public static ListAction ForListKey(Keys key, bool alt)
+        => key switch
+        {
+            // Alt+Enter is the properties dialog, dispatched by the menu bar, so it is not ours.
+            Keys.Enter when !alt => ListAction.Activate,
+            Keys.Back => ListAction.GoUp,
+            Keys.Space => ListAction.QuickPreview,
+            Keys.Delete => ListAction.Delete,
+            Keys.F2 => ListAction.Rename,
+            _ => ListAction.None,
+        };
+
     /// <summary>
     /// Runs a mouse press through the browser's back/forward buttons, reporting whether it was one.
     /// </summary>

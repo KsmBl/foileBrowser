@@ -1069,6 +1069,23 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             }
 
             var result = await _previewService.CreateAsync(entry, cts.Token);
+
+            // One folder, picked on its own, shows what is in it — and for a folder of photographs
+            // that is the photographs. Only the multi-selection path did this, so clicking a single
+            // album gave a count of its files and no sight of any of them. Its own listing stays as
+            // the text underneath.
+            if (entry.IsDirectory)
+            {
+                var images = await SelectionImages.CollectAsync([entry], _fileSystem.ListDirectoryAsync, cts.Token);
+                if (images.Paths.Count > 0)
+                    result = result with
+                    {
+                        Kind = PreviewKind.Image,
+                        Info = DescribeFolderImages(result.Info, images),
+                        ImagePaths = images.Paths,
+                    };
+            }
+
             if (!cts.Token.IsCancellationRequested)
                 Preview = result;
         }
@@ -1076,6 +1093,16 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         {
             // A newer selection superseded this preview.
         }
+    }
+
+    /// <summary>Adds the picture count to a folder's own summary line.</summary>
+    private static string DescribeFolderImages(string folderInfo, SelectionImages.Result images)
+    {
+        var line = $"{images.Paths.Count:N0} image(s)";
+        if (images.Truncated)
+            line += $" · first {SelectionImages.MaxImages:N0} shown";
+
+        return string.IsNullOrEmpty(folderInfo) ? line : $"{folderInfo} · {line}";
     }
 
     // ---- sidebar ----
