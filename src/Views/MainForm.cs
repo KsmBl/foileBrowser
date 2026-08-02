@@ -275,6 +275,29 @@ public sealed partial class MainForm : Form
     /// <summary>The shell behind this window, so the autopilot can read what a gesture did.</summary>
     internal MainWindowViewModel ViewModelForTest => _vm;
 
+    /// <summary>The listing of whichever pane is active, which is the one gestures land in.</summary>
+    internal FileGridView? ActiveGridForTest
+    {
+        get
+        {
+            foreach (var pane in Descend(this).OfType<PaneView>())
+                if (ReferenceEquals(pane.TabForTest, _vm.ActiveTab))
+                    return pane.GridForTest;
+
+            return Descend(this).OfType<PaneView>().FirstOrDefault()?.GridForTest;
+        }
+    }
+
+    private static IEnumerable<Control> Descend(Control root)
+    {
+        foreach (var child in root.Controls)
+        {
+            yield return child;
+            foreach (var deeper in Descend(child))
+                yield return deeper;
+        }
+    }
+
     private string? _pendingPath;
 
     /// <summary>

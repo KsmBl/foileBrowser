@@ -253,6 +253,44 @@ internal sealed partial class Driver
         this.Settle(120);
     }
 
+    /// <summary>
+    /// Sends a key without waiting for the dispatch to come back.
+    /// </summary>
+    /// <remarks>
+    /// A key that opens a modal dialog does not return until the dialog closes — the nested loop runs
+    /// inside the very dispatch the driver is waiting on — so waiting for it wedges the walkthrough
+    /// on a window that is working perfectly. Posted and left; whatever comes up is dismissed by the
+    /// caller.
+    /// </remarks>
+    private void KeyNoWait(Keys key, uint modifiers = 0)
+    {
+        _form.BeginInvoke(() => Injection.Key(_root, KeyVal(key), modifiers));
+        Thread.Sleep(400);
+    }
+
+    /// <summary>
+    /// Closes any popup the last gesture opened, on the popup's own window.
+    /// </summary>
+    /// <remarks>
+    /// A menu popup takes a pointer and keyboard grab, so Escape aimed at the main window goes
+    /// nowhere and the popup stays up — after which every later gesture lands in it and the driver
+    /// times out against a window that is behaving perfectly.
+    /// </remarks>
+    private void DismissPopups()
+    {
+        for (var attempt = 0; attempt < 4; ++attempt)
+        {
+            var popups = this.Read(() => Injection.OtherToplevels(_root));
+            if (popups.Count == 0)
+                return;
+
+            foreach (var popup in popups)
+                this.Pump("closing a popup", () => Injection.Key(popup, KeyVal(Keys.Escape)));
+
+            this.Settle(150);
+        }
+    }
+
     private void Key(Keys key, uint modifiers = 0)
     {
         this.Pump($"the {key} key", () => Injection.Key(_root, KeyVal(key), modifiers));

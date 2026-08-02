@@ -65,6 +65,11 @@ public sealed class PaneView : Panel
 
     private readonly SidebarView _sidebar;
     private readonly FileGridView _grid;
+
+    /// <summary>The tab this pane shows, and its listing — the autopilot drives the active one.</summary>
+    internal FileTabViewModel TabForTest => _tab;
+
+    internal FileGridView GridForTest => _grid;
     private readonly GalleryView _gallery;
     private readonly SplitContainer _body;
 

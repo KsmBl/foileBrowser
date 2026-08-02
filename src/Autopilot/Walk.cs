@@ -63,9 +63,13 @@ internal sealed partial class Driver
         this.Settle(80);
     }
 
+    /// <summary>The listing gestures land in: whichever pane is active right now, never a cached one.</summary>
+    private FileGridView Grid => this.Read(() => _form.ActiveGridForTest)
+        ?? throw new InvalidOperationException("no listing in the window");
+
     private void Walk(string root)
     {
-        var grid = this.Part<FileGridView>();
+        var grid = this.Grid;
 
         // --- Listing and navigation -----------------------------------------------------------
 
@@ -286,6 +290,8 @@ internal sealed partial class Driver
 
         // --- Drag and drop --------------------------------------------------------------------------
 
+        this.WalkMore(root);
+
         this.Check("dragging a file off a row hands it to the drag machinery", () =>
         {
             this.GoHome(root);
@@ -305,9 +311,14 @@ internal sealed partial class Driver
             // protocol between windows, which gtk_main_do_event does not stand in for. What is
             // checked is that the gesture reached the grid, was recognised as a drag rather than a
             // band, and left the listing and the selection intact.
-            this.Note("the drop is not synthesised — GTK carries it over its own protocol");
+            // Left until last: without a drop the session GTK would have owned never ends, and every
+            // gesture after it lands somewhere other than where it was aimed.
+            this.Note("the drop is not synthesised — GTK carries it over its own protocol, "
+                + "and the unfinished session is why this runs last");
             ExpectTrue("the listing survived the gesture", this.Read(() => this.UiTab.Entries.Count) == rows.Count);
             ExpectTrue("and the file is still selected", this.Read(() => this.UiTab.SelectedEntry?.Name) == "dragme.txt");
         });
+
+
     }
 }
