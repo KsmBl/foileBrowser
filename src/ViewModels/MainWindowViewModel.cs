@@ -749,7 +749,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             ("terminal", "💻", "Open terminal here", OpenTerminalHereCommand, 15),
             ("pin", "⭐", "Pin current folder to favorites", PinFavoriteCommand, 15),
             ("newTab", "🗂️", "New tab (Ctrl+T) — drag a tab out to make a new pane", AddTabCommand, 15),
-            ("inspector", "🔍", "Toggle inspector (Ctrl+I)", ToggleInspectorCommand, 15),
+            // No inspector toggle: it is the one button that only repeated a View-menu entry and
+            // added nothing the menu (or Ctrl+I) does not already do. The two below are not the
+            // same case — they show the setting they change, which a menu entry cannot.
             ("sizeUnit", SizeUnitLabel, "Size units: binary (KiB) → decimal (KB) → bytes", CycleSizeUnitCommand, 12),
             ("dateFormat", DateFormatLabel, "Date format: absolute ↔ relative (e.g. 5 min ago)", CycleDateFormatCommand, 12),
             ("settings", "⚙️", "Settings", OpenSettingsCommand, 15),
@@ -1085,6 +1087,19 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
                         ImagePaths = images.Paths,
                     };
             }
+            else if (result.Kind == PreviewKind.Image && result.ImagePath is { } picture)
+            {
+                // One picture on its own is still one of a folder, and looking at it is looking
+                // through them: the rest of the folder becomes the strip underneath and the arrows
+                // step along it. A single path meant a strip with nothing to show and arrows with
+                // nowhere to go, which is what "no thumbnails below the image" was.
+                if (await SiblingPicturesAsync(picture, cts.Token) is { Count: > 1 } siblings)
+                    result = result with
+                    {
+                        ImagePaths = siblings,
+                        StartIndex = Math.Max(0, IndexOfPath(siblings, picture)),
+                    };
+            }
 
             if (!cts.Token.IsCancellationRequested)
                 Preview = result;
@@ -1092,6 +1107,50 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         catch (OperationCanceledException)
         {
             // A newer selection superseded this preview.
+        }
+    }
+
+    /// <summary>Where a path sits in a list, or -1; the list is a read-only view with no IndexOf.</summary>
+    private static int IndexOfPath(IReadOnlyList<string> paths, string path)
+    {
+        for (var i = 0; i < paths.Count; ++i)
+            if (string.Equals(paths[i], path, StringComparison.Ordinal))
+                return i;
+
+        return -1;
+    }
+
+    /// <summary>
+    /// Every picture in the folder holding <paramref name="picture"/>, in listing order.
+    /// </summary>
+    /// <remarks>
+    /// Costs one directory listing, which is the same listing already on screen — cheap enough to do
+    /// on every selection, and it is what makes the strip and the arrows mean anything for a single
+    /// file. An unreadable folder simply yields the one picture that was asked for.
+    /// </remarks>
+    private async Task<IReadOnlyList<string>> SiblingPicturesAsync(string picture, CancellationToken token)
+    {
+        if (Path.GetDirectoryName(picture) is not { Length: > 0 } folder)
+            return [picture];
+
+        try
+        {
+            var children = await _fileSystem.ListDirectoryAsync(folder, token);
+            var pictures = children
+                .Where(child => !child.IsDirectory && ImageSupport.NameAloneSaysPicture(child.FullPath))
+                .Select(child => child.FullPath)
+                .ToList();
+
+            // The file that was clicked always belongs in its own strip, whatever its name suggests:
+            // it is here because the preview already decoded it.
+            if (!pictures.Contains(picture, StringComparer.Ordinal))
+                pictures.Add(picture);
+
+            return pictures;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            return [picture];
         }
     }
 

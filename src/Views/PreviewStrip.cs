@@ -103,7 +103,11 @@ public sealed class PreviewStrip : OwnerDrawnControl
             if (i == _current)
                 g.FillRectangle(this.Theme.SelectionBackground, cell);
 
-            if (_thumbnails.Get(_paths[i]) is { } image)
+            // CurrentFrameOf resolves a decoded thumbnail to the frame due now. Handing the image
+            // itself to DrawImage draws nothing at all: every thumbnail arrives as an AnimatedImage,
+            // which has no pixels of its own — so the strip laid out its cells, highlighted the
+            // current one and painted no pictures in any of them.
+            if (this.CurrentFrameOf(_thumbnails.Get(_paths[i])) is { } image)
             {
                 // Fit inside the cell without distorting: a portrait and a landscape both stay square-on.
                 var scale = Math.Min((double)cell.Width / image.Width, (double)cell.Height / image.Height);

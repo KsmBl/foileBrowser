@@ -33,7 +33,27 @@ public enum PreviewScale
 /// </remarks>
 public sealed class PreviewPane : Panel
 {
-    private const int _BarHeight = 28;
+    /// <summary>The floor for the control strip, used before a font is known.</summary>
+    private const int _MinBarHeight = 28;
+
+    /// <summary>
+    /// How tall the control strip has to be for the widgets standing in it.
+    /// </summary>
+    /// <remarks>
+    /// A fixed 28 was shorter than a real drop-down needs once the application's font is any larger
+    /// than the toolkit's default, and a platform combo box given less room than it asks for does not
+    /// shrink its text — it clips it, so the scale mode read as "Fit" with its bottom third sliced
+    /// off. Derived from the font instead: points to pixels at 96 dpi, a line-height allowance, and
+    /// the chrome a drop-down draws around its label.
+    /// </remarks>
+    private int BarHeight
+    {
+        get
+        {
+            var pixels = this.Font.SizeInPoints * 96f / 72f;
+            return Math.Max(_MinBarHeight, (int)Math.Ceiling(pixels * 1.4f) + 12);
+        }
+    }
 
     private readonly Label _title = new() { Dock = DockStyle.Top, Bounds = new(0, 0, 0, 22), Padding = new(6, 4, 6, 0) };
     private readonly Label _info = new() { Dock = DockStyle.Top, Bounds = new(0, 0, 0, 20), ForeColor = Color.Gray, Padding = new(6, 0, 6, 4) };
@@ -48,7 +68,7 @@ public sealed class PreviewPane : Panel
     private readonly TableLayoutPanel _bar = new()
     {
         Dock = DockStyle.Top,
-        Bounds = new(0, 0, 0, _BarHeight),
+        Bounds = new(0, 0, 0, _MinBarHeight),
         ColumnCount = 5,
         RowCount = 1,
         Visible = false,
@@ -232,7 +252,9 @@ public sealed class PreviewPane : Panel
     public void Show(PreviewResult? preview)
     {
         _paths = preview?.ImagePaths ?? [];
-        _index = 0;
+        // Not necessarily the first: a picture picked out of a folder opens on itself, with the rest
+        // of the folder either side of it in the strip.
+        _index = _paths.Count == 0 ? 0 : Math.Clamp(preview?.StartIndex ?? 0, 0, _paths.Count - 1);
 
         _title.Text = preview?.Title ?? string.Empty;
         _info.Text = preview?.Info ?? string.Empty;
@@ -247,17 +269,17 @@ public sealed class PreviewPane : Panel
 
         if (preview.HasImage)
         {
-            _strip.SetItems(_paths, 0);
+            _strip.SetItems(_paths, _index);
             Ui.SetDockedExtent(_strip, preview.HasManyImages, PreviewStrip.CellHeight);
-            Ui.SetDockedExtent(_bar, true, _BarHeight);
-            this.ShowAt(0);
+            Ui.SetDockedExtent(_bar, true, this.BarHeight);
+            this.ShowAt(_index);
             return;
         }
 
         this.ReleaseImage();
         _view.Visible = false;
         Ui.SetDockedExtent(_strip, false, PreviewStrip.CellHeight);
-        Ui.SetDockedExtent(_bar, false, _BarHeight);
+        Ui.SetDockedExtent(_bar, false, this.BarHeight);
         _text.Text = preview.Text ?? string.Empty;
         _text.Visible = true;
         this.PerformLayout();
@@ -277,7 +299,7 @@ public sealed class PreviewPane : Panel
         _view.Visible = false;
         _text.Visible = false;
         Ui.SetDockedExtent(_strip, false, PreviewStrip.CellHeight);
-        Ui.SetDockedExtent(_bar, false, _BarHeight);
+        Ui.SetDockedExtent(_bar, false, this.BarHeight);
     }
 
     private void ReleaseImage()

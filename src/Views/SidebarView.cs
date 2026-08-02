@@ -19,10 +19,25 @@ public sealed class SidebarView : Panel
     private const int CapacityRowHeight = 44;
     private const int TreeHeight = 260;
 
+    private const int TwistyWidth = 18;
+
+    /// <summary>How far each level of folder nesting is inset.</summary>
+    private const int NestStep = 12;
+
     private readonly MainWindowViewModel _shell;
     private readonly FileTabViewModel _tab;
     private readonly List<Action> _cleanup = [];
     private readonly List<Action> _rowCleanup = [];
+
+    /// <summary>
+    /// The folder node standing behind each navigable row, kept across rebuilds so a branch someone
+    /// opened stays open when the sidebar is rebuilt for an unrelated reason (a volume appearing, a
+    /// favourite being pinned).
+    /// </summary>
+    private readonly Dictionary<string, FolderNodeViewModel> _nodes = new(StringComparer.Ordinal);
+
+    /// <summary>Branches whose child collection this pane is already listening to.</summary>
+    private readonly HashSet<FolderNodeViewModel> _watched = [];
 
     public SidebarView(MainWindowViewModel shell, FileTabViewModel tab)
     {
@@ -40,6 +55,7 @@ public sealed class SidebarView : Panel
             undo();
         _cleanup.Clear();
         _rowCleanup.Clear();
+        _watched.Clear();
     }
 
     private void Rebuild()
@@ -56,16 +72,21 @@ public sealed class SidebarView : Panel
         for (var index = 0; index < _shell.Sections.Count; ++index)
         {
             var section = _shell.Sections[index];
+
+            // The folder tree is no longer a box of its own below the drives: every navigable row in
+            // the pane opens into its own folders, which is the one thing the separate tree did that
+            // the pane could not. A section holding nothing but that tree has nothing left to show.
+            if (section.IsTree)
+                continue;
+
             rows.Add(this.BuildHeader(section, index));
 
-            if (section.IsTree)
-            {
-                rows.Add(this.BuildTree());
-                continue;
-            }
-
             foreach (var item in section.Items)
+            {
                 rows.Add(this.BuildRow(item));
+                if (this.NodeFor(item) is { IsExpanded: true } node)
+                    this.AddChildRows(rows, node, depth: 1);
+            }
         }
 
         rows.Reverse();
@@ -109,6 +130,107 @@ public sealed class SidebarView : Panel
         return header;
     }
 
+    // ---- the fused folder tree ----
+
+    /// <summary>
+    /// The folder node behind a navigable row, or null for a row with nowhere to descend into.
+    /// </summary>
+    /// <remarks>
+    /// Kept in a map rather than on the item so it survives the sidebar being rebuilt: the item view
+    /// models are recreated whenever a volume appears or a favourite is pinned, and an open branch
+    /// closing itself because something unrelated changed would be its own bug.
+    /// </remarks>
+    private FolderNodeViewModel? NodeFor(SidebarItemViewModel item)
+    {
+        if (!item.IsNavigable || item.NeedsMounting || item.Path.Length == 0)
+            return null;
+
+        if (_nodes.TryGetValue(item.Path, out var existing))
+            return existing;
+
+        var node = new FolderNodeViewModel(item.Name, item.Path);
+        _nodes[item.Path] = node;
+        return node;
+    }
+
+    /// <summary>Emits a row for every child of an open branch, and for the branches open inside it.</summary>
+    private void AddChildRows(List<Control> rows, FolderNodeViewModel parent, int depth)
+    {
+        foreach (var child in parent.Children)
+        {
+            // The placeholder that makes the twisty appear before anything has been read.
+            if (child.Path.Length == 0)
+                continue;
+
+            rows.Add(this.BuildFolderRow(child, depth));
+            if (child.IsExpanded)
+                this.AddChildRows(rows, child, depth + 1);
+        }
+    }
+
+    /// <summary>One folder inside an opened branch: a twisty, an icon and a name, inset by its depth.</summary>
+    private Control BuildFolderRow(FolderNodeViewModel node, int depth)
+    {
+        var label = new IconLabel { Text = node.Name, Image = Icons.FolderIcon, Dock = DockStyle.Fill };
+        label.Click += (_, _) => _ = _tab.NavigateToAsync(node.Path);
+        FileDrop.Accept(label, _shell, () => node.Path);
+
+        return this.WrapWithTwisty(label, node, depth, RowHeight);
+    }
+
+    /// <summary>
+    /// Puts a disclosure triangle to the left of a row and insets it for its depth.
+    /// </summary>
+    /// <remarks>
+    /// A separate control rather than a glyph drawn into the row's own caption, so the two hit areas
+    /// are the two controls: pressing the triangle opens the branch and pressing anything else goes
+    /// there. Sharing one surface would mean hit-testing a caption whose text the row is free to
+    /// change.
+    /// </remarks>
+    private Control WrapWithTwisty(Control content, FolderNodeViewModel? node, int depth, int height)
+    {
+        var row = Place(new Panel(), height);
+
+        // Docked siblings claim their edge in reverse order, so the content is added before the
+        // furniture that has to sit beside it.
+        row.Controls.Add(content);
+
+        if (node is not null)
+        {
+            var twisty = new IconLabel
+            {
+                Text = node.IsExpanded ? "\u25be" : "\u25b8",
+                TextAlign = ContentAlignment.MiddleCenter,
+                ForeColor = Color.Gray,
+                Dock = DockStyle.Left,
+                Bounds = new Rectangle(0, 0, TwistyWidth, height),
+            };
+            twisty.Click += (_, _) => this.Toggle(node);
+            row.Controls.Add(twisty);
+        }
+
+        if (depth > 0)
+            row.Controls.Add(new Panel { Dock = DockStyle.Left, Bounds = new Rectangle(0, 0, depth * NestStep, height) });
+
+        return row;
+    }
+
+    /// <summary>Opens or closes a branch and redraws the pane around it.</summary>
+    private void Toggle(FolderNodeViewModel node)
+    {
+        node.IsExpanded = !node.IsExpanded;
+
+        // Children arrive asynchronously the first time a branch opens, so the rebuild that shows
+        // them has to be driven by the collection. The subscription belongs to the pane and not to
+        // the rows: _rowCleanup is emptied by every rebuild, and a watcher filed there would be torn
+        // down by the very rebuild that follows this line — the branch would open onto nothing and
+        // stay that way.
+        if (_watched.Add(node))
+            _cleanup.Add(Ui.WatchList(node.Children, this.Rebuild));
+
+        this.Rebuild();
+    }
+
     // ---- navigable rows ----
 
     private Control BuildRow(SidebarItemViewModel item)
@@ -148,7 +270,7 @@ public sealed class SidebarView : Panel
         if (!item.IsNavigable)
         {
             tile.ForeColor = Color.Gray;
-            return tile;
+            return tile; // a disk grouping label: nothing to open, nothing to descend into
         }
 
         tile.Click += (_, _) => _tab.OpenSidebarItemCommand.Execute(item);
@@ -158,7 +280,10 @@ public sealed class SidebarView : Panel
         if (item.Path.Length > 0)
             FileDrop.Accept(tile, _shell, () => item.Path);
 
-        return tile;
+        // …and, being a folder, it opens into its own folders right here rather than in a tree of its
+        // own further down the pane.
+        tile.Dock = DockStyle.Fill;
+        return this.WrapWithTwisty(tile, this.NodeFor(item), depth: 0, item.HasCapacity ? CapacityRowHeight : RowHeight);
     }
 
     private static ContextMenuStrip BuildRowMenu(SidebarItemViewModel item)
@@ -180,49 +305,6 @@ public sealed class SidebarView : Panel
             menu.Items.Add(Bound("Unpin from favorites", item.UnpinCommand, item));
 
         return menu;
-    }
-
-    // ---- folder tree ----
-
-    private Control BuildTree()
-    {
-        var tree = Place(new TreeView { ShowRootLines = true }, TreeHeight);
-
-        _rowCleanup.Add(Ui.WatchList(_shell.TreeRoots, () =>
-        {
-            tree.Nodes.Clear();
-            foreach (var root in _shell.TreeRoots)
-                tree.Nodes.Add(this.BuildNode(root));
-        }));
-
-        // Expanding asks the model to enumerate that branch; the children arrive asynchronously and
-        // the collection watcher below swaps the placeholder out for them.
-        tree.BeforeExpand += (_, e) =>
-        {
-            if (e.Node.Tag is FolderNodeViewModel node)
-                node.IsExpanded = true;
-        };
-        tree.AfterSelect += (_, e) =>
-        {
-            if (e.Node.Tag is FolderNodeViewModel { Path.Length: > 0 } node)
-                _ = _tab.NavigateToAsync(node.Path);
-        };
-
-        return tree;
-    }
-
-    private TreeNode BuildNode(FolderNodeViewModel model)
-    {
-        var node = new TreeNode(model.Name) { Tag = model };
-
-        _rowCleanup.Add(Ui.WatchList(model.Children, () =>
-        {
-            node.Nodes.Clear();
-            foreach (var child in model.Children)
-                node.Nodes.Add(this.BuildNode(child));
-        }));
-
-        return node;
     }
 
     // ---- item helpers ----

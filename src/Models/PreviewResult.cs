@@ -31,8 +31,19 @@ public sealed record PreviewResult
     /// </summary>
     public IReadOnlyList<string> ImagePaths { get; init; } = [];
 
-    /// <summary>The first image, which is the only one a single-file preview has.</summary>
-    public string? ImagePath => ImagePaths.Count > 0 ? ImagePaths[0] : null;
+    /// <summary>
+    /// Which of <see cref="ImagePaths"/> to open on.
+    /// </summary>
+    /// <remarks>
+    /// Not always the first. Picking one photograph out of a folder shows that photograph, with the
+    /// rest of the folder alongside it in the strip — so the list starts at the top of the folder and
+    /// the picture that was actually clicked is somewhere in the middle of it.
+    /// </remarks>
+    public int StartIndex { get; init; }
+
+    /// <summary>The image a single-file preview is of — the one that was asked for.</summary>
+    public string? ImagePath =>
+        ImagePaths.Count > 0 ? ImagePaths[Math.Clamp(StartIndex, 0, ImagePaths.Count - 1)] : null;
 
     public bool HasText => !string.IsNullOrEmpty(Text);
     public bool HasImage => ImagePaths.Count > 0;

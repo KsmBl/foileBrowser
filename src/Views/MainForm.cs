@@ -36,7 +36,9 @@ public sealed partial class MainForm : Form
     /// wanted more. Here each is a piece of furniture the user can drag to another edge, tear off into
     /// a window of its own, or auto-hide — and where they are put is remembered.
     /// </remarks>
-    private readonly DockPanel _panels = new() { Dock = DockStyle.Fill };
+    // No caption over the file panes: it is the one bar in the window that named something the tabs
+    // beneath it already name, and a document area cannot be closed or floated as a group anyway.
+    private readonly DockPanel _panels = new() { Dock = DockStyle.Fill, ShowDocumentCaption = false };
 
     private readonly DockContent _filesContent = new("Files") { PersistId = "files", AllowClose = false };
     private readonly DockContent _previewContent = new("Preview") { PersistId = "preview" };
